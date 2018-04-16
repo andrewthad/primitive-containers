@@ -1,0 +1,32 @@
+name: primitive-containers
+version: 0.1.0.0
+description: Please see the README on Github at <https://github.com/andrewthad/primitive-containers#readme>
+homepage: https://github.com/andrewthad/primitive-containers#readme
+bug-reports: https://github.com/andrewthad/primitive-containers/issues
+author: Andrew Martin
+maintainer: andrew.thaddeus@gmail.com
+copyright: 2018 Andrew Martin
+license: BSD3
+license-file: LICENSE
+build-type: Simple
+cabal-version: >= 1.10
+
+extra-source-files:
+    ChangeLog.md
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/andrewthad/primitive-containers
+
+library
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+  exposed-modules:
+    Data.Set.Unboxed
+    Data.Set.Lifted
+    Data.Set.Unlifted
+  default-language: Haskell2010
+
