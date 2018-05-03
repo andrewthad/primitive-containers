@@ -3,6 +3,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+{-# OPTIONS_GHC -Wall #-}
 module Set
   ( Set
   , empty
@@ -23,12 +25,9 @@ import Prelude hiding (compare,showsPrec,concat)
 import qualified Prelude as P
 
 import Value (Arr,Ctx)
-import Data.Semigroup (Semigroup)
 import Control.Monad.ST (ST,runST)
 import Data.Foldable (foldl')
 import qualified Value as A
-import qualified Data.Semigroup as SG
-import qualified GHC.Exts as E
 
 newtype Set a = Set (Arr a)
 
@@ -45,10 +44,54 @@ compare :: (Ctx a, Ord a) => Set a -> Set a -> Ordering
 compare (Set x) (Set y) = compareArr x y
 
 fromListN :: (Ctx a, Ord a) => Int -> [a] -> Set a
-fromListN _ = fromList
+fromListN n xs = -- fromList xs
+  case xs of
+    [] -> empty
+    y : ys ->
+      let (leftovers, result) = fromAscList (max 1 n) y ys
+       in concat (result : P.map singleton leftovers)
 
 fromList :: (Ctx a, Ord a) => [a] -> Set a
-fromList = concat . P.map singleton
+fromList xs = -- concat (P.map singleton xs)
+  case xs of
+    [] -> empty
+    y : ys ->
+      let (leftovers, result) = fromAscList 1 y ys
+       in concat (result : P.map singleton leftovers)
+
+fromAscList :: forall a. (Ctx a, Ord a)
+  => Int -- initial size of buffer, must be 1 or higher
+  -> a -- first element
+  -> [a] -- elements
+  -> ([a], Set a)
+fromAscList !n x0 xs0 = runST $ do
+  marr0 <- A.new n
+  A.write marr0 0 x0
+  let go :: forall s. Int -> a -> Int -> A.MArr s a -> [a] -> ST s ([a], Set a)
+      go !ix !_ !sz !marr [] = if ix == sz
+        then do
+          arr <- A.unsafeFreeze marr
+          return ([],Set arr)
+        else do
+          marr' <- A.resize marr ix
+          arr <- A.unsafeFreeze marr'
+          return ([],Set arr)
+      go !ix !old !sz !marr (x : xs) = if ix < sz
+        then do
+          case P.compare x old of
+            GT -> do
+              A.write marr ix x
+              go (ix + 1) x sz marr xs
+            EQ -> go ix x sz marr xs
+            LT -> do
+              marr' <- A.resize marr ix
+              arr <- A.unsafeFreeze marr'
+              return (x : xs,Set arr)
+        else do
+          let sz' = sz * 2
+          marr' <- A.resize marr sz'
+          go ix old sz' marr' (x : xs)
+  go 1 x0 n marr0 xs0
 
 showsPrec :: (Ctx a, Show a) => Int -> Set a -> ShowS
 showsPrec p xs = showParen (p > 10) $
@@ -108,36 +151,40 @@ unionArr :: (Ctx a, Ord a)
   => Arr a -- array x
   -> Arr a -- array y
   -> Arr a
-unionArr arrA arrB = runST $ do
-  let !szA = A.size arrA
-      !szB = A.size arrB
-  arrDst <- A.new (szA + szB)
-  let go !ixA !ixB !ixDst = if ixA < szA
-        then if ixB < szB
-          then do
-            let !a = A.index arrA ixA
-                !b = A.index arrB ixB
-            case P.compare a b of
-              EQ -> do
-                A.write arrDst ixDst a
-                go (ixA + 1) (ixB + 1) (ixDst + 1)
-              LT -> do
-                A.write arrDst ixDst a
-                go (ixA + 1) ixB (ixDst + 1)
-              GT -> do
-                A.write arrDst ixDst b
-                go ixA (ixB + 1) (ixDst + 1)
-          else do
-            A.copy arrDst ixDst arrA ixA (szA - ixA)
-            return (ixDst + (szA - ixA))
-        else if ixB < szB
-          then do
-            A.copy arrDst ixDst arrB ixB (szB - ixB)
-            return (ixDst + (szB - ixB))
-          else return ixDst
-  total <- go 0 0 0
-  arrFinal <- A.resize arrDst total
-  A.unsafeFreeze arrFinal
+unionArr arrA arrB
+  | szA < 1 = arrB
+  | szB < 1 = arrA
+  | otherwise = runST $ do
+      arrDst <- A.new (szA + szB)
+      let go !ixA !ixB !ixDst = if ixA < szA
+            then if ixB < szB
+              then do
+                let !a = A.index arrA ixA
+                    !b = A.index arrB ixB
+                case P.compare a b of
+                  EQ -> do
+                    A.write arrDst ixDst a
+                    go (ixA + 1) (ixB + 1) (ixDst + 1)
+                  LT -> do
+                    A.write arrDst ixDst a
+                    go (ixA + 1) ixB (ixDst + 1)
+                  GT -> do
+                    A.write arrDst ixDst b
+                    go ixA (ixB + 1) (ixDst + 1)
+              else do
+                A.copy arrDst ixDst arrA ixA (szA - ixA)
+                return (ixDst + (szA - ixA))
+            else if ixB < szB
+              then do
+                A.copy arrDst ixDst arrB ixB (szB - ixB)
+                return (ixDst + (szB - ixB))
+              else return ixDst
+      total <- go 0 0 0
+      arrFinal <- A.resize arrDst total
+      A.unsafeFreeze arrFinal
+  where
+  !szA = A.size arrA
+  !szB = A.size arrB
 
 size :: Ctx a => Set a -> Int
 size (Set arr) = A.size arr

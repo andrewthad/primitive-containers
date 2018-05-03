@@ -93,4 +93,5 @@ benchmark gauge
     , ghc-prim
     , gauge
     , random
+    , containers
 

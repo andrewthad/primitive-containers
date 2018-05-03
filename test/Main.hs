@@ -6,29 +6,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-import Control.Applicative
-import Control.Monad
-import Control.Monad.Primitive
-import Control.Monad.ST
-import Data.Monoid
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 import Data.Primitive
-import Data.Primitive.Array
-import Data.Primitive.ByteArray
-import Data.Primitive.Types
-import Data.Primitive.SmallArray
-import Data.Primitive.PrimArray
 import Data.Word
 import Data.Proxy (Proxy(..))
-import Data.Function (on)
 import Data.Int
 
 import Test.Tasty (defaultMain,testGroup,TestTree)
-import Test.QuickCheck (Arbitrary,Arbitrary1,Gen,(===))
+import Test.QuickCheck (Arbitrary,(===))
 import qualified Test.Tasty.QuickCheck as TQC
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Classes as QCC
-import qualified Test.QuickCheck.Classes.IsList as QCCL
-import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Data.Map as M
 import qualified GHC.Exts as E
@@ -58,11 +47,14 @@ main = defaultMain $ testGroup "properties"
       ]
     , testGroup "Map"
       [ testGroup "Unboxed"
-        [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
-        , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
-        , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
-        , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
-        , TQC.testProperty "lookup" (lookupProp @Word32 @Int E.fromList DMUU.lookup)
+        [ testGroup "Unboxed"
+          [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
+          , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
+          , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (DMUU.Map Word32 Word)))
+          , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
+          , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
+          , TQC.testProperty "lookup" (lookupProp @Word32 @Int E.fromList DMUU.lookup)
+          ]
         ]
       ]
     ]
@@ -79,13 +71,6 @@ lookupProp containerFromList containerLookup = QC.property $ \(xs :: [(k,v)]) ->
       c = containerFromList xs
    in all (\(x,_) -> containerLookup x c == M.lookup x ys) xs === True
 
-byteArrayEqProp :: QC.Property
-byteArrayEqProp = QC.property $ \(xs :: [Word8]) (ys :: [Word8]) ->
-  (compareLengthFirst xs ys == EQ) === (byteArrayFromList xs == byteArrayFromList ys)
-
-compareLengthFirst :: [Word8] -> [Word8] -> Ordering
-compareLengthFirst xs ys = (compare `on` length) xs ys <> compare xs ys
-
 lawsToTest :: QCC.Laws -> TestTree
 lawsToTest (QCC.Laws name pairs) = testGroup name (map (uncurry TQC.testProperty) pairs)
 
@@ -97,6 +82,9 @@ instance (Arbitrary a, Ord a) => Arbitrary (DSL.Set a) where
 
 instance (Arbitrary k, Prim k, Ord k, Arbitrary v, Prim v) => Arbitrary (DMUU.Map k v) where
   arbitrary = fmap fromList QC.arbitrary
+
+instance Semigroup Word where
+  w <> _ = w
 
 instance Semigroup Int where
   (<>) = (+)

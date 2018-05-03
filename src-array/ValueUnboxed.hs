@@ -1,5 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 
+{-# OPTIONS_GHC -O2 #-}
+
 module ValueUnboxed where
 
 import Control.Monad.ST (ST)

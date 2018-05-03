@@ -1,10 +1,10 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 
--- The simplifiable class constraints warning is suppress because
+-- The simplifiable class constraints warning is suppressed because
 -- these redundant Always constraints are needed to make backpack 
 -- see that type signatures match up.
-{-# OPTIONS_GHC -fno-warn-simplifiable-class-constraints #-}
+{-# OPTIONS_GHC -O2 -fno-warn-simplifiable-class-constraints #-}
 
 module ValueLifted where
 
@@ -42,6 +42,9 @@ resize src sz = do
   dst <- newArray sz errorThunk
   copyMutableArray dst 0 src 0 sz
   return dst
+
+cloneMut :: Always a => MutableArray s a -> Int -> Int -> ST s (MutableArray s a)
+cloneMut = cloneMutableArray
 
 copy :: Always a => MutableArray s a -> Int -> Array a -> Int -> Int -> ST s ()
 copy = copyArray
