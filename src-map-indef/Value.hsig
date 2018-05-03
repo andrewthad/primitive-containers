@@ -1,0 +1,24 @@
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE UndecidableInstances #-}
+
+signature Value where
+
+import Data.Kind (Constraint)
+import Control.Monad.ST (ST)
+
+data Arr :: * -> *
+data MArr :: * -> * -> *
+data Ctx :: * -> Constraint
+
+instance (Ctx a, Eq a) => Eq (Arr a)
+
+new :: Ctx a => Int -> ST s (MArr s a)
+index :: Ctx a => Arr a -> Int -> a
+read :: Ctx a => MArr s a -> Int -> ST s a
+write :: Ctx a => MArr s a -> Int -> a -> ST s ()
+resize :: Ctx a => MArr s a -> Int -> ST s (MArr s a)
+size :: Ctx a => Arr a -> Int
+unsafeFreeze :: MArr s a -> ST s (Arr a)
+copy :: Ctx a => MArr s a -> Int -> Arr a -> Int -> Int -> ST s ()
+map :: (Ctx a, Ctx b) => (a -> b) -> Arr a -> Arr b
+

@@ -37,3 +37,6 @@ size = sizeofPrimArray
 foldr :: Prim a => (a -> b -> b) -> b -> PrimArray a -> b
 foldr = foldrPrimArray
 
+map :: (Prim a, Prim b) => (a -> b) -> PrimArray a -> PrimArray b
+map = mapPrimArray
+

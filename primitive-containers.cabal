@@ -26,15 +26,19 @@ library
       base >=4.7 && <5
     , primitive
     , set-indef
+    , map-indef
     , array-unboxed
   mixins:
       set-indef (Set as Internal.Set.Unboxed)
         requires (Value as ValueUnboxed)
     , set-indef (Set as Internal.Set.Lifted)
         requires (Value as ValueLifted)
+    , map-indef (Map as Internal.Map.Unboxed.Unboxed)
+        requires (Value as ValueUnboxed,Key as ValueUnboxed)
   exposed-modules:
     Data.Set.Unboxed
     Data.Set.Lifted
+    Data.Map.Unboxed.Unboxed
   default-language: Haskell2010
 
 library set-indef
@@ -42,6 +46,13 @@ library set-indef
   signatures: Value
   exposed-modules: Set
   hs-source-dirs: src-set-indef
+  default-language: Haskell2010
+
+library map-indef
+  build-depends: base
+  signatures: Key, Value
+  exposed-modules: Map
+  hs-source-dirs: src-map-indef
   default-language: Haskell2010
 
 library array-unboxed
@@ -58,12 +69,13 @@ test-suite test
   main-is: Main.hs
   build-depends:
       base
+    , QuickCheck
+    , containers
+    , primitive
     , primitive-containers
     , quickcheck-classes
     , tasty
     , tasty-quickcheck
-    , primitive
-    , QuickCheck
   ghc-options: -Wall -O2
   default-language: Haskell2010
 
