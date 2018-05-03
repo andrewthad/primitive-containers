@@ -33,8 +33,8 @@ instance Ord a => Ord (Set a) where
 
 instance Ord a => E.IsList (Set a) where
   type Item (Set a) = a
-  fromListN n xs = Set (I.fromListN n (E.coerce xs))
-  fromList xs = Set (I.fromList (E.coerce xs))
+  fromListN n = Set . I.fromListN n
+  fromList = Set . I.fromList
   toList (Set s) = I.toList s
 
 instance Show a => Show (Set a) where

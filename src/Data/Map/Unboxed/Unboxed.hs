@@ -6,6 +6,9 @@ module Data.Map.Unboxed.Unboxed
   ( Map
   , singleton
   , lookup
+  , fromList
+  , fromListAppend
+  , size
   ) where
 
 import Prelude hiding (lookup)
@@ -23,6 +26,7 @@ instance (Prim k, Ord k, Prim v, Semigroup v) => Semigroup (Map k v) where
 instance (Prim k, Ord k, Prim v, Monoid v, Semigroup v) => Monoid (Map k v) where
   mempty = Map I.empty
   mappend = (SG.<>)
+  mconcat = Map . I.concat . E.coerce
 
 instance (Prim k, Eq k, Prim v, Eq v) => Eq (Map k v) where
   Map x == Map y = I.equals x y
@@ -44,4 +48,13 @@ lookup a (Map s) = I.lookup a s
 
 singleton :: (Prim k, Prim v) => k -> v -> Map k v
 singleton k v = Map (I.singleton k v)
+
+fromList :: (Prim k, Ord k, Prim v) => [(k,v)] -> Map k v
+fromList = Map . I.fromList
+
+fromListAppend :: (Prim k, Ord k, Prim v, Semigroup v) => [(k,v)] -> Map k v
+fromListAppend = Map . I.fromListAppend
+
+size :: Prim v => Map k v -> Int
+size (Map m) = I.size m
 

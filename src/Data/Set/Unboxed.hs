@@ -34,8 +34,8 @@ instance (Prim a, Ord a) => Ord (Set a) where
 
 instance (Prim a, Ord a) => E.IsList (Set a) where
   type Item (Set a) = a
-  fromListN n xs = Set (I.fromListN n (E.coerce xs))
-  fromList xs = Set (I.fromList (E.coerce xs))
+  fromListN n = Set . I.fromListN n
+  fromList = Set . I.fromList
   toList (Set s) = I.toList s
 
 instance (Prim a, Show a) => Show (Set a) where

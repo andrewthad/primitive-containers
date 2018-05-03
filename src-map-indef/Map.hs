@@ -15,20 +15,25 @@ module Map
   , compare
   , fromListN
   , fromList
+  , fromListAppend
   , toList
+  , concat
+  , size
   ) where
 
-import Prelude hiding (compare,showsPrec,lookup,map)
-import qualified Prelude as P
+import Prelude hiding (compare,showsPrec,lookup,map,concat)
 
 import Control.Applicative (liftA2)
 import Control.Monad.ST (ST,runST)
 import Data.Bifunctor (second)
 import Data.Semigroup (Semigroup)
-import qualified Key as K
-import qualified Value as V
+import Data.Foldable (foldl')
+import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
+import qualified Key as K
+import qualified Prelude as P
+import qualified Value as V
 
 data Map k v = Map
   {-# UNPACK #-} !(K.Arr k)
@@ -62,10 +67,10 @@ fromListN :: (K.Ctx k, Ord k, V.Ctx v) => Int -> [(k,v)] -> Map k v
 fromListN _ = fromList
 
 fromList :: (K.Ctx k, Ord k, V.Ctx v) => [(k,v)] -> Map k v
-fromList = foldr (\(k,v) acc -> appendWith (\_ a -> a) (singleton k v) acc) empty
+fromList = concatWith (\_ a -> a) . P.map (uncurry singleton)
 
 fromListAppend :: (K.Ctx k, Ord k, V.Ctx v, Semigroup v) => [(k,v)] -> Map k v
-fromListAppend = foldr (\(k,v) acc -> append (singleton k v) acc) empty
+fromListAppend = concat . P.map (uncurry singleton)
 
 map :: (V.Ctx v, V.Ctx w) => (v -> w) -> Map k v -> Map k w
 map f (Map k v) = Map k (V.map f v)
@@ -87,6 +92,22 @@ foldrWithKey f z (Map keys vals) =
                 !v = V.index vals i
              in f k v (go (i + 1))
    in go 0
+
+concat :: (K.Ctx k, Ord k, V.Ctx v, Semigroup v) => [Map k v] -> Map k v
+concat = concatWith (SG.<>)
+
+concatWith :: forall k v. (K.Ctx k, Ord k, V.Ctx v) => (v -> v -> v) -> [Map k v] -> Map k v
+concatWith combine = go [] where
+  go :: [Map k v] -> [Map k v] -> Map k v
+  go !stack [] = foldl' (appendWith combine) empty (L.reverse stack)
+  go !stack (x : xs) = if size x > 0
+    then go (pushStack x stack) xs
+    else go stack xs
+  pushStack :: Map k v -> [Map k v] -> [Map k v]
+  pushStack x [] = [x]
+  pushStack x (s : ss) = if size x >= size s
+    then pushStack (appendWith combine s x) ss
+    else x : s : ss
 
 appendWith :: (K.Ctx k, V.Ctx v, Ord k) => (v -> v -> v) -> Map k v -> Map k v -> Map k v
 appendWith combine (Map ksA vsA) (Map ksB vsB) =
@@ -159,3 +180,6 @@ lookup a (Map arr vals) = go 0 (V.size vals - 1) where
             EQ -> Just (V.index vals mid)
             GT -> go (mid + 1) end
 {-# INLINEABLE lookup #-}
+
+size :: V.Ctx v => Map k v -> Int
+size (Map _ arr) = V.size arr
