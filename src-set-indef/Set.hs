@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Set
   ( Set
   , empty
@@ -14,14 +15,17 @@ module Set
   , fromListN
   , fromList
   , toList
+  , size
+  , concat
   ) where
 
-import Prelude hiding (compare,showsPrec)
+import Prelude hiding (compare,showsPrec,concat)
 import qualified Prelude as P
 
 import Value (Arr,Ctx)
 import Data.Semigroup (Semigroup)
 import Control.Monad.ST (ST,runST)
+import Data.Foldable (foldl')
 import qualified Value as A
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
@@ -41,10 +45,10 @@ compare :: (Ctx a, Ord a) => Set a -> Set a -> Ordering
 compare (Set x) (Set y) = compareArr x y
 
 fromListN :: (Ctx a, Ord a) => Int -> [a] -> Set a
-fromListN _ = foldr (\a acc -> append (singleton a) acc) empty
+fromListN _ = fromList
 
 fromList :: (Ctx a, Ord a) => [a] -> Set a
-fromList = foldr (\a acc -> append (singleton a) acc) empty
+fromList = concat . P.map singleton
 
 showsPrec :: (Ctx a, Show a) => Int -> Set a -> ShowS
 showsPrec p xs = showParen (p > 10) $
@@ -66,6 +70,19 @@ member a (Set arr) = go 0 (A.size arr - 1) where
             EQ -> True
             GT -> go (mid + 1) end
 {-# INLINEABLE member #-}
+
+concat :: forall a. (Ctx a, Ord a) => [Set a] -> Set a
+concat = go [] where
+  go :: [Set a] -> [Set a] -> Set a
+  go !stack [] = foldl' append empty stack
+  go !stack (x : xs) = if size x > 0
+    then go (pushStack x stack) xs
+    else go stack xs
+  pushStack :: Set a -> [Set a] -> [Set a]
+  pushStack x [] = [x]
+  pushStack x (s : ss) = if size x >= size s
+    then pushStack (append x s) ss
+    else x : s : ss
 
 compareArr :: forall a. (Ctx a, Ord a)
   => Arr a
@@ -122,6 +139,7 @@ unionArr arrA arrB = runST $ do
   arrFinal <- A.resize arrDst total
   A.unsafeFreeze arrFinal
 
-
+size :: Ctx a => Set a -> Int
+size (Set arr) = A.size arr
 
 

@@ -9,18 +9,22 @@ module Data.Set.Unboxed
   ) where
 
 import Data.Primitive.Types (Prim)
-import qualified GHC.Exts as E
+import qualified Data.Foldable as F
 import qualified Data.Semigroup as SG
+import qualified GHC.Exts as E
 import qualified Internal.Set.Unboxed as I
 
 newtype Set a = Set (I.Set a)
 
 instance (Prim a, Ord a) => Semigroup (Set a) where
   Set x <> Set y = Set (I.append x y)
+  stimes = SG.stimesIdempotentMonoid
+  sconcat xs = Set (I.concat (E.coerce (F.toList xs)))
 
 instance (Prim a, Ord a) => Monoid (Set a) where
   mempty = Set I.empty
   mappend = (SG.<>)
+  mconcat xs = Set (I.concat (E.coerce xs))
 
 instance (Prim a, Eq a) => Eq (Set a) where
   Set x == Set y = I.equals x y
@@ -30,8 +34,8 @@ instance (Prim a, Ord a) => Ord (Set a) where
 
 instance (Prim a, Ord a) => E.IsList (Set a) where
   type Item (Set a) = a
-  fromListN _ = foldMap singleton
-  fromList = foldMap singleton
+  fromListN n xs = Set (I.fromListN n (E.coerce xs))
+  fromList xs = Set (I.fromList (E.coerce xs))
   toList (Set s) = I.toList s
 
 instance (Prim a, Show a) => Show (Set a) where
