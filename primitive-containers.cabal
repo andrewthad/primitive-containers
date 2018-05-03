@@ -24,9 +24,46 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , primitive
+    , set-indef
+    , array-unboxed
+  mixins:
+      set-indef (Set as Internal.Set.Unboxed)
+        requires (Value as ValueUnboxed)
+    , set-indef (Set as Internal.Set.Lifted)
+        requires (Value as ValueLifted)
   exposed-modules:
     Data.Set.Unboxed
     Data.Set.Lifted
-    Data.Set.Unlifted
+  default-language: Haskell2010
+
+library set-indef
+  build-depends: base
+  signatures: Value
+  exposed-modules: Set
+  hs-source-dirs: src-set-indef
+  default-language: Haskell2010
+
+library array-unboxed
+  build-depends: base, primitive
+  exposed-modules:
+      ValueUnboxed
+    , ValueLifted
+  hs-source-dirs: src-array
+  default-language: Haskell2010
+
+test-suite test
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Main.hs
+  build-depends:
+      base
+    , primitive-containers
+    , quickcheck-classes
+    , tasty
+    , tasty-quickcheck
+    , primitive
+    , QuickCheck
+  ghc-options: -Wall -O2
   default-language: Haskell2010
 
