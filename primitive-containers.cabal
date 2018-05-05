@@ -35,10 +35,15 @@ library
         requires (Value as ValueLifted)
     , map-indef (Map as Internal.Map.Unboxed.Unboxed)
         requires (Value as ValueUnboxed,Key as ValueUnboxed)
+    , map-indef (Map as Internal.Map.Unboxed.Lifted)
+        requires (Value as ValueLifted,Key as ValueUnboxed)
+    , map-indef (Map as Internal.Map.Unboxed.Unlifted)
+        requires (Value as ValueUnlifted,Key as ValueUnlifted)
   exposed-modules:
     Data.Set.Unboxed
     Data.Set.Lifted
     Data.Map.Unboxed.Unboxed
+    Data.Map.Unboxed.Lifted
   default-language: Haskell2010
 
 library set-indef
@@ -60,6 +65,7 @@ library array-unboxed
   exposed-modules:
       ValueUnboxed
     , ValueLifted
+    , ValueUnlifted
   hs-source-dirs: src-array
   default-language: Haskell2010
 

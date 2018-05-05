@@ -1,3 +1,6 @@
 [submodule "primitive"]
 	path = primitive
 	url = https://github.com/andrewthad/primitive
+[submodule "primitive-checked"]
+	path = primitive-checked
+	url = https://github.com/andrewthad/primitive-checked

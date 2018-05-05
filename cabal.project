@@ -1,1 +1,1 @@
-packages: . ./primitive
+packages: . ./primitive ./primitive-checked

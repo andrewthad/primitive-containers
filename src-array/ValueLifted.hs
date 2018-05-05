@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleInstances #-}
 
@@ -7,6 +8,8 @@
 {-# OPTIONS_GHC -O2 -fno-warn-simplifiable-class-constraints #-}
 
 module ValueLifted where
+
+import Prelude hiding (map)
 
 import Control.Monad.ST (ST)
 import Data.Primitive.Types
@@ -38,9 +41,9 @@ write :: Always a => MutableArray s a -> Int -> a -> ST s ()
 write = writeArray
 
 resize :: Always a => MutableArray s a -> Int -> ST s (MutableArray s a)
-resize src sz = do
+resize !src !sz = do
   dst <- newArray sz errorThunk
-  copyMutableArray dst 0 src 0 sz
+  copyMutableArray dst 0 src 0 (min sz (sizeofMutableArray src))
   return dst
 
 cloneMut :: Always a => MutableArray s a -> Int -> Int -> ST s (MutableArray s a)
@@ -57,4 +60,7 @@ size = sizeofArray
 
 foldr :: Always a => (a -> b -> b) -> b -> Array a -> b
 foldr = F.foldr
+
+map :: (Always a, Always b) => (a -> b) -> Array a -> Array b
+map = fmap
 

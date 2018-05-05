@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -O2 -Wall #-}
 module Set
   ( Set
   , empty
@@ -52,12 +52,7 @@ fromListN n xs = -- fromList xs
        in concat (result : P.map singleton leftovers)
 
 fromList :: (Ctx a, Ord a) => [a] -> Set a
-fromList xs = -- concat (P.map singleton xs)
-  case xs of
-    [] -> empty
-    y : ys ->
-      let (leftovers, result) = fromAscList 1 y ys
-       in concat (result : P.map singleton leftovers)
+fromList = fromListN 1
 
 fromAscList :: forall a. (Ctx a, Ord a)
   => Int -- initial size of buffer, must be 1 or higher
@@ -77,16 +72,15 @@ fromAscList !n x0 xs0 = runST $ do
           arr <- A.unsafeFreeze marr'
           return ([],Set arr)
       go !ix !old !sz !marr (x : xs) = if ix < sz
-        then do
-          case P.compare x old of
-            GT -> do
-              A.write marr ix x
-              go (ix + 1) x sz marr xs
-            EQ -> go ix x sz marr xs
-            LT -> do
-              marr' <- A.resize marr ix
-              arr <- A.unsafeFreeze marr'
-              return (x : xs,Set arr)
+        then case P.compare x old of
+          GT -> do
+            A.write marr ix x
+            go (ix + 1) x sz marr xs
+          EQ -> go ix x sz marr xs
+          LT -> do
+            marr' <- A.resize marr ix
+            arr <- A.unsafeFreeze marr'
+            return (x : xs,Set arr)
         else do
           let sz' = sz * 2
           marr' <- A.resize marr sz'

@@ -27,34 +27,32 @@ import qualified Data.Set.Lifted as DSL
 import qualified Data.Map.Unboxed.Unboxed as DMUU
 
 main :: IO ()
-main = defaultMain $ testGroup "properties"
-  [ testGroup "Data"
-    [ testGroup "Set"
-      [ testGroup "Unboxed"
-        [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSU.Set Int16)))
-        , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSU.Set Int16)))
-        , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSU.Set Int16)))
-        , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSU.Set Int16)))
-        , TQC.testProperty "member" (memberProp @Int16 E.fromList DSU.member)
-        ]
-      , testGroup "Lifted"
-        [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSL.Set Integer)))
-        , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSL.Set Integer)))
-        , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSL.Set Integer)))
-        , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Int16)))
-        , TQC.testProperty "member" (memberProp @Integer E.fromList DSL.member)
-        ]
+main = defaultMain $ testGroup "Data"
+  [ testGroup "Set"
+    [ testGroup "Unboxed"
+      [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSU.Set Int16)))
+      , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSU.Set Int16)))
+      , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSU.Set Int16)))
+      , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSU.Set Int16)))
+      , TQC.testProperty "member" (memberProp @Int16 E.fromList DSU.member)
       ]
-    , testGroup "Map"
+    , testGroup "Lifted"
+      [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSL.Set Integer)))
+      , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSL.Set Integer)))
+      , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSL.Set Integer)))
+      , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Int16)))
+      , TQC.testProperty "member" (memberProp @Integer E.fromList DSL.member)
+      ]
+    ]
+  , testGroup "Map"
+    [ testGroup "Unboxed"
       [ testGroup "Unboxed"
-        [ testGroup "Unboxed"
-          [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
-          , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
-          , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (DMUU.Map Word32 Word)))
-          , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
-          , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
-          , TQC.testProperty "lookup" (lookupProp @Word32 @Int E.fromList DMUU.lookup)
-          ]
+        [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
+        , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
+        , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (DMUU.Map Word32 Word)))
+        , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
+        , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DMUU.Map Word32 Int)))
+        , TQC.testProperty "lookup" (lookupProp @Word32 @Int E.fromList DMUU.lookup)
         ]
       ]
     ]
@@ -75,13 +73,13 @@ lawsToTest :: QCC.Laws -> TestTree
 lawsToTest (QCC.Laws name pairs) = testGroup name (map (uncurry TQC.testProperty) pairs)
 
 instance (Arbitrary a, Prim a, Ord a) => Arbitrary (DSU.Set a) where
-  arbitrary = fmap fromList QC.arbitrary
+  arbitrary = fmap E.fromList QC.arbitrary
 
 instance (Arbitrary a, Ord a) => Arbitrary (DSL.Set a) where
-  arbitrary = fmap fromList QC.arbitrary
+  arbitrary = fmap E.fromList QC.arbitrary
 
 instance (Arbitrary k, Prim k, Ord k, Arbitrary v, Prim v) => Arbitrary (DMUU.Map k v) where
-  arbitrary = fmap fromList QC.arbitrary
+  arbitrary = fmap E.fromList QC.arbitrary
 
 instance Semigroup Word where
   w <> _ = w

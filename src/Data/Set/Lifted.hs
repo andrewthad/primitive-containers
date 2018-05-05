@@ -2,6 +2,8 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+
+{-# OPTIONS_GHC -O2 #-}
 module Data.Set.Lifted
   ( Set
   , singleton
