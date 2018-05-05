@@ -10,13 +10,15 @@ import qualified GHC.Exts as E
 import qualified Data.Set.Unboxed as DSU
 import qualified Data.Map.Unboxed.Unboxed as DMUU
 import qualified Data.Map.Strict as M
+import qualified Data.IntMap.Strict as IM
 
 main :: IO ()
 main = defaultMain
   [ bgroup "Map"
     [ bgroup "lookup" 
-      [ bench "unboxed" $ whnf lookupAllUnboxed bigUnboxedMap
-      , bench "containers" $ whnf lookupAllContainers bigContainersMap
+      [ bench "primitive-unboxed-unboxed" $ whnf lookupAllUnboxed bigUnboxedMap
+      , bench "containers-map" $ whnf lookupAllContainers bigContainersMap
+      , bench "containers-intmap" $ whnf lookupAllIntContainers bigContainersIntMap
       ]
     ]
   , bgroup "Set"
@@ -49,6 +51,9 @@ bigUnboxedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNum
 bigContainersMap :: M.Map Int Int
 bigContainersMap = M.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
 
+bigContainersIntMap :: IM.IntMap Int
+bigContainersIntMap = IM.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
+
 lookupAllUnboxed :: DMUU.Map Int Int -> Int
 lookupAllUnboxed m = go 0 0 where
   go !acc !n = if n < bigNumber
@@ -59,6 +64,12 @@ lookupAllContainers :: M.Map Int Int -> Int
 lookupAllContainers m = go 0 0 where
   go !acc !n = if n < bigNumber
     then go (acc + fromMaybe 0 (M.lookup n m)) (n + 1)
+    else acc
+
+lookupAllIntContainers :: IM.IntMap Int -> Int
+lookupAllIntContainers m = go 0 0 where
+  go !acc !n = if n < bigNumber
+    then go (acc + fromMaybe 0 (IM.lookup n m)) (n + 1)
     else acc
 
 ascArray20 :: [Word]
