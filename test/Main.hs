@@ -24,6 +24,7 @@ import qualified GHC.Exts as E
 
 import qualified Data.Set.Unboxed as DSU
 import qualified Data.Set.Lifted as DSL
+import qualified Data.Set.Unlifted as DSUL
 import qualified Data.Map.Unboxed.Unboxed as DMUU
 
 main :: IO ()
@@ -40,8 +41,15 @@ main = defaultMain $ testGroup "Data"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSL.Set Integer)))
       , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSL.Set Integer)))
       , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSL.Set Integer)))
-      , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Int16)))
+      , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Integer)))
       , TQC.testProperty "member" (memberProp @Integer E.fromList DSL.member)
+      ]
+    , testGroup "Unlifted"
+      [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSUL.Set (PrimArray Int16))))
+      , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSUL.Set (PrimArray Int16))))
+      , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSUL.Set (PrimArray Int16))))
+      , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSUL.Set (PrimArray Int16))))
+      , TQC.testProperty "member" (memberProp @(PrimArray Int16) E.fromList DSUL.member)
       ]
     ]
   , testGroup "Map"
@@ -72,7 +80,13 @@ lookupProp containerFromList containerLookup = QC.property $ \(xs :: [(k,v)]) ->
 lawsToTest :: QCC.Laws -> TestTree
 lawsToTest (QCC.Laws name pairs) = testGroup name (map (uncurry TQC.testProperty) pairs)
 
+instance (Arbitrary a, Prim a) => Arbitrary (PrimArray a) where
+  arbitrary = fmap E.fromList QC.arbitrary
+
 instance (Arbitrary a, Prim a, Ord a) => Arbitrary (DSU.Set a) where
+  arbitrary = fmap E.fromList QC.arbitrary
+
+instance (Arbitrary a, PrimUnlifted a, Ord a) => Arbitrary (DSUL.Set a) where
   arbitrary = fmap E.fromList QC.arbitrary
 
 instance (Arbitrary a, Ord a) => Arbitrary (DSL.Set a) where

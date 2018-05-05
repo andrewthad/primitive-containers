@@ -33,17 +33,21 @@ library
         requires (Value as ValueUnboxed)
     , set-indef (Set as Internal.Set.Lifted)
         requires (Value as ValueLifted)
+    , set-indef (Set as Internal.Set.Unlifted)
+        requires (Value as ValueUnlifted)
     , map-indef (Map as Internal.Map.Unboxed.Unboxed)
         requires (Value as ValueUnboxed,Key as ValueUnboxed)
     , map-indef (Map as Internal.Map.Unboxed.Lifted)
         requires (Value as ValueLifted,Key as ValueUnboxed)
     , map-indef (Map as Internal.Map.Unboxed.Unlifted)
-        requires (Value as ValueUnlifted,Key as ValueUnlifted)
+        requires (Value as ValueUnlifted,Key as ValueUnboxed)
   exposed-modules:
     Data.Set.Unboxed
     Data.Set.Lifted
+    Data.Set.Unlifted
     Data.Map.Unboxed.Unboxed
     Data.Map.Unboxed.Lifted
+    Data.Map.Unboxed.Unlifted
   default-language: Haskell2010
 
 library set-indef

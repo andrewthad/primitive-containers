@@ -51,9 +51,9 @@ size :: PrimUnlifted a => UnliftedArray a -> Int
 size = sizeofUnliftedArray
 
 foldr :: PrimUnlifted a => (a -> b -> b) -> b -> UnliftedArray a -> b
-foldr = F.foldr
+foldr = foldrUnliftedArray
 
 map :: (PrimUnlifted a, PrimUnlifted b) => (a -> b) -> UnliftedArray a -> UnliftedArray b
-map = fmap
+map = mapUnliftedArray
 
 
