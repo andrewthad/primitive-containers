@@ -4,6 +4,7 @@
 signature Value where
 
 import Data.Kind (Constraint)
+import Data.Primitive.UnliftedArray (PrimUnlifted)
 import Control.Monad.ST (ST)
 
 data Arr :: * -> *
@@ -11,6 +12,7 @@ data MArr :: * -> * -> *
 data Ctx :: * -> Constraint
 
 instance (Ctx a, Eq a) => Eq (Arr a)
+instance PrimUnlifted (Arr a) 
 
 new :: Ctx a => Int -> ST s (MArr s a)
 index :: Ctx a => Arr a -> Int -> a

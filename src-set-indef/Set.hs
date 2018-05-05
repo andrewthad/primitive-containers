@@ -1,8 +1,9 @@
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Set
@@ -27,9 +28,14 @@ import qualified Prelude as P
 import Value (Arr,Ctx)
 import Control.Monad.ST (ST,runST)
 import Data.Foldable (foldl')
+import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import qualified Value as A
 
 newtype Set a = Set (Arr a)
+
+instance PrimUnlifted (Set a) where
+  toArrayArray# (Set x) = toArrayArray# x
+  fromArrayArray# y = Set (fromArrayArray# y)
 
 append :: (Ctx a, Ord a) => Set a -> Set a -> Set a
 append (Set x) (Set y) = Set (unionArr x y)

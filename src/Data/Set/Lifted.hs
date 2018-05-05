@@ -1,5 +1,6 @@
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -10,12 +11,17 @@ module Data.Set.Lifted
   , member
   ) where
 
+import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import qualified Data.Foldable as F
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
 import qualified Internal.Set.Lifted as I
 
 newtype Set a = Set (I.Set a)
+
+instance PrimUnlifted (Set a) where
+  toArrayArray# (Set x) = toArrayArray# x
+  fromArrayArray# y = Set (fromArrayArray# y)
 
 instance Ord a => Semigroup (Set a) where
   Set x <> Set y = Set (I.append x y)
