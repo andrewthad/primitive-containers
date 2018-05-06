@@ -13,6 +13,7 @@ module Data.Set.Unlifted
   ) where
 
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
+import Data.Semigroup (Semigroup)
 import qualified Data.Foldable as F
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E

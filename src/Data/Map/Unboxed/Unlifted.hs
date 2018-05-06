@@ -18,6 +18,7 @@ module Data.Map.Unboxed.Unlifted
 
 import Prelude hiding (lookup)
 
+import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted)
 import qualified GHC.Exts as E
