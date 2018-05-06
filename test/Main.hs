@@ -95,10 +95,10 @@ instance (Arbitrary a, Ord a) => Arbitrary (DSL.Set a) where
 instance (Arbitrary k, Prim k, Ord k, Arbitrary v, Prim v) => Arbitrary (DMUU.Map k v) where
   arbitrary = fmap E.fromList QC.arbitrary
 
-instance Semigroup Word where
+instance SG.Semigroup Word where
   w <> _ = w
 
-instance Semigroup Int where
+instance SG.Semigroup Int where
   (<>) = (+)
 
 instance Monoid Int where
