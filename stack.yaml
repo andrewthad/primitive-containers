@@ -1,0 +1,7 @@
+resolver: lts-11.7
+packages:
+- '.'
+extra-deps:
+- git: https://github.com/andrewthad/primitive.git
+  commit: cb59c2e965e2e9007c8db224cec10335ecf4ec20
+
