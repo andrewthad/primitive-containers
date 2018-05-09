@@ -1,4 +1,5 @@
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 signature Value where
@@ -9,7 +10,7 @@ import Control.Monad.ST (ST)
 
 data Arr :: * -> *
 data MArr :: * -> * -> *
-data Ctx :: * -> Constraint
+type family Ctx a :: Constraint where ..
 
 instance (Ctx a, Eq a) => Eq (Arr a)
 instance PrimUnlifted (Arr a) 
