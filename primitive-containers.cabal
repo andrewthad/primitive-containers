@@ -24,7 +24,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
-    , primitive-checked
+    , primitive
     , set-indef
     , map-indef
     , diet-map-indef
@@ -58,7 +58,7 @@ library
   default-language: Haskell2010
 
 library set-indef
-  build-depends: base, primitive-checked
+  build-depends: base, primitive
   signatures: Value
   exposed-modules: Set
   hs-source-dirs: src-set-indef
@@ -79,7 +79,7 @@ library diet-map-indef
   default-language: Haskell2010
 
 library array-unboxed
-  build-depends: base, primitive-checked
+  build-depends: base, primitive
   exposed-modules:
       ValueUnboxed
     , ValueLifted
@@ -95,7 +95,7 @@ test-suite test
       base
     , QuickCheck
     , containers
-    , primitive-checked
+    , primitive
     , primitive-containers
     , quickcheck-classes >= 0.4.10
     , tasty
@@ -111,7 +111,7 @@ benchmark gauge
   type: exitcode-stdio-1.0
   build-depends:
       base >= 4.8 && < 4.12
-    , primitive-checked
+    , primitive
     , primitive-containers
     , ghc-prim
     , gauge
