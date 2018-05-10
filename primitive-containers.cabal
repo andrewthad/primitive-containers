@@ -24,9 +24,10 @@ library
       src
   build-depends:
       base >=4.7 && <5
-    , primitive
+    , primitive-checked
     , set-indef
     , map-indef
+    , diet-map-indef
     , array-unboxed
   mixins:
       set-indef (Set as Internal.Set.Unboxed)
@@ -41,6 +42,10 @@ library
         requires (Value as ValueLifted,Key as ValueUnboxed)
     , map-indef (Map as Internal.Map.Unboxed.Unlifted)
         requires (Value as ValueUnlifted,Key as ValueUnboxed)
+    , diet-map-indef (Map as Internal.Diet.Map.Unboxed.Lifted)
+        requires (Value as ValueLifted,Key as ValueUnboxed)
+    , diet-map-indef (Map as Internal.Diet.Map.Lifted.Lifted)
+        requires (Value as ValueLifted,Key as ValueLifted)
   exposed-modules:
     Data.Set.Unboxed
     Data.Set.Lifted
@@ -48,10 +53,12 @@ library
     Data.Map.Unboxed.Unboxed
     Data.Map.Unboxed.Lifted
     Data.Map.Unboxed.Unlifted
+    Data.Diet.Map.Unboxed.Lifted
+    Data.Diet.Map.Lifted.Lifted
   default-language: Haskell2010
 
 library set-indef
-  build-depends: base, primitive
+  build-depends: base, primitive-checked
   signatures: Value
   exposed-modules: Set
   hs-source-dirs: src-set-indef
@@ -64,8 +71,15 @@ library map-indef
   hs-source-dirs: src-map-indef
   default-language: Haskell2010
 
+library diet-map-indef
+  build-depends: base
+  signatures: Key, Value
+  exposed-modules: Map
+  hs-source-dirs: src-diet-map-indef
+  default-language: Haskell2010
+
 library array-unboxed
-  build-depends: base, primitive
+  build-depends: base, primitive-checked
   exposed-modules:
       ValueUnboxed
     , ValueLifted
@@ -81,7 +95,7 @@ test-suite test
       base
     , QuickCheck
     , containers
-    , primitive
+    , primitive-checked
     , primitive-containers
     , quickcheck-classes >= 0.4.10
     , tasty
@@ -97,9 +111,8 @@ benchmark gauge
   type: exitcode-stdio-1.0
   build-depends:
       base >= 4.8 && < 4.12
-    , primitive
+    , primitive-checked
     , primitive-containers
-    , deepseq
     , ghc-prim
     , gauge
     , random
