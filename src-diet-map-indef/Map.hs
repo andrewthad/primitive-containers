@@ -24,7 +24,7 @@ module Map
   , toList
   ) where
 
-import Prelude hiding (lookup,showsPrec)
+import Prelude hiding (lookup,showsPrec,concat,map)
 
 import Control.Applicative (liftA2)
 import Control.Monad.ST (ST,runST)
@@ -48,6 +48,9 @@ empty = Map
   (runST (K.new 0 >>= K.unsafeFreeze))
   (runST (V.new 0 >>= V.unsafeFreeze))
 
+map :: (K.Ctx k, V.Ctx v, V.Ctx w) => (v -> w) -> Map k v -> Map k w
+map f (Map k v) = Map k (V.map f v)
+
 equals :: (K.Ctx k, Eq k, V.Ctx v, Eq v) => Map k v -> Map k v -> Bool
 equals (Map k1 v1) (Map k2 v2) = k1 == k2 && v1 == v2
 
@@ -66,6 +69,9 @@ fromListAppend = fromListAppendN 1
 fromListWithN :: (K.Ctx k, Ord k, Enum k, V.Ctx v, Eq v) => (v -> v -> v) -> Int -> [(k,k,v)] -> Map k v
 fromListWithN combine _ xs =
   concatWith combine (P.map (\(lo,hi,v) -> singleton lo hi v) xs)
+
+concat :: (K.Ctx k, Ord k, Enum k, V.Ctx v, Semigroup v, Eq v) => [Map k v] -> Map k v
+concat = concatWith (SG.<>)
 
 singleton :: (K.Ctx k,Ord k,V.Ctx v) => k -> k -> v -> Map k v
 singleton !lo !hi !v = if lo <= hi

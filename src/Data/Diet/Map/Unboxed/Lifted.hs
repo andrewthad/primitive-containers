@@ -8,6 +8,7 @@ module Data.Diet.Map.Unboxed.Lifted
   ( Map
   , singleton
   , lookup
+  , map
     -- * List Conversion
   , fromList
   , fromListAppend
@@ -15,7 +16,7 @@ module Data.Diet.Map.Unboxed.Lifted
   , fromListAppendN
   ) where
 
-import Prelude hiding (lookup)
+import Prelude hiding (lookup,map)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
@@ -24,7 +25,7 @@ import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Internal.Diet.Map.Unboxed.Lifted as I
 
-data Map k v = Map (I.Map k v)
+newtype Map k v = Map (I.Map k v)
 
 -- | /O(1)/ Create a diet map with a single element.
 singleton :: (Prim k,Ord k)
@@ -34,9 +35,19 @@ singleton :: (Prim k,Ord k)
   -> Map k v
 singleton lo hi v = Map (I.singleton lo hi v)
 
+-- | /O(n)/ Map over the values in a diet map.
+map :: Prim k
+  => (v -> w)
+  -> Map k v
+  -> Map k w
+map f (Map x) = Map (I.map f x)
+
 -- | /O(log n)/ Lookup the value at a key in the map.
 lookup :: (Prim k, Ord k) => k -> Map k v -> Maybe v
 lookup a (Map s) = I.lookup a s
+
+instance Prim k => Functor (Map k) where
+  fmap = map
 
 instance (Prim k, Show k, Show v) => Show (Map k v) where
   showsPrec p (Map m) = I.showsPrec p m
@@ -50,6 +61,7 @@ instance (Prim k, Ord k, Enum k, Semigroup v, Eq v) => Semigroup (Map k v) where
 instance (Prim k, Ord k, Enum k, Semigroup v, Eq v) => Monoid (Map k v) where
   mempty = Map I.empty
   mappend = (SG.<>)
+  mconcat = Map . I.concat . E.coerce
 
 instance (Prim k, Ord k, Enum k, Eq v) => E.IsList (Map k v) where
   type Item (Map k v) = (k,k,v)
