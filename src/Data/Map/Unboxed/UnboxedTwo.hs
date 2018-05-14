@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -O2 #-}
-module Data.Map.Unboxed.Unboxed
+module Data.Map.Unboxed.UnboxedTwo
   ( Map
   , singleton
   , lookup
@@ -97,4 +97,5 @@ fromListAppendN n = Map . I.fromListAppendN n
 -- | /O(1)/ The number of elements in the map.
 size :: Prim v => Map k v -> Int
 size (Map m) = I.size m
+
 

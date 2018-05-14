@@ -14,14 +14,15 @@ module Data.Set.Unboxed
 
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
+import Data.Primitive.PrimArray (PrimArray)
 import Data.Semigroup (Semigroup)
 import qualified Data.Foldable as F
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
-import qualified Internal.Set.Unboxed as I
+import qualified Data.Set.Internal as I
 
 -- | A set of elements.
-newtype Set a = Set (I.Set a)
+newtype Set a = Set (I.Set PrimArray a)
 
 instance PrimUnlifted (Set a) where
   toArrayArray# (Set x) = toArrayArray# x
@@ -71,4 +72,5 @@ singleton = Set . I.singleton
 -- | The number of elements in the set.
 size :: Prim a => Set a -> Int
 size (Set s) = I.size s
+
 
