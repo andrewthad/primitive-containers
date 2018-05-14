@@ -178,7 +178,7 @@ append (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith (SG.<>) ksA vsA ksB vsB of
     (k,v) -> Map k v
   
-unionArrWith :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+unionArrWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
   => (v -> v -> v)
   -> karr k -- keys a
   -> varr v -- values a
@@ -191,8 +191,8 @@ unionArrWith combine keysA valsA keysB valsB
   | otherwise = runST $ do
       let !szA = I.size valsA
           !szB = I.size valsB
-      !keysDst <- I.new (szA + szB)
-      !valsDst <- I.new (szA + szB)
+      !(keysDst :: Mutable karr s k) <- I.new (szA + szB)
+      !(valsDst :: Mutable varr s v) <- I.new (szA + szB)
       let go !ixA !ixB !ixDst = if ixA < szA
             then if ixB < szB
               then do

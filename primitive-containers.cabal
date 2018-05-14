@@ -23,7 +23,7 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      base >=4.9 && <5
     , primitive
   exposed-modules:
     Data.Set.Unboxed

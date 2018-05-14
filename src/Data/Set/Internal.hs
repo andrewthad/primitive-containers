@@ -148,7 +148,7 @@ singleton a = Set $ runST $ do
   A.write arr 0 a
   A.unsafeFreeze arr
 
-unionArr :: (Contiguous arr, Element arr a, Ord a)
+unionArr :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => arr a -- array x
   -> arr a -- array y
   -> arr a
@@ -156,7 +156,7 @@ unionArr arrA arrB
   | szA < 1 = arrB
   | szB < 1 = arrA
   | otherwise = runST $ do
-      arrDst <- A.new (szA + szB)
+      !(arrDst :: Mutable arr s a)  <- A.new (szA + szB)
       let go !ixA !ixB !ixDst = if ixA < szA
             then if ixB < szB
               then do

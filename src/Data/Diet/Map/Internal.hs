@@ -31,7 +31,7 @@ import Control.Monad.ST (ST,runST)
 import Data.Semigroup (Semigroup)
 import Data.Foldable (foldl')
 import Text.Show (showListWith)
-import Data.Internal (Contiguous,Element)
+import Data.Internal (Contiguous,Element,Mutable)
 import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
@@ -70,17 +70,17 @@ fromListWithN combine _ xs =
 concat :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Semigroup v, Eq v) => [Map karr varr k v] -> Map karr varr k v
 concat = concatWith (SG.<>)
 
-singleton :: (Contiguous karr, Element karr k,Ord k,Contiguous varr, Element varr v) => k -> k -> v -> Map karr varr k v
+singleton :: forall karr varr k v. (Contiguous karr, Element karr k,Ord k,Contiguous varr, Element varr v) => k -> k -> v -> Map karr varr k v
 singleton !lo !hi !v = if lo <= hi
   then Map
     ( runST $ do
-        arr <- I.new 2
+        !(arr :: Mutable karr s k) <- I.new 2
         I.write arr 0 lo
         I.write arr 1 hi
         I.unsafeFreeze arr
     )
     ( runST $ do
-        arr <- I.new 1
+        !(arr :: Mutable varr s v) <- I.new 1
         I.write arr 0 v
         I.unsafeFreeze arr
     )
@@ -135,8 +135,8 @@ unionArrWith combine keysA valsA keysB valsB
   action = do
     let !szA = I.size valsA
         !szB = I.size valsB
-    !keysDst <- I.new (max szA szB * 8)
-    !valsDst <- I.new (max szA szB * 4)
+    !(keysDst :: Mutable karr s k) <- I.new (max szA szB * 8)
+    !(valsDst :: Mutable varr s v) <- I.new (max szA szB * 4)
     let writeKeyRange :: Int -> k -> k -> ST s ()
         writeKeyRange !ix !lo !hi = do
           I.write keysDst (2 * ix) lo
