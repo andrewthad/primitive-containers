@@ -25,27 +25,6 @@ library
   build-depends:
       base >=4.7 && <5
     , primitive
-    , set-indef
-    , map-indef
-    , diet-map-indef
-    , array-unboxed
-  mixins:
-      set-indef (Set as Internal.Set.Unboxed)
-        requires (Value as ValueUnboxed)
-    , set-indef (Set as Internal.Set.Lifted)
-        requires (Value as ValueLifted)
-    , set-indef (Set as Internal.Set.Unlifted)
-        requires (Value as ValueUnlifted)
-    , map-indef (Map as Internal.Map.Unboxed.Unboxed)
-        requires (Value as ValueUnboxed,Key as ValueUnboxed)
-    , map-indef (Map as Internal.Map.Unboxed.Lifted)
-        requires (Value as ValueLifted,Key as ValueUnboxed)
-    , map-indef (Map as Internal.Map.Unboxed.Unlifted)
-        requires (Value as ValueUnlifted,Key as ValueUnboxed)
-    , diet-map-indef (Map as Internal.Diet.Map.Unboxed.Lifted)
-        requires (Value as ValueLifted,Key as ValueUnboxed)
-    , diet-map-indef (Map as Internal.Diet.Map.Lifted.Lifted)
-        requires (Value as ValueLifted,Key as ValueLifted)
   exposed-modules:
     Data.Set.Unboxed
     Data.Set.Lifted
@@ -55,36 +34,11 @@ library
     Data.Map.Unboxed.Unlifted
     Data.Diet.Map.Unboxed.Lifted
     Data.Diet.Map.Lifted.Lifted
-  default-language: Haskell2010
-
-library set-indef
-  build-depends: base, primitive
-  signatures: Value
-  exposed-modules: Set
-  hs-source-dirs: src-set-indef
-  default-language: Haskell2010
-
-library map-indef
-  build-depends: base
-  signatures: Key, Value
-  exposed-modules: Map
-  hs-source-dirs: src-map-indef
-  default-language: Haskell2010
-
-library diet-map-indef
-  build-depends: base
-  signatures: Key, Value
-  exposed-modules: Map
-  hs-source-dirs: src-diet-map-indef
-  default-language: Haskell2010
-
-library array-unboxed
-  build-depends: base, primitive
-  exposed-modules:
-      ValueUnboxed
-    , ValueLifted
-    , ValueUnlifted
-  hs-source-dirs: src-array
+  other-modules:
+    Data.Internal
+    Data.Set.Internal
+    Data.Map.Internal
+    Data.Diet.Map.Internal
   default-language: Haskell2010
 
 test-suite test
@@ -109,6 +63,7 @@ benchmark gauge
     benchmark-gauge
   main-is: Main.hs
   type: exitcode-stdio-1.0
+  ghc-options: -Wall -O2
   build-depends:
       base >= 4.8 && < 4.12
     , primitive

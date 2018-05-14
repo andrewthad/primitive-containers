@@ -20,11 +20,13 @@ import Prelude hiding (lookup,map)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
 import Data.Functor.Classes (Show2(..))
+import Data.Primitive.PrimArray (PrimArray)
+import Data.Primitive.Array (Array)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
-import qualified Internal.Diet.Map.Unboxed.Lifted as I
+import qualified Data.Diet.Map.Internal as I
 
-newtype Map k v = Map (I.Map k v)
+newtype Map k v = Map (I.Map PrimArray Array k v)
 
 -- | /O(1)/ Create a diet map with a single element.
 singleton :: (Prim k,Ord k)

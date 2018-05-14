@@ -6,8 +6,10 @@ import Gauge.Main
 import System.Random (randoms,mkStdGen)
 import Data.Foldable (foldMap)
 import Data.Maybe (fromMaybe)
+import Data.Bool (bool)
 import qualified GHC.Exts as E
 import qualified Data.Set.Unboxed as DSU
+import qualified Data.Set.Lifted as DSL
 import qualified Data.Map.Unboxed.Unboxed as DMUU
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
@@ -22,7 +24,11 @@ main = defaultMain
       ]
     ]
   , bgroup "Set"
-    [ bgroup "concat"
+    [ bgroup "lookup" 
+      [ bench "primitive-unboxed" $ whnf lookupAllSetUnboxed bigUnboxedSet
+      , bench "primitive-lifted" $ whnf lookupAllSetLifted bigLiftedSet
+      ]
+    , bgroup "concat"
       [ bgroup "fold"
         [ bench "20" $ whnf (foldMap DSU.singleton) randomArray20
         , bench "200" $ whnf (foldMap DSU.singleton) randomArray200
@@ -45,6 +51,12 @@ main = defaultMain
 bigNumber :: Int
 bigNumber = 100000
 
+bigUnboxedSet :: DSU.Set Int
+bigUnboxedSet = E.fromList (map (\x -> x `mod` (bigNumber * 2)) (take bigNumber (randoms (mkStdGen 75843))))
+
+bigLiftedSet :: DSL.Set Int
+bigLiftedSet = E.fromList (map (\x -> x `mod` (bigNumber * 2)) (take bigNumber (randoms (mkStdGen 75843))))
+
 bigUnboxedMap :: DMUU.Map Int Int
 bigUnboxedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
 
@@ -58,6 +70,18 @@ lookupAllUnboxed :: DMUU.Map Int Int -> Int
 lookupAllUnboxed m = go 0 0 where
   go !acc !n = if n < bigNumber
     then go (acc + fromMaybe 0 (DMUU.lookup n m)) (n + 1)
+    else acc
+
+lookupAllSetUnboxed :: DSU.Set Int -> Int
+lookupAllSetUnboxed m = go 0 0 where
+  go !acc !n = if n < bigNumber
+    then go (acc + bool 2 3 (DSU.member n m)) (n + 1)
+    else acc
+
+lookupAllSetLifted :: DSL.Set Int -> Int
+lookupAllSetLifted m = go 0 0 where
+  go !acc !n = if n < bigNumber
+    then go (acc + bool 2 3 (DSL.member n m)) (n + 1)
     else acc
 
 lookupAllContainers :: M.Map Int Int -> Int
@@ -80,9 +104,6 @@ ascArray200 = take 200 (enumFrom 0)
 
 ascArray2000 :: [Word]
 ascArray2000 = take 2000 (enumFrom 0)
-
-ascArray20000:: [Word]
-ascArray20000 = take 20000 (enumFrom 0)
 
 randomArray20 :: [Word]
 randomArray20 = take 20 (randoms (mkStdGen 75843))

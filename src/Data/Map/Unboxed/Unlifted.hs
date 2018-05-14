@@ -21,13 +21,14 @@ import Prelude hiding (lookup)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted)
+import Data.Primitive (PrimArray,UnliftedArray)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
-import qualified Internal.Map.Unboxed.Unlifted as I
+import qualified Data.Map.Internal as I
 
 -- | A map from keys @k@ to values @v@. The key type and the value
 --   type must both have 'Prim' instances.
-newtype Map k v = Map (I.Map k v)
+newtype Map k v = Map (I.Map PrimArray UnliftedArray k v)
 
 instance (Prim k, Ord k, PrimUnlifted v, Semigroup v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.append x y)

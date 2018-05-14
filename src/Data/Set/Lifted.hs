@@ -13,12 +13,13 @@ module Data.Set.Lifted
 
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Semigroup (Semigroup)
+import Data.Primitive (Array)
 import qualified Data.Foldable as F
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
-import qualified Internal.Set.Lifted as I
+import qualified Data.Set.Internal as I
 
-newtype Set a = Set (I.Set a)
+newtype Set a = Set (I.Set Array a)
 
 instance PrimUnlifted (Set a) where
   toArrayArray# (Set x) = toArrayArray# x
