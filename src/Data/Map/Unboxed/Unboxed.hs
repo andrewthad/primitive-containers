@@ -9,6 +9,7 @@ module Data.Map.Unboxed.Unboxed
   , singleton
   , lookup
   , size
+  , mapMaybe
     -- * List Conversion
   , fromList
   , fromListAppend
@@ -98,3 +99,9 @@ fromListAppendN n = Map . I.fromListAppendN n
 size :: Prim v => Map k v -> Int
 size (Map m) = I.size m
 
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+mapMaybe :: (Prim k, Prim v, Prim w)
+  => (v -> Maybe w)
+  -> Map k v
+  -> Map k w
+mapMaybe f (Map m) = Map (I.mapMaybe f m)

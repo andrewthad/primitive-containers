@@ -10,6 +10,7 @@ module Data.Map.Internal
   , empty
   , singleton
   , map
+  , mapMaybe
   , append
   , lookup
   , showsPrec
@@ -133,6 +134,30 @@ fromAscListWith combine !n !k0 !v0 xs0 = runST $ do
 
 map :: (Contiguous varr, Element varr v, Element varr w) => (v -> w) -> Map karr varr k v -> Map karr varr k w
 map f (Map k v) = Map k (I.map f v)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+mapMaybe :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+  => (v -> Maybe w)
+  -> Map karr varr k v
+  -> Map karr varr k w
+mapMaybe f (Map ks vs) = runST $ do
+  let !sz = I.size vs
+  !(karr :: Mutable karr s k) <- I.new sz
+  !(varr :: Mutable varr s w) <- I.new sz
+  let go !ixSrc !ixDst = if ixSrc < sz
+        then do
+          a <- I.indexM vs ixSrc
+          case f a of
+            Nothing -> go (ixSrc + 1) ixDst
+            Just !b -> do
+              I.write varr ixDst b
+              I.write karr ixDst =<< I.indexM ks ixSrc
+              go (ixSrc + 1) (ixDst + 1)
+        else return ixDst
+  dstLen <- go 0 0
+  ksFinal <- I.resize karr dstLen >>= I.unsafeFreeze
+  vsFinal <- I.resize varr dstLen >>= I.unsafeFreeze
+  return (Map ksFinal vsFinal)
 
 showsPrec :: (Contiguous karr, Element karr k, Show k, Contiguous varr, Element varr v, Show v) => Int -> Map karr varr k v -> ShowS
 showsPrec p xs = showParen (p > 10) $
