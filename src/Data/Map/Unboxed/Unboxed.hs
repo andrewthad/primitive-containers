@@ -9,6 +9,7 @@ module Data.Map.Unboxed.Unboxed
   , singleton
   , lookup
   , size
+  , map
   , mapMaybe
     -- * Folds
   , foldMapWithKey'
@@ -24,7 +25,7 @@ module Data.Map.Unboxed.Unboxed
   , fromListAppendN
   ) where
 
-import Prelude hiding (lookup)
+import Prelude hiding (lookup,map)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
@@ -105,6 +106,13 @@ fromListAppendN n = Map . I.fromListAppendN n
 -- | /O(1)/ The number of elements in the map.
 size :: Prim v => Map k v -> Int
 size (Map m) = I.size m
+
+-- | /O(n)/ Map over the values in the map.
+map :: (Prim k, Prim v, Prim w)
+  => (v -> w)
+  -> Map k v
+  -> Map k w
+map f (Map m) = Map (I.map f m)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
 mapMaybe :: (Prim k, Prim v, Prim w)

@@ -9,6 +9,7 @@ module Data.Map.Unboxed.Lifted
   , singleton
   , lookup
   , size
+  , map
   , mapMaybe
     -- * Folds
   , foldMapWithKey'
@@ -24,7 +25,7 @@ module Data.Map.Unboxed.Lifted
   , fromListAppendN
   ) where
 
-import Prelude hiding (lookup)
+import Prelude hiding (lookup,map)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
@@ -36,6 +37,10 @@ import qualified Data.Map.Internal as I
 -- | A map from keys @k@ to values @v@. The key type must have a
 --   'Prim' instance and the value type is unconstrained.
 newtype Map k v = Map (I.Map PrimArray Array k v)
+
+-- | This fails the functor laws since fmap is strict.
+instance Prim k => Functor (Map k) where
+  fmap = map
 
 instance (Prim k, Ord k, Semigroup v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.append x y)
@@ -105,6 +110,13 @@ fromListAppendN n = Map . I.fromListAppendN n
 -- | /O(1)/ The number of elements in the map.
 size :: Map k v -> Int
 size (Map m) = I.size m
+
+-- | /O(n)/ Map over the values in the map.
+map :: Prim k
+  => (v -> w)
+  -> Map k v
+  -> Map k w
+map f (Map m) = Map (I.map f m)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
 mapMaybe :: Prim k
