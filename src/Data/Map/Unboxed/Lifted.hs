@@ -10,6 +10,10 @@ module Data.Map.Unboxed.Lifted
   , lookup
   , size
   , mapMaybe
+  , foldlWithKeyM'
+  , foldrWithKeyM'
+  , foldlMapWithKeyM'
+  , foldrMapWithKeyM'
     -- * List Conversion
   , fromList
   , fromListAppend
@@ -105,3 +109,39 @@ mapMaybe :: Prim k
   -> Map k v
   -> Map k w
 mapMaybe f (Map m) = Map (I.mapMaybe f m)
+
+-- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
+-- is strict in the accumulator.
+foldlWithKeyM' :: (Monad m, Prim k)
+  => (b -> k -> v -> m b)
+  -> b
+  -> Map k v
+  -> m b
+foldlWithKeyM' f b0 (Map m) = I.foldlWithKeyM' f b0 m
+
+-- | /O(n)/ Right monadic fold over the keys and values of the map. This fold
+-- is strict in the accumulator.
+foldrWithKeyM' :: (Monad m, Prim k)
+  => (k -> v -> b -> m b)
+  -> b
+  -> Map k v
+  -> m b
+foldrWithKeyM' f b0 (Map m) = I.foldrWithKeyM' f b0 m
+
+-- | /O(n)/ Monadic left fold over the keys and values of the map with a strict
+-- monoidal accumulator. The monoidal accumulator is appended to the left
+-- after each reduction.
+foldlMapWithKeyM' :: (Monad m, Monoid b, Prim k)
+  => (k -> v -> m b)
+  -> Map k v
+  -> m b
+foldlMapWithKeyM' f (Map m) = I.foldlMapWithKeyM' f m
+
+-- | /O(n)/ Monadic right fold over the keys and values of the map with a strict
+-- monoidal accumulator. The monoidal accumulator is appended to the right
+-- after each reduction.
+foldrMapWithKeyM' :: (Monad m, Monoid b, Prim k)
+  => (k -> v -> m b) -- ^ reduction
+  -> Map k v -- ^ map
+  -> m b
+foldrMapWithKeyM' f (Map m) = I.foldrMapWithKeyM' f m

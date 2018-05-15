@@ -1,12 +1,13 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE MagicHash #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Internal
@@ -32,6 +33,7 @@ class Contiguous (arr :: Type -> Type) where
   empty :: arr a
   new :: Element arr b => Int -> ST s (Mutable arr s b)
   index :: Element arr b => arr b -> Int -> b
+  index# :: Element arr b => arr b -> Int -> (# b #)
   indexM :: (Element arr b, Monad m) => arr b -> Int -> m b
   read :: Element arr b => Mutable arr s b -> Int -> ST s b
   write :: Element arr b => Mutable arr s b -> Int -> b -> ST s ()
@@ -51,6 +53,7 @@ instance Contiguous PrimArray where
   empty = mempty
   new = newPrimArray
   index = indexPrimArray
+  index# arr ix = (# indexPrimArray arr ix #)
   indexM arr ix = return (indexPrimArray arr ix)
   read = readPrimArray
   write = writePrimArray
@@ -70,6 +73,7 @@ instance Contiguous Array where
   empty = mempty
   new n = newArray n errorThunk
   index = indexArray
+  index# = indexArray##
   indexM = indexArrayM
   read = readArray
   write = writeArray
@@ -89,6 +93,7 @@ instance Contiguous UnliftedArray where
   empty = emptyUnliftedArray
   new = unsafeNewUnliftedArray
   index = indexUnliftedArray
+  index# arr ix = (# indexUnliftedArray arr ix #)
   indexM arr ix = return (indexUnliftedArray arr ix)
   read = readUnliftedArray
   write = writeUnliftedArray

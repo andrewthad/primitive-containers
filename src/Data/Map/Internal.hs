@@ -1,8 +1,10 @@
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Map.Internal
@@ -11,6 +13,10 @@ module Data.Map.Internal
   , singleton
   , map
   , mapMaybe
+  , foldlWithKeyM'
+  , foldrWithKeyM'
+  , foldlMapWithKeyM'
+  , foldrMapWithKeyM'
   , append
   , lookup
   , showsPrec
@@ -270,3 +276,72 @@ lookup a (Map arr vals) = go 0 (I.size vals - 1) where
 
 size :: (Contiguous varr, Element varr v) => Map karr varr k v -> Int
 size (Map _ arr) = I.size arr
+
+foldlWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (b -> k -> v -> m b)
+  -> b
+  -> Map karr varr k v
+  -> m b
+foldlWithKeyM' f b0 (Map ks vs) = go 0 b0
+  where
+  !len = I.size vs
+  go :: Int -> b -> m b
+  go !ix !acc = if ix < len
+    then
+      let (# k #) = I.index# ks ix
+          (# v #) = I.index# vs ix
+       in f acc k v >>= go (ix + 1)
+    else return acc
+{-# INLINEABLE foldlWithKeyM' #-}
+
+foldrWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (k -> v -> b -> m b)
+  -> b
+  -> Map karr varr k v
+  -> m b
+foldrWithKeyM' f b0 (Map ks vs) = go (I.size vs - 1) b0
+  where
+  go :: Int -> b -> m b
+  go !ix !acc = if ix >= 0
+    then
+      let (# k #) = I.index# ks ix
+          (# v #) = I.index# vs ix
+       in f k v acc >>= go (ix - 1)
+    else return acc
+{-# INLINEABLE foldrWithKeyM' #-}
+
+foldlMapWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid b)
+  => (k -> v -> m b)
+  -> Map karr varr k v
+  -> m b
+foldlMapWithKeyM' f (Map ks vs) = go 0 mempty
+  where
+  !len = I.size vs
+  go :: Int -> b -> m b
+  go !ix !accl = if ix < len
+    then
+      let (# k #) = I.index# ks ix
+          (# v #) = I.index# vs ix
+       in do
+         accr <- f k v
+         go (ix + 1) (mappend accl accr)
+    else return accl
+{-# INLINEABLE foldlMapWithKeyM' #-}
+
+foldrMapWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid b)
+  => (k -> v -> m b)
+  -> Map karr varr k v
+  -> m b
+foldrMapWithKeyM' f (Map ks vs) = go (I.size vs - 1) mempty
+  where
+  go :: Int -> b -> m b
+  go !ix !accr = if ix >= 0
+    then
+      let (# k #) = I.index# ks ix
+          (# v #) = I.index# vs ix
+       in do
+         accl <- f k v
+         go (ix + 1) (mappend accl accr)
+    else return accr
+{-# INLINEABLE foldrMapWithKeyM' #-}
+
