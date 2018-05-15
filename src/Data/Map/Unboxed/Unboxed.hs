@@ -10,6 +10,9 @@ module Data.Map.Unboxed.Unboxed
   , lookup
   , size
   , mapMaybe
+    -- * Folds
+  , foldMapWithKey'
+    -- * Monadic Folds
   , foldlWithKeyM'
   , foldrWithKeyM'
   , foldlMapWithKeyM'
@@ -145,3 +148,13 @@ foldrMapWithKeyM' :: (Monad m, Monoid b, Prim k, Prim v)
   -> Map k v -- ^ map
   -> m b
 foldrMapWithKeyM' f (Map m) = I.foldrMapWithKeyM' f m
+
+-- | /O(n)/ Fold over the keys and values of the map with a strict monoidal
+-- accumulator. This function does not have left and right variants since
+-- the associativity required by a monoid instance means that both variants
+-- would always produce the same result.
+foldMapWithKey' :: (Monoid b, Prim k, Prim v)
+  => (k -> v -> b)
+  -> Map k v
+  -> b
+foldMapWithKey' f (Map m) = I.foldMapWithKey' f m

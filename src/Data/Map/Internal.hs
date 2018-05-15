@@ -13,10 +13,14 @@ module Data.Map.Internal
   , singleton
   , map
   , mapMaybe
+    -- * Folds
+  , foldMapWithKey'
+    -- * Monadic Folds
   , foldlWithKeyM'
   , foldrWithKeyM'
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
+    -- * Functions
   , append
   , lookup
   , showsPrec
@@ -344,4 +348,19 @@ foldrMapWithKeyM' f (Map ks vs) = go (I.size vs - 1) mempty
          go (ix + 1) (mappend accl accr)
     else return accr
 {-# INLINEABLE foldrMapWithKeyM' #-}
+
+foldMapWithKey' :: forall karr varr k v b. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid b)
+  => (k -> v -> b)
+  -> Map karr varr k v
+  -> b
+foldMapWithKey' f (Map ks vs) = go 0 mempty
+  where
+  go :: Int -> b -> b
+  go !ix !accl = if ix >= 0
+    then 
+      let (# k #) = I.index# ks ix
+          (# v #) = I.index# vs ix
+       in go (ix + 1) (mappend accl (f k v))
+    else accl
+{-# INLINEABLE foldMapWithKey' #-}
 
