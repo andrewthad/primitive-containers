@@ -273,10 +273,11 @@ lookup a (Map arr vals) = go 0 (I.size vals - 1) where
     then Nothing
     else
       let !mid = div (end + start) 2
-          !v = I.index arr mid
+          !(# v #) = I.index# arr mid
        in case P.compare a v of
             LT -> go start (mid - 1)
-            EQ -> Just (I.index vals mid)
+            EQ -> case I.index# vals mid of
+              (# r #) -> Just r
             GT -> go (mid + 1) end
 {-# INLINEABLE lookup #-}
 
