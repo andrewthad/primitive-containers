@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-{-# OPTIONS_GHC -O2 -Wall #-}
+{-# OPTIONS_GHC -Wall #-}
 module Data.Set.Internal
   ( Set(..)
   , empty
@@ -21,15 +21,19 @@ module Data.Set.Internal
   , toList
   , size
   , concat
+    -- * Folds
+  , foldl'
+  , foldr'
+  , foldMap'
   ) where
 
 import Prelude hiding (compare,showsPrec,concat)
 import qualified Prelude as P
 
 import Control.Monad.ST (ST,runST)
-import Data.Foldable (foldl')
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Internal (Contiguous,Mutable,Element)
+import qualified Data.Foldable as F
 import qualified Data.Internal as A
 
 newtype Set arr a = Set (arr a)
@@ -118,7 +122,7 @@ member a (Set arr) = go 0 (A.size arr - 1) where
 concat :: forall arr a. (Contiguous arr, Element arr a, Ord a) => [Set arr a] -> Set arr a
 concat = go [] where
   go :: [Set arr a] -> [Set arr a] -> Set arr a
-  go !stack [] = foldl' append empty stack
+  go !stack [] = F.foldl' append empty stack
   go !stack (x : xs) = if size x > 0
     then go (pushStack x stack) xs
     else go stack xs
@@ -190,5 +194,22 @@ unionArr arrA arrB
 size :: (Contiguous arr, Element arr a) => Set arr a -> Int
 size (Set arr) = A.size arr
 
+foldl' :: (Contiguous arr, Element arr a)
+  => (b -> a -> b)
+  -> b
+  -> Set arr a
+  -> b
+foldl' f b0 (Set arr) = A.foldl' f b0 arr
 
+foldr' :: (Contiguous arr, Element arr a)
+  => (a -> b -> b)
+  -> b
+  -> Set arr a
+  -> b
+foldr' f b0 (Set arr) = A.foldr' f b0 arr
 
+foldMap' :: (Contiguous arr, Element arr a, Monoid m)
+  => (a -> m)
+  -> Set arr a
+  -> m
+foldMap' f (Set arr) = A.foldMap' f arr

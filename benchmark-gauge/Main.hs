@@ -34,7 +34,7 @@ main = defaultMain
       , bench "primitive-lifted" $ whnf lookupAllSetLifted bigLiftedSet
       ]
     , bgroup "fold"
-      [ bench "primitive-unboxed-unboxed" $ whnf (DSU.foldl' (+) 0) bigUnboxedMap
+      [ bench "primitive-unboxed" $ whnf (DSU.foldl' (+) 0) bigUnboxedSet
       , bench "containers-set" $ whnf (S.foldl' (+) 0) bigContainersSet
       ]
     , bgroup "concat"

@@ -12,6 +12,9 @@
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Internal
   ( Contiguous(..)
+  , foldl'
+  , foldr'
+  , foldMap'
   ) where
 
 import Prelude
@@ -124,4 +127,36 @@ resizeUnliftedArray !src !sz = do
 
 emptyUnliftedArray :: UnliftedArray a
 emptyUnliftedArray = runST (unsafeNewUnliftedArray 0 >>= unsafeFreezeUnliftedArray)
+
+
+foldl' :: (Contiguous arr, Element arr a) => (b -> a -> b) -> b -> arr a -> b
+foldl' f = \z !ary ->
+  let
+    !sz = size ary
+    go !i !acc
+      | i == sz = acc
+      | (# x #) <- index# ary i = go (i+1) (f acc x)
+  in go 0 z
+{-# INLINABLE foldl' #-}
+
+foldr' :: (Contiguous arr, Element arr a) => (a -> b -> b) -> b -> arr a -> b
+foldr' f = \z !ary ->
+  let
+    go i !acc
+      | i == -1 = acc
+      | (# x #) <- index# ary i
+      = go (i-1) (f x acc)
+  in go (size ary - 1) z
+{-# INLINABLE foldr' #-}
+
+foldMap' :: (Contiguous arr, Element arr a, Monoid m)
+  => (a -> m) -> arr a -> m
+foldMap' f = \ !ary ->
+  let
+    !sz = size ary
+    go !i !acc
+      | i == sz = acc
+      | (# x #) <- index# ary i = go (i+1) (mappend acc (f x))
+  in go 0 mempty
+{-# INLINABLE foldMap' #-}
 

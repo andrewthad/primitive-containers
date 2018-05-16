@@ -4,12 +4,15 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_GHC -O2 #-}
+{-# OPTIONS_GHC -Wall #-}
 module Data.Set.Unboxed
   ( Set
   , singleton
   , member
   , size
+    -- * Folds
+  , foldl'
+  , foldr'
   ) where
 
 import Data.Primitive.Types (Prim)
@@ -73,4 +76,18 @@ singleton = Set . I.singleton
 size :: Prim a => Set a -> Int
 size (Set s) = I.size s
 
+-- | Strict left fold over the elements in the set.
+foldl' :: Prim a
+  => (b -> a -> b)
+  -> b
+  -> Set a
+  -> b
+foldl' f b0 (Set s) = I.foldl' f b0 s
 
+-- | Strict right fold over the elements in the set.
+foldr' :: Prim a
+  => (a -> b -> b)
+  -> b
+  -> Set a
+  -> b
+foldr' f b0 (Set s) = I.foldr' f b0 s

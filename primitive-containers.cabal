@@ -39,6 +39,7 @@ library
     Data.Set.Internal
     Data.Map.Internal
     Data.Diet.Map.Internal
+  ghc-options: -O2
   default-language: Haskell2010
 
 test-suite test
