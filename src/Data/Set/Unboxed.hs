@@ -13,6 +13,7 @@ module Data.Set.Unboxed
     -- * Folds
   , foldl'
   , foldr'
+  , foldMap'
   ) where
 
 import Data.Primitive.Types (Prim)
@@ -91,3 +92,11 @@ foldr' :: Prim a
   -> Set a
   -> b
 foldr' f b0 (Set s) = I.foldr' f b0 s
+
+-- | Strict monoidal fold over the elements in the set.
+foldMap' :: (Monoid m, Prim a)
+  => (a -> m)
+  -> Set a
+  -> m
+foldMap' f (Set arr) = I.foldMap' f arr
+

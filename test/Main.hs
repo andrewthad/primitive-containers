@@ -68,6 +68,7 @@ main = defaultMain $ testGroup "Data"
         , TQC.testProperty "lookup" (lookupProp @Word32 @Int E.fromList MUU.lookup)
         , TQC.testProperty "foldlWithKey'" (mapFoldAgreement MUU.foldlWithKey' M.foldlWithKey)
         , TQC.testProperty "foldrWithKey'" (mapFoldAgreement MUU.foldrWithKey' M.foldrWithKey)
+        , TQC.testProperty "foldMapWithKey'" (mapFoldMonoidAgreement MUU.foldMapWithKey' M.foldMapWithKey)
         ]
       ]
     ]
@@ -96,6 +97,16 @@ main = defaultMain $ testGroup "Data"
       ]
     ]
   ]
+
+mapFoldMonoidAgreement ::
+     ((Int -> Int -> [Int]) -> MUU.Map Int Int -> [Int])
+  -> ((Int -> Int -> [Int]) -> M.Map Int Int -> [Int])
+  -> QC.Property
+mapFoldMonoidAgreement foldPrim foldContainer = QC.property $ \(xs :: [(Int,Int)]) ->
+  let p = E.fromList xs
+      c = E.fromList xs
+      func x y = [x + y]
+   in foldPrim func p === foldContainer func c
 
 mapFoldAgreement ::
      ((Int -> Int -> Int -> Int) -> Int -> MUU.Map Int Int -> Int)
