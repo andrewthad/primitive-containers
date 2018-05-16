@@ -13,6 +13,7 @@ import qualified Data.Set.Lifted as DSL
 import qualified Data.Map.Unboxed.Unboxed as DMUU
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
+import qualified Data.Set as S
 
 main :: IO ()
 main = defaultMain
@@ -22,11 +23,19 @@ main = defaultMain
       , bench "containers-map" $ whnf lookupAllContainers bigContainersMap
       , bench "containers-intmap" $ whnf lookupAllIntContainers bigContainersIntMap
       ]
+    , bgroup "fold"
+      [ bench "primitive-unboxed-unboxed" $ whnf (DMUU.foldlWithKey' reduction 0) bigUnboxedMap
+      , bench "containers-map" $ whnf (M.foldlWithKey' reduction 0) bigContainersMap
+      ]
     ]
   , bgroup "Set"
     [ bgroup "lookup" 
       [ bench "primitive-unboxed" $ whnf lookupAllSetUnboxed bigUnboxedSet
       , bench "primitive-lifted" $ whnf lookupAllSetLifted bigLiftedSet
+      ]
+    , bgroup "fold"
+      [ bench "primitive-unboxed-unboxed" $ whnf (DSU.foldl' (+) 0) bigUnboxedMap
+      , bench "containers-set" $ whnf (S.foldl' (+) 0) bigContainersSet
       ]
     , bgroup "concat"
       [ bgroup "fold"
@@ -48,8 +57,14 @@ main = defaultMain
     ]
   ]
 
+reduction :: Int -> Int -> Int -> Int
+reduction x y z = x + y + z
+
 bigNumber :: Int
 bigNumber = 100000
+
+bigContainersSet :: S.Set Int
+bigContainersSet = E.fromList (map (\x -> x `mod` (bigNumber * 2)) (take bigNumber (randoms (mkStdGen 75843))))
 
 bigUnboxedSet :: DSU.Set Int
 bigUnboxedSet = E.fromList (map (\x -> x `mod` (bigNumber * 2)) (take bigNumber (randoms (mkStdGen 75843))))

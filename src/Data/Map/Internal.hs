@@ -14,6 +14,7 @@ module Data.Map.Internal
   , map
   , mapMaybe
     -- * Folds
+  , foldlWithKey'
   , foldMapWithKey'
     -- * Monadic Folds
   , foldlWithKeyM'
@@ -355,8 +356,9 @@ foldMapWithKey' :: forall karr varr k v b. (Contiguous karr, Element karr k, Con
   -> b
 foldMapWithKey' f (Map ks vs) = go 0 mempty
   where
+  !len = I.size vs
   go :: Int -> b -> b
-  go !ix !accl = if ix >= 0
+  go !ix !accl = if ix < len
     then 
       let (# k #) = I.index# ks ix
           (# v #) = I.index# vs ix
@@ -364,3 +366,19 @@ foldMapWithKey' f (Map ks vs) = go 0 mempty
     else accl
 {-# INLINEABLE foldMapWithKey' #-}
 
+foldlWithKey' :: forall karr varr k v b. (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (b -> k -> v -> b) 
+  -> b
+  -> Map karr varr k v
+  -> b
+foldlWithKey' f b0 (Map ks vs) = go 0 b0
+  where
+  !len = I.size vs
+  go :: Int -> b -> b
+  go !ix !acc = if ix < len
+    then 
+      let (# k #) = I.index# ks ix
+          (# v #) = I.index# vs ix
+       in go (ix + 1) (f acc k v)
+    else acc
+{-# INLINEABLE foldlWithKey' #-}
