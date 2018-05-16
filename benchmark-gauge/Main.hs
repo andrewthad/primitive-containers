@@ -11,6 +11,7 @@ import qualified GHC.Exts as E
 import qualified Data.Set.Unboxed as DSU
 import qualified Data.Set.Lifted as DSL
 import qualified Data.Map.Unboxed.Unboxed as DMUU
+import qualified Data.Map.Lifted.Lifted as DMLL
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Set as S
@@ -25,6 +26,7 @@ main = defaultMain
       ]
     , bgroup "fold"
       [ bench "primitive-unboxed-unboxed" $ whnf (DMUU.foldlWithKey' reduction 0) bigUnboxedMap
+      , bench "primitive-lifted-lifted" $ whnf (DMLL.foldlWithKey' reduction 0) bigLiftedMap
       , bench "containers-map" $ whnf (M.foldlWithKey' reduction 0) bigContainersMap
       ]
     ]
@@ -74,6 +76,9 @@ bigLiftedSet = E.fromList (map (\x -> x `mod` (bigNumber * 2)) (take bigNumber (
 
 bigUnboxedMap :: DMUU.Map Int Int
 bigUnboxedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
+
+bigLiftedMap :: DMLL.Map Int Int
+bigLiftedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
 
 bigContainersMap :: M.Map Int Int
 bigContainersMap = M.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))

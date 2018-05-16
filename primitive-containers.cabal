@@ -29,6 +29,7 @@ library
     Data.Set.Unboxed
     Data.Set.Lifted
     Data.Set.Unlifted
+    Data.Map.Lifted.Lifted
     Data.Map.Unboxed.Unboxed
     Data.Map.Unboxed.Lifted
     Data.Map.Unboxed.Unlifted
