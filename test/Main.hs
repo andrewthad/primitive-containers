@@ -66,6 +66,7 @@ main = defaultMain $ testGroup "Data"
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MUU.Map Word32 Int)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MUU.Map Word32 Int)))
         , TQC.testProperty "lookup" (lookupProp @Word32 @Int E.fromList MUU.lookup)
+        , TQC.testProperty "foldlWithKey'" (mapFoldAgreement MUU.foldlWithKey' M.foldlWithKey)
         ]
       ]
     ]
@@ -94,6 +95,17 @@ main = defaultMain $ testGroup "Data"
       ]
     ]
   ]
+
+mapFoldAgreement ::
+     ((Int -> Int -> Int -> Int) -> Int -> MUU.Map Int Int -> Int)
+  -> ((Int -> Int -> Int -> Int) -> Int -> M.Map Int Int -> Int)
+  -> QC.Property
+mapFoldAgreement foldPrim foldContainer = QC.property $ \(xs :: [(Int,Int)]) ->
+  let p = E.fromList xs
+      c = E.fromList xs
+      -- we just need the function to be non-commutative
+      func x y z = y - (2 * x) - (3 * z)
+   in foldPrim func 42 p === foldContainer func 42 c
 
 memberProp :: forall a t. (Arbitrary a, Show a) => ([a] -> t a) -> (a -> t a -> Bool) -> QC.Property
 memberProp containerFromList containerMember = QC.property $ \(xs :: [a]) ->
