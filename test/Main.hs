@@ -67,6 +67,7 @@ main = defaultMain $ testGroup "Data"
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MUU.Map Word32 Int)))
         , TQC.testProperty "lookup" (lookupProp @Word32 @Int E.fromList MUU.lookup)
         , TQC.testProperty "foldlWithKey'" (mapFoldAgreement MUU.foldlWithKey' M.foldlWithKey)
+        , TQC.testProperty "foldrWithKey'" (mapFoldAgreement MUU.foldrWithKey' M.foldrWithKey)
         ]
       ]
     ]

@@ -13,6 +13,7 @@ module Data.Map.Unboxed.Unboxed
   , mapMaybe
     -- * Folds
   , foldlWithKey'
+  , foldrWithKey'
   , foldMapWithKey'
     -- * Monadic Folds
   , foldlWithKeyM'
@@ -174,3 +175,10 @@ foldlWithKey' :: (Prim k, Prim v)
   -> Map k v
   -> b
 foldlWithKey' f b0 (Map m) = I.foldlWithKey' f b0 m
+
+foldrWithKey' :: (Prim k, Prim v)
+  => (k -> v -> b -> b)
+  -> b
+  -> Map k v
+  -> b
+foldrWithKey' f b0 (Map m) = I.foldrWithKey' f b0 m
