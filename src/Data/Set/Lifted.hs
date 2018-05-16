@@ -79,6 +79,7 @@ member a (Set s) = I.member a s
 singleton :: a -> Set a
 singleton = Set . I.singleton
 
+-- | Convert a set to a list. The elements are given in ascending order.
 toList :: Set a -> [a]
 toList (Set s) = I.toList s
 

@@ -10,12 +10,16 @@ module Data.Set.Unboxed
   , singleton
   , member
   , size
+    -- * List Conversion
+  , toList
     -- * Folds
+  , foldr
   , foldl'
   , foldr'
   , foldMap'
   ) where
 
+import Prelude hiding (foldr)
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Primitive.PrimArray (PrimArray)
@@ -60,7 +64,7 @@ instance (Prim a, Ord a) => E.IsList (Set a) where
   type Item (Set a) = a
   fromListN n = Set . I.fromListN n
   fromList = Set . I.fromList
-  toList (Set s) = I.toList s
+  toList = toList
 
 instance (Prim a, Show a) => Show (Set a) where
   showsPrec p (Set s) = I.showsPrec p s
@@ -73,9 +77,21 @@ member a (Set s) = I.member a s
 singleton :: Prim a => a -> Set a
 singleton = Set . I.singleton
 
+-- | Convert a set to a list. The elements are given in ascending order.
+toList :: Prim a => Set a -> [a]
+toList (Set s) = I.toList s
+
 -- | The number of elements in the set.
 size :: Prim a => Set a -> Int
 size (Set s) = I.size s
+
+-- | Right fold over the elements in the set. This is lazy in the accumulator.
+foldr :: Prim a
+  => (a -> b -> b)
+  -> b
+  -> Set a
+  -> b
+foldr f b0 (Set s) = I.foldr f b0 s
 
 -- | Strict left fold over the elements in the set.
 foldl' :: Prim a
