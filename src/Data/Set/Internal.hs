@@ -22,12 +22,13 @@ module Data.Set.Internal
   , size
   , concat
     -- * Folds
+  , foldr
   , foldl'
   , foldr'
   , foldMap'
   ) where
 
-import Prelude hiding (compare,showsPrec,concat)
+import Prelude hiding (compare,showsPrec,concat,foldr)
 import qualified Prelude as P
 
 import Control.Monad.ST (ST,runST)
@@ -103,7 +104,7 @@ showsPrec p xs = showParen (p > 10) $
   showString "fromList " . shows (toList xs)
 
 toList :: (Contiguous arr, Element arr a) => Set arr a -> [a]
-toList (Set arr) = A.foldr (:) [] arr
+toList = foldr (:) []
 
 member :: forall arr a. (Contiguous arr, Element arr a, Ord a) => a -> Set arr a -> Bool
 member a (Set arr) = go 0 (A.size arr - 1) where
@@ -193,6 +194,13 @@ unionArr arrA arrB
 
 size :: (Contiguous arr, Element arr a) => Set arr a -> Int
 size (Set arr) = A.size arr
+
+foldr :: (Contiguous arr, Element arr a)
+  => (a -> b -> b)
+  -> b
+  -> Set arr a
+  -> b
+foldr f b0 (Set arr) = A.foldr f b0 arr
 
 foldl' :: (Contiguous arr, Element arr a)
   => (b -> a -> b)

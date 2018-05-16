@@ -24,6 +24,7 @@ import qualified Data.Semigroup as SG
 import qualified Data.Map as M
 import qualified Data.Foldable as F
 import qualified GHC.Exts as E
+import qualified Test.QuickCheck.Classes.IsList as QCCL
 
 import qualified Data.Set.Unboxed as SU
 import qualified Data.Set.Lifted as SL
@@ -48,6 +49,9 @@ main = defaultMain $ testGroup "Data"
       , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (SL.Set Integer)))
       , lawsToTest (QCC.isListLaws (Proxy :: Proxy (SL.Set Integer)))
       , TQC.testProperty "member" (memberProp @Integer E.fromList SL.member)
+      , TQC.testProperty "foldr" (QCCL.foldrProp int32 SL.foldr)
+      , TQC.testProperty "foldl'" (QCCL.foldlProp int16 SL.foldl')
+      , TQC.testProperty "foldr'" (QCCL.foldrProp int32 SL.foldr')
       ]
     , testGroup "Unlifted"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
@@ -97,6 +101,13 @@ main = defaultMain $ testGroup "Data"
       ]
     ]
   ]
+
+int16 :: Proxy Int16
+int16 = Proxy
+
+int32 :: Proxy Int32
+int32 = Proxy
+
 
 mapFoldMonoidAgreement ::
      ((Int -> Int -> [Int]) -> MUU.Map Int Int -> [Int])
@@ -247,5 +258,4 @@ instance SG.Semigroup Integer where
 instance Monoid Integer where
   mempty = 0
   mappend = (SG.<>)
-  
 
