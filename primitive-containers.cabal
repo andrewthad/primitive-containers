@@ -26,6 +26,8 @@ library
       base >=4.9 && <5
     , primitive
   exposed-modules:
+    Data.Diet.Set.Internal
+    Data.Diet.Set.Lifted
     Data.Diet.Map.Lifted.Lifted
     Data.Diet.Map.Unboxed.Lifted
     Data.Map.Lifted.Lifted

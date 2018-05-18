@@ -32,6 +32,7 @@ import qualified Data.Set.Unlifted as SUL
 import qualified Data.Map.Unboxed.Unboxed as MUU
 import qualified Data.Diet.Map.Unboxed.Lifted as DMUL
 import qualified Data.Diet.Map.Lifted.Lifted as DMLL
+import qualified Data.Diet.Set.Lifted as DSL
 
 main :: IO ()
 main = defaultMain $ testGroup "Data"
@@ -77,7 +78,16 @@ main = defaultMain $ testGroup "Data"
       ]
     ]
   , testGroup "Diet"
-    [ testGroup "Map"
+    [ testGroup "Set"
+      [ testGroup "Lifted"
+        [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSL.Set Word16)))
+        , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSL.Set Word16)))
+        , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSL.Set Word16)))
+        , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Word16)))
+        , TQC.testProperty "member" (dietMemberProp @Word8 E.fromList DSL.member)
+        ]
+      ]
+    , testGroup "Map"
       [ testGroup "Lifted"
         [ testGroup "Lifted"
           [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DMLL.Map Word8 Integer)))
@@ -140,6 +150,11 @@ lookupProp containerFromList containerLookup = QC.property $ \(xs :: [(k,v)]) ->
   let ys = M.fromList xs
       c = containerFromList xs
    in all (\(x,_) -> containerLookup x c == M.lookup x ys) xs === True
+
+dietMemberProp :: forall a t. (Arbitrary a, Show a, Ord a, Arbitrary a, Show (t a)) => ([(a,a)] -> t a) -> (a -> t a -> Bool) -> QC.Property
+dietMemberProp containerFromList containerLookup = QC.property $ \(xs :: [a]) ->
+  let c = containerFromList (map (\a -> (a,a)) xs)
+   in QC.counterexample ("original list: " ++ show xs ++ "; diet set: " ++ show c) (all (\x -> containerLookup x c == True) xs === True)
 
 dietLookupPropA :: forall k v t. (Arbitrary k, Show k, Ord k, Arbitrary v, Show v, Eq v, Show (t k v)) => ([(k,k,v)] -> t k v) -> (k -> t k v -> Maybe v) -> QC.Property
 dietLookupPropA containerFromList containerLookup = QC.property $ \(xs :: [(k,v)]) ->
@@ -224,22 +239,31 @@ instance (Arbitrary k, Prim k, Ord k, Arbitrary v, Prim v) => Arbitrary (MUU.Map
   arbitrary = fmap E.fromList QC.arbitrary
 
 instance (Arbitrary k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v) => Arbitrary (DMLL.Map k v) where
-  arbitrary = DMLL.fromListAppend <$> QC.vectorOf 15 arbitraryOrderedPair
+  arbitrary = DMLL.fromListAppend <$> QC.vectorOf 10 arbitraryOrderedPairValue
   shrink x = map E.fromList (QC.shrink (E.toList x))
     
 instance (Arbitrary k, Prim k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v) => Arbitrary (DMUL.Map k v) where
-  arbitrary = DMUL.fromListAppend <$> QC.vectorOf 15 arbitraryOrderedPair
+  arbitrary = DMUL.fromListAppend <$> QC.vectorOf 10 arbitraryOrderedPairValue
   shrink x = map E.fromList (QC.shrink (E.toList x))
     
-arbitraryOrderedPair :: (Ord k, Enum k, Bounded k, Arbitrary k, Arbitrary v) => Gen (k,k,v)
+instance (Arbitrary a, Ord a, Enum a, Bounded a) => Arbitrary (DSL.Set a) where
+  arbitrary = DSL.fromList <$> QC.vectorOf 7 arbitraryOrderedPair
+  shrink x = map E.fromList (QC.shrink (E.toList x))
+    
+arbitraryOrderedPair :: (Ord k, Enum k, Bounded k, Arbitrary k) => Gen (k,k)
 arbitraryOrderedPair = do
   a0 <- QC.arbitrary
   let a1 = if a0 < maxBound then succ a0 else a0
       a2 = if a1 < maxBound then succ a1 else a1
       a3 = if a2 < maxBound then succ a2 else a2
   a' <- QC.elements [a0,a1,a2,a3]
+  return (a0,a')
+
+arbitraryOrderedPairValue :: (Ord k, Enum k, Bounded k, Arbitrary k, Arbitrary v) => Gen (k,k,v)
+arbitraryOrderedPairValue = do
+  (lo,hi) <- arbitraryOrderedPair
   v <- QC.arbitrary
-  return (a0,a',v)
+  return (lo,hi,v)
 
 
 instance SG.Semigroup Word where

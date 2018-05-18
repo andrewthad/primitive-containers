@@ -3,6 +3,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE MagicHash #-}
 
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Diet.Map.Internal
@@ -95,7 +97,8 @@ lookup a (Map keys vals) = go 0 (I.size vals - 1) where
         let !valLo = I.index keys (2 * start)
             !valHi = I.index keys (2 * start + 1)
          in if a >= valLo && a <= valHi
-              then Just (I.index vals start)
+              then case I.index# vals start of
+                (# v #) -> Just v
               else Nothing
       else Nothing
     else
@@ -103,7 +106,8 @@ lookup a (Map keys vals) = go 0 (I.size vals - 1) where
           !valLo = I.index keys (2 * mid)
        in case P.compare a valLo of
             LT -> go start (mid - 1)
-            EQ -> Just (I.index vals mid)
+            EQ -> case I.index# vals mid of
+              (# v #) -> Just v
             GT -> go mid end
 {-# INLINEABLE lookup #-}
 
