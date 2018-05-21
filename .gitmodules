@@ -7,3 +7,6 @@
 [submodule "contiguous"]
 	path = contiguous
 	url = https://github.com/andrewthad/contiguous.git
+[submodule "primitive-sort"]
+	path = primitive-sort
+	url = https://github.com/andrewthad/primitive-sort.git

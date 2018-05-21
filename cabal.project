@@ -1,1 +1,1 @@
-packages: . ./primitive ./primitive-checked ./contiguous
+packages: . ./primitive ./primitive-checked ./contiguous ./primitive-sort

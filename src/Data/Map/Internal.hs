@@ -31,11 +31,13 @@ module Data.Map.Internal
   , toList
   , concat
   , size
-    -- list conversion
+    -- * List Conversion
   , fromListN
   , fromList
   , fromListAppend
   , fromListAppendN
+    -- * Array Conversion
+  , unsafeFreezeZip
   ) where
 
 import Prelude hiding (compare,showsPrec,lookup,map,concat)
@@ -45,6 +47,7 @@ import Control.Monad.ST (ST,runST)
 import Data.Semigroup (Semigroup)
 import Data.Foldable (foldl')
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
+import Data.Primitive.Sort (sortUniqueTaggedMutable)
 import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
@@ -283,6 +286,20 @@ lookup a (Map arr vals) = go 0 (I.size vals - 1) where
 
 size :: (Contiguous varr, Element varr v) => Map karr varr k v -> Int
 size (Map _ arr) = I.size arr
+
+-- | Sort and deduplicate the key array, preserving the last value associated
+-- with each key. The argument arrays may not be reused after being passed
+-- to this function.
+unsafeFreezeZip :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+  => Mutable karr s k
+  -> Mutable varr s v
+  -> ST s (Map karr varr k v)
+unsafeFreezeZip keys0 vals0 = do
+  (keys1,vals1) <- sortUniqueTaggedMutable keys0 vals0
+  keys2 <- I.unsafeFreeze keys1
+  vals2 <- I.unsafeFreeze vals1
+  return (Map keys2 vals2)
+{-# INLINEABLE unsafeFreezeZip #-}
 
 foldlWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   => (b -> k -> v -> m b)

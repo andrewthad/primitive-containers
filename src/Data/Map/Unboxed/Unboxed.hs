@@ -25,13 +25,16 @@ module Data.Map.Unboxed.Unboxed
   , fromListAppend
   , fromListN
   , fromListAppendN
+    -- * Array Conversion
+  , unsafeFreezeZip
   ) where
 
 import Prelude hiding (lookup,map)
 
+import Control.Monad.ST (ST)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
-import Data.Primitive.PrimArray (PrimArray)
+import Data.Primitive.PrimArray (PrimArray,MutablePrimArray)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
@@ -184,3 +187,20 @@ foldrWithKey' :: (Prim k, Prim v)
   -> Map k v -- ^ map
   -> b
 foldrWithKey' f b0 (Map m) = I.foldrWithKey' f b0 m
+
+-- | /O(n*log n)/ Zip an array of keys with an array of values. If they are
+-- not the same length, the longer one will be truncated to match the shorter
+-- one. This function sorts and deduplicates the array of keys, preserving the
+-- last value associated with each key. The argument arrays may not be
+-- reused after being passed to this function.
+--
+-- This is by far the fastest way to create a map, since the functions backing it
+-- are aggressively specialized. It internally uses a hybrid of mergesort and
+-- insertion sort provided by the @primitive-sort@ package. It generates much
+-- less garbage than any of the @fromList@ variants. 
+unsafeFreezeZip :: (Ord k, Prim k, Prim v)
+  => MutablePrimArray s k
+  -> MutablePrimArray s v
+  -> ST s (Map k v)
+unsafeFreezeZip keys vals = fmap Map (I.unsafeFreezeZip keys vals)
+

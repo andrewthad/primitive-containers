@@ -25,6 +25,7 @@ library
   build-depends:
       base >=4.9 && <5
     , primitive
+    , primitive-sort
     , contiguous
   exposed-modules:
     Data.Diet.Set.Internal
