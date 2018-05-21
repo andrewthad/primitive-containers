@@ -25,6 +25,7 @@ library
   build-depends:
       base >=4.9 && <5
     , primitive
+    , contiguous
   exposed-modules:
     Data.Diet.Set.Internal
     Data.Diet.Set.Lifted
@@ -39,7 +40,6 @@ library
     Data.Set.Unboxed
     Data.Set.Unlifted
   other-modules:
-    Data.Internal
     Data.Set.Internal
     Data.Map.Internal
     Data.Diet.Map.Internal

@@ -33,11 +33,11 @@ import Control.Monad.ST (ST,runST)
 import Data.Semigroup (Semigroup)
 import Data.Foldable (foldl')
 import Text.Show (showListWith)
-import Data.Internal (Contiguous,Element,Mutable)
+import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
 import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
-import qualified Data.Internal as I
+import qualified Data.Primitive.Contiguous as I
 
 -- The key array is twice as long as the value array since
 -- everything is stored as a range. Also, figure out how to

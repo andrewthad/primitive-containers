@@ -44,11 +44,11 @@ import Control.Applicative (liftA2)
 import Control.Monad.ST (ST,runST)
 import Data.Semigroup (Semigroup)
 import Data.Foldable (foldl')
-import Data.Internal (Contiguous,Mutable,Element)
+import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
 import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
-import qualified Data.Internal as I
+import qualified Data.Primitive.Contiguous as I
 
 -- TODO: Do some sneakiness with UnliftedRep
 data Map karr varr k v = Map !(karr k) !(varr v)

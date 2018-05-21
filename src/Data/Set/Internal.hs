@@ -33,9 +33,9 @@ import qualified Prelude as P
 
 import Control.Monad.ST (ST,runST)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
-import Data.Internal (Contiguous,Mutable,Element)
+import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
 import qualified Data.Foldable as F
-import qualified Data.Internal as A
+import qualified Data.Primitive.Contiguous as A
 
 newtype Set arr a = Set (arr a)
 

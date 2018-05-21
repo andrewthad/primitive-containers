@@ -24,10 +24,10 @@ module Data.Diet.Set.Internal
 import Prelude hiding (lookup,showsPrec,concat,map,foldr)
 
 import Control.Monad.ST (ST,runST)
-import Data.Internal (Contiguous,Element,Mutable)
+import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
 import qualified Data.Foldable as F
 import qualified Prelude as P
-import qualified Data.Internal as I
+import qualified Data.Primitive.Contiguous as I
 
 -- The key array is twice as long as the value array since
 -- everything is stored as a range. Also, figure out how to

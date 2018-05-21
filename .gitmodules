@@ -4,3 +4,6 @@
 [submodule "primitive-checked"]
 	path = primitive-checked
 	url = https://github.com/andrewthad/primitive-checked
+[submodule "contiguous"]
+	path = contiguous
+	url = https://github.com/andrewthad/contiguous.git
