@@ -201,6 +201,7 @@ foldr :: (Contiguous arr, Element arr a)
   -> Set arr a
   -> b
 foldr f b0 (Set arr) = A.foldr f b0 arr
+{-# INLINEABLE foldr #-}
 
 foldl' :: (Contiguous arr, Element arr a)
   => (b -> a -> b)
@@ -208,6 +209,7 @@ foldl' :: (Contiguous arr, Element arr a)
   -> Set arr a
   -> b
 foldl' f b0 (Set arr) = A.foldl' f b0 arr
+{-# INLINEABLE foldl' #-}
 
 foldr' :: (Contiguous arr, Element arr a)
   => (a -> b -> b)
@@ -215,9 +217,11 @@ foldr' :: (Contiguous arr, Element arr a)
   -> Set arr a
   -> b
 foldr' f b0 (Set arr) = A.foldr' f b0 arr
+{-# INLINEABLE foldr' #-}
 
 foldMap' :: (Contiguous arr, Element arr a, Monoid m)
   => (a -> m)
   -> Set arr a
   -> m
 foldMap' f (Set arr) = A.foldMap' f arr
+{-# INLINEABLE foldMap' #-}
