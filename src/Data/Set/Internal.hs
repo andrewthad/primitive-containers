@@ -11,6 +11,8 @@ module Data.Set.Internal
   ( Set(..)
   , empty
   , singleton
+  , (\\)
+  , difference
   , append
   , member
   , showsPrec
@@ -65,6 +67,40 @@ fromListN n xs = -- fromList xs
 
 fromList :: (Contiguous arr, Element arr a, Ord a) => [a] -> Set arr a
 fromList = fromListN 1
+
+difference :: (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
+difference = (\\)
+
+infixl 9 \\
+
+consT :: a -> ([a], b) -> ([a], b)
+consT x (xs,b) = (x : xs, b)
+
+--s1 \\ s2 === set of elements in s1 but not in s2
+(\\) :: forall a arr. (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
+(\\) s1@(Set arr1) s2@(Set arr2)
+  | sz1 == 0 = empty
+  | sz2 == 0 = s1
+  | otherwise = runST $ do
+      let go :: Int -> Int -> Int -> ([a], Int) -- (stuff, size of what stuff should be) 
+          go ix1 ix2 i = if (ix1 < sz && ix2 < sz)
+            then if zth1 < zth2
+              then consT zth1 $ go (ix1 + 1) ix2 (i + 1)
+              else if zth1 == zth2
+                then go (ix1 + 1) (ix2 + 1) (i + 1)
+                else consT zth2 $ go ix1 (ix2 + 1) (i + 1)
+            else ([], i)
+            where
+              zth1 = A.index arr1 ix1
+              zth2 = A.index arr2 ix2
+
+      let (as, resultSize) = go 0 0 0
+      return (fromList as)
+
+  where
+    !sz  = max sz1 sz2
+    !sz1 = size s1
+    !sz2 = size s2
 
 fromAscList :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => Int -- initial size of buffer, must be 1 or higher
