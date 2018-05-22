@@ -9,6 +9,7 @@ module Data.Diet.Set.Unboxed
   , singleton
   , member
     -- * List Conversion
+  , toList
   , fromList
   , fromListN
   ) where
@@ -58,6 +59,9 @@ instance (Ord a, Enum a, Prim a) => E.IsList (Set a) where
   fromListN n = Set . I.fromListN n
   fromList = Set . I.fromList
   toList (Set s) = I.toList s
+
+toList :: Prim a => Set a -> [(a,a)]
+toList (Set x) = I.toList x
 
 fromList :: (Ord a, Enum a, Prim a) => [(a,a)] -> Set a
 fromList = Set . I.fromList

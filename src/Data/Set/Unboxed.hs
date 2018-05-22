@@ -12,6 +12,7 @@ module Data.Set.Unboxed
   , size
     -- * List Conversion
   , toList
+  , fromList
     -- * Folds
   , foldr
   , foldl'
@@ -80,6 +81,10 @@ singleton = Set . I.singleton
 -- | Convert a set to a list. The elements are given in ascending order.
 toList :: Prim a => Set a -> [a]
 toList (Set s) = I.toList s
+
+-- | Convert a list to a set.
+fromList :: (Ord a, Prim a) => [a] -> Set a
+fromList xs = Set (I.fromList xs)
 
 -- | The number of elements in the set.
 size :: Prim a => Set a -> Int
