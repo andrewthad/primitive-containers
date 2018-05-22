@@ -10,6 +10,8 @@ module Data.Set.Lifted
   , singleton
   , member
   , size
+  , difference
+  , (\\)
     -- * List Conversion
   , toList
     -- * Folds
@@ -72,6 +74,12 @@ instance Show a => Show (Set a) where
 instance Show1 Set where
   liftShowsPrec f _ p s = showParen (p > 10) $
    showString "fromList " . showListWith (f 0) (toList s)
+
+difference :: Ord a => Set a -> Set a -> Set a
+difference = I.difference
+
+(\\) :: Ord a => Set a -> Set a -> Set a
+(\\) = (I.\\)
 
 member :: Ord a => a -> Set a -> Bool
 member a (Set s) = I.member a s

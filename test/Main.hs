@@ -22,6 +22,7 @@ import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Classes as QCC
 import qualified Data.Semigroup as SG
 import qualified Data.Map as M
+import qualified Data.Set as Containers.Set
 import qualified Data.Foldable as F
 import qualified GHC.Exts as E
 import qualified Test.QuickCheck.Classes.IsList as QCCL
@@ -118,7 +119,6 @@ int16 = Proxy
 int32 :: Proxy Int32
 int32 = Proxy
 
-
 mapFoldMonoidAgreement ::
      ((Int -> Int -> [Int]) -> MUU.Map Int Int -> [Int])
   -> ((Int -> Int -> [Int]) -> M.Map Int Int -> [Int])
@@ -172,6 +172,21 @@ dietValidProp :: QC.Property
 dietValidProp = QC.property $ \(xs :: DMLL.Map Word8 Int) ->
   True === validDietTriples (E.toList xs)
 
+setDiffProp :: QC.Property
+setDiffProp = QC.property $ \(xs :: SL.Set Int) (ys :: SL.Set Int) ->
+  diffFromContainers === SL.difference xs ys
+  where
+    xsList = SL.toList xs
+    ysList = SL.toList ys
+
+    xsSet = Containers.Set.fromList xs
+    ysSet = Containers.Set.fromList ys
+
+    diffSet = Containers.Set.difference xsSet ysSet
+    diffList = Containers.Set.toList diffSet
+
+    diffFromContainers = E.fromList diffList
+
 simpleDoubletonToList :: (Ord k, Enum k, Semigroup v, Eq v) => k -> k -> v -> k -> k -> v -> [(k,k,v)]
 simpleDoubletonToList key1A key2A valA key1B key2B valB =
   let loA = min key1A key2A
@@ -219,7 +234,6 @@ deduplicateNonEmpty ((lo,hi,v) :| xs) = case xs of
       else (lo,hi,v) :| ((lo',hi',v') : xs')
   [] -> (lo,hi,v) :| []
 
-
 lawsToTest :: QCC.Laws -> TestTree
 lawsToTest (QCC.Laws name pairs) = testGroup name (map (uncurry TQC.testProperty) pairs)
 
@@ -264,7 +278,6 @@ arbitraryOrderedPairValue = do
   (lo,hi) <- arbitraryOrderedPair
   v <- QC.arbitrary
   return (lo,hi,v)
-
 
 instance SG.Semigroup Word where
   w <> _ = w
