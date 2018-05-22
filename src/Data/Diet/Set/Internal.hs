@@ -15,6 +15,8 @@ module Data.Diet.Set.Internal
   , concat
   , equals
   , showsPrec
+  , difference
+  , foldr
     -- list conversion
   , fromListN
   , fromList
@@ -291,8 +293,69 @@ append (Set keysA) (Set keysB)
     !keysFinal <- I.resize keysDst (total * 2)
     fmap Set (I.unsafeFreeze keysFinal)
 
+difference :: forall a arr. (Contiguous arr, Element arr a, Ord a, Enum a)
+  => Set arr a
+  -> Set arr a
+  -> Set arr a
+difference setA@(Set arrA) setB@(Set arrB)
+  | szA == 0 = empty
+  | szB == 0 = setA
+  | otherwise = runST $ do
+      -- should formally verify this upper bound on size
+      dst <- I.new ((szA + szB) * 2)
+      let goA !oldLoA !oldHiA !ixA !ixB !ixDst = do
+            -- here, we know that oldLoA < loB
+            !loB <- I.indexM arrB (ixB * 2)
+            !hiB <- I.indexM arrB (ixB * 2 + 1)
+            if oldHiA < loB
+              then do
+                I.write dst (ixDst * 2) oldLoA
+                I.write dst (ixDst * 2 + 1) oldHiA
+                !loA <- I.indexM arrA (ixA * 2)
+                !hiA <- I.indexM arrA (ixA * 2 + 1)
+                goA loA hiA (ixA + 1) ixB (ixDst + 1)
+              else do
+                let !upperA = pred loB
+                I.write dst (ixDst * 2) oldLoA
+                I.write dst (ixDst * 2 + 1) upperA
+                if oldHiA > hiB
+                  then goA (succ hiB) oldHiA ixA (ixB + 1) (ixDst + 1)
+                  else goB hiB ixA (ixB + 1) (ixDst + 1)
+          goB !oldHiB !ixA !ixB !ixDst = do
+            !loA' <- I.indexM arrA (ixA * 2)
+            !hiA <- I.indexM arrA (ixA * 2 + 1)
+            if oldHiB >= loA' && hiA == loA'
+              then goB oldHiB (ixA + 1) ixB ixDst
+              else do
+                let loA = if oldHiB < loA' then loA' else succ loA'
+                !loB <- I.indexM arrB (ixB * 2)
+                !hiB <- I.indexM arrB (ixB * 2 + 1)
+                if loA >= loB
+                  then if hiA <= hiB
+                    then goB hiB (ixA + 1) (ixB + 1) ixDst
+                    else goA (succ hiB) hiA (ixA + 1) (ixB + 1) ixDst
+                  else if hiA < loB
+                    then do
+                      I.write dst (ixDst * 2) loA
+                      I.write dst (ixDst * 2 + 1) hiA
+                      goB oldHiB (ixA + 1) ixB (ixDst + 1)
+                    else do
+                      I.write dst (ixDst * 2) loA
+                      I.write dst (ixDst * 2 + 1) (pred loB)
+                      if hiA <= hiB
+                        then goB hiB (ixA + 1) (ixB + 1) (ixDst + 1)
+                        else goA (succ hiB) hiA (ixA + 1) (ixB + 1) (ixDst + 1)
+      !loA0 <- I.indexM arrA 0
+      !hiA0 <- I.indexM arrA 1
+      !dstSz <- goA loA0 hiA0 0 1 0
+      !dstFrozen <- I.resize dst (dstSz * 2) >>= I.unsafeFreeze
+      return (Set dstFrozen)
+  where
+    !szA = size setA
+    !szB = size setB
+
 size :: (Contiguous arr, Element arr a) => Set arr a -> Int
-size (Set arr) = I.size arr 
+size (Set arr) = quot (I.size arr) 2
 
 toList :: (Contiguous arr, Element arr a) => Set arr a -> [(a,a)]
 toList = foldr (\lo hi xs -> (lo,hi) : xs) []
@@ -307,6 +370,7 @@ foldr f z (Set arr) =
                 !hi = I.index arr (i * 2 + 1)
              in f lo hi (go (i + 1))
    in go 0
+{-# INLINABLE foldr #-}
 
 showsPrec :: (Contiguous arr, Element arr a, Show a)
   => Int

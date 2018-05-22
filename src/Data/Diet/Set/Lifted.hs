@@ -8,12 +8,15 @@ module Data.Diet.Set.Lifted
   ( Set
   , singleton
   , member
+  , difference
+    -- * Folds
+  , foldr
     -- * List Conversion
   , fromList
   , fromListN
   ) where
 
-import Prelude hiding (lookup,map)
+import Prelude hiding (lookup,map,foldr)
 
 import Data.Semigroup (Semigroup)
 import Data.Functor.Classes (Show2(..))
@@ -66,4 +69,10 @@ fromListN :: (Ord a, Enum a)
   -> [(a,a)] -- ^ key-value pairs
   -> Set a
 fromListN n = Set . I.fromListN n
+
+difference :: (Ord a, Enum a) => Set a -> Set a -> Set a
+difference (Set x) (Set y) = Set (I.difference x y)
+
+foldr :: (a -> a -> b -> b) -> b -> Set a -> b
+foldr f z (Set arr) = I.foldr f z arr
 
