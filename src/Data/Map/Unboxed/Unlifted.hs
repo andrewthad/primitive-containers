@@ -20,8 +20,8 @@ import Prelude hiding (lookup)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
-import Data.Primitive.UnliftedArray (PrimUnlifted)
-import Data.Primitive (PrimArray,UnliftedArray)
+import Data.Primitive.UnliftedArray (PrimUnlifted,UnliftedArray)
+import Data.Primitive (PrimArray)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
