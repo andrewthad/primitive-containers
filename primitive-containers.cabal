@@ -24,9 +24,9 @@ library
       src
   build-depends:
       base >=4.9 && <5
-    , primitive-checked
+    , primitive
     , primitive-sort
-    , contiguous-checked
+    , contiguous
   exposed-modules:
     Data.Diet.Set.Internal
     Data.Diet.Set.Lifted
@@ -55,7 +55,7 @@ test-suite test
       base
     , QuickCheck
     , containers
-    , primitive-checked
+    , primitive
     , primitive-containers
     , quickcheck-classes >= 0.4.10
     , tasty
@@ -72,7 +72,7 @@ benchmark gauge
   ghc-options: -Wall -O2
   build-depends:
       base >= 4.8 && < 4.12
-    , primitive-checked
+    , primitive
     , primitive-containers
     , ghc-prim
     , gauge
