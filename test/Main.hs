@@ -88,6 +88,17 @@ main = defaultMain $ testGroup "Data"
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Word16)))
         , TQC.testProperty "member" (dietMemberProp @Word8 E.fromList DSL.member)
         , TQC.testProperty "difference" dietSetDifferenceProp
+        , TQC.testProperty "aboveInclusive" dietSetAboveProp
+        , testGroup "belowInclusive"
+          [ TQC.testProperty "basic" dietSetBelowProp
+          , TQC.testProperty "lowest" dietSetBelowLowestProp
+          , TQC.testProperty "highest" dietSetBelowHighestProp
+          ]
+        , testGroup "betweenInclusive"
+          [ TQC.testProperty "basic" dietSetBetweenProp
+          , TQC.testProperty "border" dietSetBetweenBorderProp
+          , TQC.testProperty "inside" dietSetBetweenBorderNearProp
+          ]
         ]
       ]
     , testGroup "Map"
@@ -126,6 +137,72 @@ dietSetDifferenceProp = QC.property $ \(xs :: DSL.Set Word8) (ys :: DSL.Set Word
   let xs' = dietSetToSet xs
       ys' = dietSetToSet ys
    in DSL.difference xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.difference xs' ys')))
+
+dietSetAboveProp :: QC.Property
+dietSetAboveProp = QC.property $ \(y :: Word8) (ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+      (_,isMember,c) = S.splitMember y ys'
+      r = if isMember then S.insert y c else c
+   in DSL.aboveInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r))
+
+dietSetBelowProp :: QC.Property
+dietSetBelowProp = QC.property $ \(y :: Word8) (ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+      (c,isMember,_) = S.splitMember y ys'
+      r = if isMember then S.insert y c else c
+   in DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r))
+
+dietSetBelowLowestProp :: QC.Property
+dietSetBelowLowestProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMin ys' of
+        Nothing -> QC.property QC.Discard
+        Just y -> 
+          let (c,isMember,_) = S.splitMember y ys'
+              r = if isMember then S.insert y c else c
+           in QC.property (DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r)))
+
+dietSetBelowHighestProp :: QC.Property
+dietSetBelowHighestProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMax ys' of
+        Nothing -> QC.property QC.Discard
+        Just y -> 
+          let (c,isMember,_) = S.splitMember y ys'
+              r = if isMember then S.insert y c else c
+           in QC.property (DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r)))
+
+dietSetBetweenProp :: QC.Property
+dietSetBetweenProp = QC.property $ \(x :: Word8) (y :: Word8) (ys :: DSL.Set Word8) ->
+  (x <= y)
+  ==> 
+  ( let ys' = dietSetToSet ys
+        r = S.filter (\e -> e >= x && e <= y) ys'
+     in DSL.betweenInclusive x y ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+  )
+
+dietSetBetweenBorderProp :: QC.Property
+dietSetBetweenBorderProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMax ys' of
+        Nothing -> QC.property QC.Discard
+        Just hi -> case S.lookupMin ys' of
+          Nothing -> QC.property QC.Discard
+          Just lo -> 
+            let r = S.filter (\e -> e >= lo && e <= hi) ys'
+             in DSL.betweenInclusive lo hi ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+
+dietSetBetweenBorderNearProp :: QC.Property
+dietSetBetweenBorderNearProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in ( S.size ys' > 1
+        ==>
+        ( let hi = pred (S.findMax ys')
+              lo = succ (S.findMin ys')
+              r = S.filter (\e -> e >= lo && e <= hi) ys'
+           in DSL.betweenInclusive lo hi ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+        )
+      )
 
 -- This enumerates all of the element contained by all ranges
 -- in the diet set.

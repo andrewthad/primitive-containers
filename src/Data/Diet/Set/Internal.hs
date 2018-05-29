@@ -17,6 +17,10 @@ module Data.Diet.Set.Internal
   , showsPrec
   , difference
   , foldr
+    -- splitting
+  , aboveInclusive
+  , belowInclusive
+  , betweenInclusive
     -- list conversion
   , fromListN
   , fromList
@@ -68,14 +72,20 @@ singleton :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   -> a -- ^ upper inclusive bound
   -> Set arr a
 singleton !lo !hi = if lo <= hi
-  then Set
-    ( runST $ do
-        !(arr :: Mutable arr s a) <- I.new 2
-        I.write arr 0 lo
-        I.write arr 1 hi
-        I.unsafeFreeze arr
-    )
+  then uncheckedSingleton lo hi
   else empty
+
+-- precondition: lo must be less than or equal to hi
+uncheckedSingleton :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a -- ^ lower inclusive bound
+  -> a -- ^ upper inclusive bound
+  -> Set arr a
+uncheckedSingleton lo hi = runST $ do
+  !(arr :: Mutable arr s a) <- I.new 2
+  I.write arr 0 lo
+  I.write arr 1 hi
+  r <- I.unsafeFreeze arr
+  return (Set r)
 
 member :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => a
@@ -98,6 +108,128 @@ member a (Set arr) = go 0 ((div (I.size arr) 2) - 1) where
             EQ -> True
             GT -> go mid end
 {-# INLINEABLE member #-}
+
+-- not exported since it provides an index into the underlying set
+-- Right means that the needle was found. The index provided is the
+-- index of the range that contains it [O,n). Left means that the needle
+-- was not contained by any of the ranges. The index provided is
+-- the index of the range to its right [0,n]
+locate :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a
+  -> Set arr a
+  -> Either Int Int
+locate a (Set arr) = go 0 ((div (I.size arr) 2) - 1) where
+  go :: Int -> Int -> Either Int Int
+  go !start !end = if end <= start
+    then if end == start
+      then 
+        let !valLo = I.index arr (2 * start)
+            !valHi = I.index arr (2 * start + 1)
+         in if (a >= valLo)
+              then if a <= valHi
+                then Right start
+                else Left (start + 1)
+              else Left start 
+      else Left 0
+    else
+      let !mid = div (end + start + 1) 2
+          !valLo = I.index arr (2 * mid)
+       in case P.compare a valLo of
+            LT -> go start (mid - 1)
+            EQ -> Right mid
+            GT -> go mid end
+
+betweenInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a -- ^ inclusive lower bound
+  -> a -- ^ inclusive upper bound
+  -> Set arr a
+  -> Set arr a
+betweenInclusive lo hi (Set arr)
+  | hi < lo = empty
+  | I.size arr > 0 && I.index arr 0 >= lo && I.index arr (I.size arr - 1) <= hi = Set arr
+  | otherwise = case locate lo (Set arr) of
+      Left ixLo -> case locate hi (Set arr) of
+        Left ixHi -> Set (I.clone arr (ixLo * 2) ((ixHi - ixLo) * 2))
+        Right ixHi -> runST $ do
+          let len = ixHi - ixLo + 1
+          res <- I.new (len * 2)
+          rightLo <- I.indexM arr (ixHi * 2)
+          I.copy res 0 arr (ixLo * 2) (len * 2 - 2)
+          I.write res (len * 2 - 2) rightLo
+          I.write res (len * 2 - 1) hi
+          r <- I.unsafeFreeze res
+          return (Set r)
+      Right ixLo -> case locate hi (Set arr) of
+        Left ixHi -> runST $ do
+          let len = ixHi - ixLo
+          res <- I.new (len * 2)
+          leftHi <- I.indexM arr (ixLo * 2 + 1)
+          I.write res 0 lo
+          I.write res 1 leftHi
+          I.copy res 2 arr (ixLo * 2 + 2) (len * 2 - 2)
+          r <- I.unsafeFreeze res
+          return (Set r)
+        Right ixHi -> if ixLo == ixHi
+          then uncheckedSingleton lo hi
+          else runST $ do
+            let len = ixHi - ixLo + 1
+            res <- I.new (len * 2)
+            leftHi <- I.indexM arr (ixLo * 2 + 1)
+            I.write res 0 lo
+            I.write res 1 leftHi
+            I.copy res 2 arr (ixLo * 2 + 2) (len * 2 - 4)
+            rightLo <- I.indexM arr (ixHi * 2)
+            I.write res (len * 2 - 2) rightLo
+            I.write res (len * 2 - 1) hi
+            r <- I.unsafeFreeze res
+            return (Set r)
+           
+
+aboveInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a -- ^ inclusive lower bound
+  -> Set arr a
+  -> Set arr a
+aboveInclusive x (Set arr) = case locate x (Set arr) of
+  Left ix -> if ix == 0
+    then Set arr
+    else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+  Right ix ->
+    let lo = I.index arr (ix * 2)
+        hi = I.index arr (ix * 2 + 1)
+     in if lo == x
+          then if ix == 0
+            then Set arr
+            else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+          else runST $ do
+            result <- I.new (I.size arr - ix * 2)
+            I.write result 0 x
+            I.write result 1 hi
+            I.copy result 2 arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2)
+            r <- I.unsafeFreeze result
+            return (Set r)
+
+belowInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a -- ^ inclusive upper bound
+  -> Set arr a
+  -> Set arr a
+belowInclusive x (Set arr) = case locate x (Set arr) of
+  Left ix -> if ix * 2 == I.size arr
+    then Set arr
+    else Set (I.clone arr 0 (ix * 2))
+  Right ix ->
+    let lo = I.index arr (ix * 2)
+        hi = I.index arr (ix * 2 + 1)
+     in if hi == x
+          then if ix * 2 == I.size arr
+            then Set arr
+            else Set (I.clone arr 0 ((ix + 1) * 2))
+          else runST $ do
+            result <- I.new ((ix + 1) * 2)
+            I.copy result 0 arr 0 (ix * 2)
+            I.write result (ix * 2) lo
+            I.write result (ix * 2 + 1) x
+            r <- I.unsafeFreeze result
+            return (Set r)
 
 append :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
   => Set arr a
@@ -300,56 +432,31 @@ difference :: forall a arr. (Contiguous arr, Element arr a, Ord a, Enum a)
 difference setA@(Set arrA) setB@(Set arrB)
   | szA == 0 = empty
   | szB == 0 = setA
-  | otherwise = runST $ do
-      -- should formally verify this upper bound on size
-      dst <- I.new ((szA + szB) * 2)
-      let goA !oldLoA !oldHiA !ixA !ixB !ixDst = do
-            -- here, we know that oldLoA < loB
-            !loB <- I.indexM arrB (ixB * 2)
-            !hiB <- I.indexM arrB (ixB * 2 + 1)
-            if oldHiA < loB
-              then do
-                I.write dst (ixDst * 2) oldLoA
-                I.write dst (ixDst * 2 + 1) oldHiA
-                !loA <- I.indexM arrA (ixA * 2)
-                !hiA <- I.indexM arrA (ixA * 2 + 1)
-                goA loA hiA (ixA + 1) ixB (ixDst + 1)
-              else do
-                let !upperA = pred loB
-                I.write dst (ixDst * 2) oldLoA
-                I.write dst (ixDst * 2 + 1) upperA
-                if oldHiA > hiB
-                  then goA (succ hiB) oldHiA ixA (ixB + 1) (ixDst + 1)
-                  else goB hiB ixA (ixB + 1) (ixDst + 1)
-          goB !oldHiB !ixA !ixB !ixDst = do
-            !loA' <- I.indexM arrA (ixA * 2)
-            !hiA <- I.indexM arrA (ixA * 2 + 1)
-            if oldHiB >= loA' && hiA == loA'
-              then goB oldHiB (ixA + 1) ixB ixDst
-              else do
-                let loA = if oldHiB < loA' then loA' else succ loA'
-                !loB <- I.indexM arrB (ixB * 2)
-                !hiB <- I.indexM arrB (ixB * 2 + 1)
-                if loA >= loB
-                  then if hiA <= hiB
-                    then goB hiB (ixA + 1) (ixB + 1) ixDst
-                    else goA (succ hiB) hiA (ixA + 1) (ixB + 1) ixDst
-                  else if hiA < loB
-                    then do
-                      I.write dst (ixDst * 2) loA
-                      I.write dst (ixDst * 2 + 1) hiA
-                      goB oldHiB (ixA + 1) ixB (ixDst + 1)
-                    else do
-                      I.write dst (ixDst * 2) loA
-                      I.write dst (ixDst * 2 + 1) (pred loB)
-                      if hiA <= hiB
-                        then goB hiB (ixA + 1) (ixB + 1) (ixDst + 1)
-                        else goA (succ hiB) hiA (ixA + 1) (ixB + 1) (ixDst + 1)
-      !loA0 <- I.indexM arrA 0
-      !hiA0 <- I.indexM arrA 1
-      !dstSz <- goA loA0 hiA0 0 1 0
-      !dstFrozen <- I.resize dst (dstSz * 2) >>= I.unsafeFreeze
-      return (Set dstFrozen)
+  | otherwise =
+      let inners :: Int -> [Set arr a]
+          inners !ix = if ix < szB - 1
+            then
+              let inner = betweenInclusive
+                    (succ (I.index arrB (2 * ix + 1)))
+                    (pred (I.index arrB (2 * ix + 2)))
+                    (Set arrA)
+               in inner : inners (ix + 1) 
+            else []
+          lowestA = I.index arrA 0
+          highestA = I.index arrA (szA * 2 - 1)
+          lowestB = I.index arrB 0
+          highestB = I.index arrB (szB * 2 - 1)
+          -- TODO: if we ever add exclusive variants of below
+          -- and above, we should switch to using them here.
+          lowFragment = if lowestA < lowestB
+            then [belowInclusive (pred lowestB) (Set arrA)]
+            else []
+          highFragment = if highestA > highestB
+            then [aboveInclusive (succ highestB) (Set arrA)]
+            else []
+          -- we should use a more efficient concat since
+          -- we know everything is ordered.
+       in concat (lowFragment ++ inners 0 ++ highFragment)
   where
     !szA = size setA
     !szB = size setB
