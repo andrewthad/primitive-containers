@@ -22,7 +22,7 @@ import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Classes as QCC
 import qualified Data.Semigroup as SG
 import qualified Data.Map as M
-import qualified Data.Set as Containers.Set
+import qualified Data.Set as S
 import qualified Data.Foldable as F
 import qualified GHC.Exts as E
 import qualified Test.QuickCheck.Classes.IsList as QCCL
@@ -54,6 +54,7 @@ main = defaultMain $ testGroup "Data"
       , TQC.testProperty "foldr" (QCCL.foldrProp int32 SL.foldr)
       , TQC.testProperty "foldl'" (QCCL.foldlProp int16 SL.foldl')
       , TQC.testProperty "foldr'" (QCCL.foldrProp int32 SL.foldr')
+      , TQC.testProperty "difference" differenceProp
       ]
     , testGroup "Unlifted"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
@@ -86,6 +87,18 @@ main = defaultMain $ testGroup "Data"
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSL.Set Word16)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Word16)))
         , TQC.testProperty "member" (dietMemberProp @Word8 E.fromList DSL.member)
+        , TQC.testProperty "difference" dietSetDifferenceProp
+        , TQC.testProperty "aboveInclusive" dietSetAboveProp
+        , testGroup "belowInclusive"
+          [ TQC.testProperty "basic" dietSetBelowProp
+          , TQC.testProperty "lowest" dietSetBelowLowestProp
+          , TQC.testProperty "highest" dietSetBelowHighestProp
+          ]
+        , testGroup "betweenInclusive"
+          [ TQC.testProperty "basic" dietSetBetweenProp
+          , TQC.testProperty "border" dietSetBetweenBorderProp
+          , TQC.testProperty "inside" dietSetBetweenBorderNearProp
+          ]
         ]
       ]
     , testGroup "Map"
@@ -118,6 +131,91 @@ int16 = Proxy
 
 int32 :: Proxy Int32
 int32 = Proxy
+
+dietSetDifferenceProp :: QC.Property
+dietSetDifferenceProp = QC.property $ \(xs :: DSL.Set Word8) (ys :: DSL.Set Word8) ->
+  let xs' = dietSetToSet xs
+      ys' = dietSetToSet ys
+   in DSL.difference xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.difference xs' ys')))
+
+dietSetAboveProp :: QC.Property
+dietSetAboveProp = QC.property $ \(y :: Word8) (ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+      (_,isMember,c) = S.splitMember y ys'
+      r = if isMember then S.insert y c else c
+   in DSL.aboveInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r))
+
+dietSetBelowProp :: QC.Property
+dietSetBelowProp = QC.property $ \(y :: Word8) (ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+      (c,isMember,_) = S.splitMember y ys'
+      r = if isMember then S.insert y c else c
+   in DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r))
+
+dietSetBelowLowestProp :: QC.Property
+dietSetBelowLowestProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMin ys' of
+        Nothing -> QC.property QC.Discard
+        Just y -> 
+          let (c,isMember,_) = S.splitMember y ys'
+              r = if isMember then S.insert y c else c
+           in QC.property (DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r)))
+
+dietSetBelowHighestProp :: QC.Property
+dietSetBelowHighestProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMax ys' of
+        Nothing -> QC.property QC.Discard
+        Just y -> 
+          let (c,isMember,_) = S.splitMember y ys'
+              r = if isMember then S.insert y c else c
+           in QC.property (DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r)))
+
+dietSetBetweenProp :: QC.Property
+dietSetBetweenProp = QC.property $ \(x :: Word8) (y :: Word8) (ys :: DSL.Set Word8) ->
+  (x <= y)
+  ==> 
+  ( let ys' = dietSetToSet ys
+        r = S.filter (\e -> e >= x && e <= y) ys'
+     in DSL.betweenInclusive x y ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+  )
+
+dietSetBetweenBorderProp :: QC.Property
+dietSetBetweenBorderProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMax ys' of
+        Nothing -> QC.property QC.Discard
+        Just hi -> case S.lookupMin ys' of
+          Nothing -> QC.property QC.Discard
+          Just lo -> 
+            let r = S.filter (\e -> e >= lo && e <= hi) ys'
+             in DSL.betweenInclusive lo hi ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+
+dietSetBetweenBorderNearProp :: QC.Property
+dietSetBetweenBorderNearProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in ( S.size ys' > 1
+        ==>
+        ( let hi = pred (S.findMax ys')
+              lo = succ (S.findMin ys')
+              r = S.filter (\e -> e >= lo && e <= hi) ys'
+           in DSL.betweenInclusive lo hi ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+        )
+      )
+
+-- This enumerates all of the element contained by all ranges
+-- in the diet set.
+dietSetToSet :: (Enum a, Ord a) => DSL.Set a -> S.Set a
+dietSetToSet = DSL.foldr
+  (\lo hi s -> S.fromList (enumFromTo lo hi) <> s)
+  mempty
+
+differenceProp :: QC.Property
+differenceProp = QC.property $ \(xs :: S.Set Word8) (ys :: S.Set Word8) ->
+  let xs' = SL.fromList (S.toList xs)
+      ys' = SL.fromList (S.toList ys)
+   in SL.toList (SL.difference xs' ys') === S.toList (S.difference xs ys)
 
 mapFoldMonoidAgreement ::
      ((Int -> Int -> [Int]) -> MUU.Map Int Int -> [Int])
@@ -171,21 +269,6 @@ dietDoubletonProp = QC.property $ \(loA :: Word8) (hiA :: Word8) (valA :: Int) (
 dietValidProp :: QC.Property
 dietValidProp = QC.property $ \(xs :: DMLL.Map Word8 Int) ->
   True === validDietTriples (E.toList xs)
-
-setDiffProp :: QC.Property
-setDiffProp = QC.property $ \(xs :: SL.Set Int) (ys :: SL.Set Int) ->
-  diffFromContainers === SL.difference xs ys
-  where
-    xsList = SL.toList xs
-    ysList = SL.toList ys
-
-    xsSet = Containers.Set.fromList xs
-    ysSet = Containers.Set.fromList ys
-
-    diffSet = Containers.Set.difference xsSet ysSet
-    diffList = Containers.Set.toList diffSet
-
-    diffFromContainers = E.fromList diffList
 
 simpleDoubletonToList :: (Ord k, Enum k, Semigroup v, Eq v) => k -> k -> v -> k -> k -> v -> [(k,k,v)]
 simpleDoubletonToList key1A key2A valA key1B key2B valB =

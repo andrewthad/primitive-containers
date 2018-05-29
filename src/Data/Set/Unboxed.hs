@@ -10,6 +10,8 @@ module Data.Set.Unboxed
   , singleton
   , member
   , size
+  , difference
+  , (\\)
     -- * List Conversion
   , toList
   , fromList
@@ -70,7 +72,14 @@ instance (Prim a, Ord a) => E.IsList (Set a) where
 instance (Prim a, Show a) => Show (Set a) where
   showsPrec p (Set s) = I.showsPrec p s
 
--- | Test for membership in the set.
+-- | The difference of two sets.
+difference :: (Ord a, Prim a) => Set a -> Set a -> Set a
+difference (Set x) (Set y) = Set (I.difference x y)
+
+-- | Infix operator for 'difference'.
+(\\) :: (Ord a, Prim a) => Set a -> Set a -> Set a
+(\\) (Set x) (Set y) = Set (I.difference x y)
+-- | Test whether or not an element is present in a set.
 member :: (Prim a, Ord a) => a -> Set a -> Bool
 member a (Set s) = I.member a s
 
@@ -120,4 +129,6 @@ foldMap' :: (Monoid m, Prim a)
   -> Set a
   -> m
 foldMap' f (Set arr) = I.foldMap' f arr
+
+
 

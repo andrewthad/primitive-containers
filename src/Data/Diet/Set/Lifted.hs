@@ -8,12 +8,19 @@ module Data.Diet.Set.Lifted
   ( Set
   , singleton
   , member
+  , difference
+    -- * Split
+  , aboveInclusive
+  , belowInclusive
+  , betweenInclusive
+    -- * Folds
+  , foldr
     -- * List Conversion
   , fromList
   , fromListN
   ) where
 
-import Prelude hiding (lookup,map)
+import Prelude hiding (lookup,map,foldr)
 
 import Data.Semigroup (Semigroup)
 import Data.Functor.Classes (Show2(..))
@@ -66,4 +73,43 @@ fromListN :: (Ord a, Enum a)
   -> [(a,a)] -- ^ key-value pairs
   -> Set a
 fromListN n = Set . I.fromListN n
+
+-- | /O(n + m*log n)/ Subtract the subtrahend of size @m@ from the
+-- minuend of size @n@. It should be possible to improve the improve
+-- the performance of this to /O(n + m)/. Anyone interested in doing
+-- this should open a PR.
+difference :: (Ord a, Enum a)
+  => Set a -- ^ minuend
+  -> Set a -- ^ subtrahend
+  -> Set a
+difference (Set x) (Set y) = Set (I.difference x y)
+
+foldr :: (a -> a -> b -> b) -> b -> Set a -> b
+foldr f z (Set arr) = I.foldr f z arr
+
+-- | /O(n)/ The subset where all elements are greater than
+-- or equal to the given value. 
+aboveInclusive :: (Ord a)
+  => a -- ^ inclusive lower bound
+  -> Set a
+  -> Set a
+aboveInclusive x (Set s) = Set (I.aboveInclusive x s)
+
+-- | /O(n)/ The subset where all elements are less than
+-- or equal to the given value. 
+belowInclusive :: (Ord a)
+  => a -- ^ inclusive upper bound
+  -> Set a
+  -> Set a
+belowInclusive x (Set s) = Set (I.belowInclusive x s)
+
+-- | /O(n)/ The subset where all elements are greater than
+-- or equal to the lower bound and less than or equal to
+-- the upper bound.
+betweenInclusive :: (Ord a)
+  => a -- ^ inclusive lower bound
+  -> a -- ^ inclusive upper bound
+  -> Set a
+  -> Set a
+betweenInclusive x y (Set s) = Set (I.betweenInclusive x y s)
 

@@ -14,6 +14,7 @@ module Data.Set.Lifted
   , (\\)
     -- * List Conversion
   , toList
+  , fromList
     -- * Folds
   , foldr
   , foldl'
@@ -75,21 +76,29 @@ instance Show1 Set where
   liftShowsPrec f _ p s = showParen (p > 10) $
    showString "fromList " . showListWith (f 0) (toList s)
 
+-- | The difference of two sets.
 difference :: Ord a => Set a -> Set a -> Set a
-difference = I.difference
+difference (Set x) (Set y) = Set (I.difference x y)
 
+-- | Infix operator for 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
-(\\) = (I.\\)
+(\\) (Set x) (Set y) = Set (I.difference x y)
 
+-- | Test whether or not an element is present in a set.
 member :: Ord a => a -> Set a -> Bool
 member a (Set s) = I.member a s
 
+-- | Construct a set with a single element.
 singleton :: a -> Set a
 singleton = Set . I.singleton
 
 -- | Convert a set to a list. The elements are given in ascending order.
 toList :: Set a -> [a]
 toList (Set s) = I.toList s
+
+-- | Convert a list to a set.
+fromList :: Ord a => [a] -> Set a
+fromList = Set . I.fromList
 
 -- | The number of elements in the set.
 size :: Set a -> Int
