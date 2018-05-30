@@ -1,7 +1,7 @@
 name: primitive-containers
 version: 0.1.0.0
-description: Please see the README on Github at <https://github.com/andrewthad/primitive-containers#readme>
-homepage: https://github.com/andrewthad/primitive-containers#readme
+description: Please see the README on Github at <https://github.com/andrewthad/primitive-containers>
+homepage: https://github.com/andrewthad/primitive-containers
 bug-reports: https://github.com/andrewthad/primitive-containers/issues
 author: Andrew Martin
 maintainer: andrew.thaddeus@gmail.com
@@ -24,7 +24,7 @@ library
       src
   build-depends:
       base >=4.9 && <5
-    , primitive
+    , primitive >= 0.6.3
     , primitive-sort
     , contiguous
   exposed-modules:
@@ -57,7 +57,7 @@ test-suite test
     , containers
     , primitive
     , primitive-containers
-    , quickcheck-classes >= 0.4.10
+    , quickcheck-classes >= 0.4.11.1
     , tasty
     , tasty-quickcheck
   ghc-options: -Wall -O2

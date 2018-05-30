@@ -17,6 +17,7 @@ import Data.Int
 import Test.Tasty (defaultMain,testGroup,TestTree)
 import Test.QuickCheck (Arbitrary,Gen,(===),(==>))
 import Data.List.NonEmpty (NonEmpty((:|)))
+import Control.Monad.ST (ST)
 import qualified Test.Tasty.QuickCheck as TQC
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Classes as QCC
