@@ -228,7 +228,7 @@ showsPrec :: (Contiguous arr, Element arr a, Show a)
   => Int
   -> Set arr a
   -> ShowS
-showsPrec p SetAll = showString "[(-∞,+∞)]"
+showsPrec _ SetAll = showString "[(-∞,+∞)]"
 showsPrec p (SetSome negInfHi s posInfLo) = showParen (p > 10) $
   showString "fromList " . showListInf shows negInfHi (S.toList s) posInfLo
 
@@ -251,5 +251,4 @@ showNegInfHi showx x s = "(-∞," ++ showx x (")" ++ s)
 
 showPosInfLo :: (a -> ShowS) -> a -> ShowS
 showPosInfLo showx x s = '(' : (showx x (",+∞)" ++ s))
-
 

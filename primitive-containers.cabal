@@ -42,6 +42,7 @@ library
     Data.Set.Unboxed
     Data.Set.Unlifted
   other-modules:
+    Data.Concatenation
     Data.Set.Internal
     Data.Map.Internal
     Data.Diet.Map.Internal

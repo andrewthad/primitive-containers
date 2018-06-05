@@ -38,6 +38,7 @@ import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as I
+import qualified Data.Concatenation as C
 
 -- The key array is twice as long as the value array since
 -- everything is stored as a range. Also, figure out how to
@@ -352,18 +353,11 @@ unionArrWith combine keysA valsA keysB valsB
     !valsFinal <- I.resize valsDst total
     liftA2 (,) (I.unsafeFreeze keysFinal) (I.unsafeFreeze valsFinal)
 
-concatWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v) => (v -> v -> v) -> [Map karr varr k v] -> Map karr varr k v
-concatWith combine = go [] where
-  go :: [Map karr varr k v] -> [Map karr varr k v] -> Map karr varr k v
-  go !stack [] = foldl' (appendWith combine) empty (L.reverse stack)
-  go !stack (x : xs) = if size x > 0
-    then go (pushStack x stack) xs
-    else go stack xs
-  pushStack :: Map karr varr k v -> [Map karr varr k v] -> [Map karr varr k v]
-  pushStack x [] = [x]
-  pushStack x (s : ss) = if size x >= size s
-    then pushStack (appendWith combine s x) ss
-    else x : s : ss
+concatWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v)
+  => (v -> v -> v)
+  -> [Map karr varr k v]
+  -> Map karr varr k v
+concatWith combine = C.concatSized size empty (appendWith combine)
 
 size :: (Contiguous varr, Element varr v) => Map karr varr k v -> Int
 size (Map _ vals) = I.size vals 

@@ -37,6 +37,7 @@ import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
 import qualified Data.Foldable as F
 import qualified Data.Primitive.Contiguous as A
+import qualified Data.Concatenation as C
 
 newtype Set arr a = Set (arr a)
 
@@ -154,17 +155,7 @@ member a (Set arr) = go 0 (A.size arr - 1) where
 {-# INLINEABLE member #-}
 
 concat :: forall arr a. (Contiguous arr, Element arr a, Ord a) => [Set arr a] -> Set arr a
-concat = go [] where
-  go :: [Set arr a] -> [Set arr a] -> Set arr a
-  go !stack [] = F.foldl' append empty stack
-  go !stack (x : xs) = if size x > 0
-    then go (pushStack x stack) xs
-    else go stack xs
-  pushStack :: Set arr a -> [Set arr a] -> [Set arr a]
-  pushStack x [] = [x]
-  pushStack x (s : ss) = if size x >= size s
-    then pushStack (append x s) ss
-    else x : s : ss
+concat = C.concatSized size empty append
 
 compareArr :: (Contiguous arr, Element arr a, Ord a)
   => arr a

@@ -52,6 +52,7 @@ import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as I
+import qualified Data.Concatenation as C
 
 -- TODO: Do some sneakiness with UnliftedRep
 data Map karr varr k v = Map !(karr k) !(varr v)
@@ -195,18 +196,11 @@ foldrWithKey f z (Map keys vals) =
 concat :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => [Map karr varr k v] -> Map karr varr k v
 concat = concatWith (SG.<>)
 
-concatWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => (v -> v -> v) -> [Map karr varr k v] -> Map karr varr k v
-concatWith combine = go [] where
-  go :: [Map karr varr k v] -> [Map karr varr k v] -> Map karr varr k v
-  go !stack [] = foldl' (appendWith combine) empty (L.reverse stack)
-  go !stack (x : xs) = if size x > 0
-    then go (pushStack x stack) xs
-    else go stack xs
-  pushStack :: Map karr varr k v -> [Map karr varr k v] -> [Map karr varr k v]
-  pushStack x [] = [x]
-  pushStack x (s : ss) = if size x >= size s
-    then pushStack (appendWith combine s x) ss
-    else x : s : ss
+concatWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+  => (v -> v -> v)
+  -> [Map karr varr k v]
+  -> Map karr varr k v
+concatWith combine = C.concatSized size empty (appendWith combine)
 
 appendWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k) => (v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendWith combine (Map ksA vsA) (Map ksB vsB) =

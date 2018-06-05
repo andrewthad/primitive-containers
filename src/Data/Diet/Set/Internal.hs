@@ -42,6 +42,7 @@ import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
 import qualified Data.Foldable as F
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as I
+import qualified Data.Concatenation as C
 
 newtype Set arr a = Set (arr a)
 
@@ -60,17 +61,7 @@ fromList = fromListN 1
 concat :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
   => [Set arr a]
   -> Set arr a
-concat = go [] where
-  go :: [Set arr a] -> [Set arr a] -> Set arr a
-  go !stack [] = F.foldl' append empty stack
-  go !stack (x : xs) = if size x > 0
-    then go (pushStack x stack) xs
-    else go stack xs
-  pushStack :: Set arr a -> [Set arr a] -> [Set arr a]
-  pushStack x [] = [x]
-  pushStack x (s : ss) = if size x >= size s
-    then pushStack (append x s) ss
-    else x : s : ss
+concat = C.concatSized size empty append
 
 singleton :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => a -- ^ lower inclusive bound
