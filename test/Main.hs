@@ -18,6 +18,7 @@ import Test.Tasty (defaultMain,testGroup,TestTree)
 import Test.QuickCheck (Arbitrary,Gen,(===),(==>))
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Control.Monad.ST (ST)
+import Control.Monad (forM)
 import qualified Test.Tasty.QuickCheck as TQC
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Classes as QCC
@@ -35,6 +36,7 @@ import qualified Data.Map.Unboxed.Unboxed as MUU
 import qualified Data.Diet.Map.Unboxed.Lifted as DMUL
 import qualified Data.Diet.Map.Lifted.Lifted as DMLL
 import qualified Data.Diet.Set.Lifted as DSL
+import qualified Data.Diet.Unbounded.Set.Lifted as DUSL
 
 main :: IO ()
 main = defaultMain $ testGroup "Data"
@@ -81,7 +83,15 @@ main = defaultMain $ testGroup "Data"
       ]
     ]
   , testGroup "Diet"
-    [ testGroup "Set"
+    [ testGroup "Unbounded"
+      [ testGroup "Set"
+        [ testGroup "Lifted"
+          [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DUSL.Set Word8)))
+          , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DUSL.Set Word8)))
+          ]
+        ]
+      ]
+    , testGroup "Set"
       [ testGroup "Lifted"
         [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSL.Set Word16)))
         , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSL.Set Word16)))
@@ -341,13 +351,58 @@ instance (Arbitrary k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v)
   shrink x = map E.fromList (QC.shrink (E.toList x))
     
 instance (Arbitrary k, Prim k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v) => Arbitrary (DMUL.Map k v) where
-  arbitrary = DMUL.fromListAppend <$> QC.vectorOf 10 arbitraryOrderedPairValue
+  arbitrary = do
+    sz <- QC.choose (0,10)
+    k <- QC.arbitrary
+    xs <- increasingOrderedPairsHelper sz k
+    ys <- forM xs $ \(lo,hi) -> do
+      v <- QC.arbitrary
+      return (lo,hi,v)
+    return (DMUL.fromListAppend ys)
   shrink x = map E.fromList (QC.shrink (E.toList x))
     
 instance (Arbitrary a, Ord a, Enum a, Bounded a) => Arbitrary (DSL.Set a) where
   arbitrary = DSL.fromList <$> QC.vectorOf 7 arbitraryOrderedPair
   shrink x = map E.fromList (QC.shrink (E.toList x))
+
+instance (Arbitrary a, Ord a, Enum a, Bounded a) => Arbitrary (DUSL.Set a) where
+  arbitrary = do
+    sz <- QC.choose (0,7)
+    k <- QC.arbitrary
+    foldMap (\(lo,hi) -> DUSL.singleton (Just lo) (Just hi)) <$> increasingOrderedPairsHelper sz k
     
+increasingOrderedPairsHelper :: (Ord k, Enum k, Bounded k) => Int -> k -> Gen [(k,k)]
+increasingOrderedPairsHelper n k = if n > 0
+  then case atLeastTwoGreaterThan k of
+    Nothing -> return []
+    Just vals -> do
+      lo <- QC.elements vals
+      hi <- QC.elements (equalToOrGreaterThan lo)
+      xs <- increasingOrderedPairsHelper (n - 1) hi
+      return ((lo,hi) : xs)
+  else return []
+
+equalToOrGreaterThan :: (Ord a, Bounded a, Enum a) => a -> [a]
+equalToOrGreaterThan a0 =
+  let a1 = if a0 < maxBound then succ a0 else a0
+      a2 = if a1 < maxBound then succ a1 else a1
+      a3 = if a2 < maxBound then succ a2 else a2
+   in [a0,a1,a2,a3]
+
+atLeastTwoGreaterThan :: (Enum a, Bounded a, Ord a) => a -> Maybe [a]
+atLeastTwoGreaterThan a0 = do
+  if a0 < maxBound
+    then
+      let a1 = succ a0
+       in if a1 < maxBound
+            then
+              let a2 = succ a1
+                  a3 = if a2 < maxBound then succ a2 else a2
+                  a4 = if a3 < maxBound then succ a3 else a3
+               in Just [a2,a3,a4]
+            else Nothing
+    else Nothing
+
 arbitraryOrderedPair :: (Ord k, Enum k, Bounded k, Arbitrary k) => Gen (k,k)
 arbitraryOrderedPair = do
   a0 <- QC.arbitrary

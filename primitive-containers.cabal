@@ -28,7 +28,8 @@ library
     , primitive-sort
     , contiguous
   exposed-modules:
-    Data.Diet.Set.Internal
+    Data.Diet.Set
+    Data.Diet.Unbounded.Set.Lifted
     Data.Diet.Set.Lifted
     Data.Diet.Set.Unboxed
     Data.Diet.Map.Lifted.Lifted
@@ -44,6 +45,8 @@ library
     Data.Set.Internal
     Data.Map.Internal
     Data.Diet.Map.Internal
+    Data.Diet.Set.Internal
+    Data.Diet.Unbounded.Set.Internal
   ghc-options: -O2
   default-language: Haskell2010
 

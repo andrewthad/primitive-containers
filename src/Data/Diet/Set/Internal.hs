@@ -17,9 +17,17 @@ module Data.Diet.Set.Internal
   , showsPrec
   , difference
   , foldr
+  , size
+    -- unsafe indexing
+  , locate
+  , slice
+  , indexLower
+  , indexUpper
     -- splitting
+  , aboveExclusive
   , aboveInclusive
   , belowInclusive
+  , belowExclusive
   , betweenInclusive
     -- list conversion
   , fromListN
@@ -35,9 +43,6 @@ import qualified Data.Foldable as F
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as I
 
--- The key array is twice as long as the value array since
--- everything is stored as a range. Also, figure out how to
--- unpack these two arguments at some point.
 newtype Set arr a = Set (arr a)
 
 empty :: Contiguous arr => Set arr a
@@ -109,9 +114,34 @@ member a (Set arr) = go 0 ((div (I.size arr) 2) - 1) where
             GT -> go mid end
 {-# INLINEABLE member #-}
 
--- not exported since it provides an index into the underlying set
+-- This may segfault if given something out of bounds
+indexLower :: (Contiguous arr, Element arr a)
+  => Int
+  -> Set arr a
+  -> a 
+indexLower ix (Set arr) = I.index arr (ix * 2)
+
+-- This may segfault if given something out of bounds
+indexUpper :: (Contiguous arr, Element arr a)
+  => Int
+  -> Set arr a
+  -> a 
+indexUpper ix (Set arr) = I.index arr (ix * 2 + 1)
+
+-- This may segfault if given bad indices. You are allow to give
+-- a high index that is one less than the low index though.
+slice :: (Contiguous arr, Element arr a)
+  => Int -- inclusive low index
+  -> Int -- inclusive high index
+  -> Set arr a
+  -> Set arr a
+slice loIx hiIx (Set arr) = Set (I.clone arr (loIx * 2) ((hiIx - loIx + 1) * 2))
+
+-- This is exported for use in Unbounded Diet Sets, but it should
+-- be considered an internal function since it provided an index
+-- into the set.
 -- Right means that the needle was found. The index provided is the
--- index of the range that contains it [O,n). Left means that the needle
+-- index of the range that contains it [0,n). Left means that the needle
 -- was not contained by any of the ranges. The index provided is
 -- the index of the range to its right [0,n]
 locate :: forall arr a. (Contiguous arr, Element arr a, Ord a)
@@ -208,6 +238,27 @@ aboveInclusive x (Set arr) = case locate x (Set arr) of
             r <- I.unsafeFreeze result
             return (Set r)
 
+aboveExclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
+  => a -- ^ exclusive lower bound
+  -> Set arr a
+  -> Set arr a
+aboveExclusive x (Set arr) = case locate x (Set arr) of
+  Left ix -> if ix == 0
+    then Set arr
+    else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+  Right ix ->
+    let hi = I.index arr (ix * 2 + 1)
+     in if hi == x
+          then Set (I.clone arr ((ix + 1) * 2) (I.size arr - (ix + 1) * 2))
+          else runST $ do
+            result <- I.new (I.size arr - ix * 2)
+            I.write result 0 (succ x)
+            I.write result 1 hi
+            I.copy result 2 arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2)
+            r <- I.unsafeFreeze result
+            return (Set r)
+
+
 belowInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => a -- ^ inclusive upper bound
   -> Set arr a
@@ -220,7 +271,7 @@ belowInclusive x (Set arr) = case locate x (Set arr) of
     let lo = I.index arr (ix * 2)
         hi = I.index arr (ix * 2 + 1)
      in if hi == x
-          then if ix * 2 == I.size arr
+          then if ix * 2 == I.size arr - 2
             then Set arr
             else Set (I.clone arr 0 ((ix + 1) * 2))
           else runST $ do
@@ -228,6 +279,26 @@ belowInclusive x (Set arr) = case locate x (Set arr) of
             I.copy result 0 arr 0 (ix * 2)
             I.write result (ix * 2) lo
             I.write result (ix * 2 + 1) x
+            r <- I.unsafeFreeze result
+            return (Set r)
+
+belowExclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
+  => a -- ^ exclusive upper bound
+  -> Set arr a
+  -> Set arr a
+belowExclusive x (Set arr) = case locate x (Set arr) of
+  Left ix -> if ix * 2 == I.size arr
+    then Set arr
+    else Set (I.clone arr 0 (ix * 2))
+  Right ix ->
+    let lo = I.index arr (ix * 2)
+     in if lo == x
+          then Set (I.clone arr 0 (ix * 2))
+          else runST $ do
+            result <- I.new ((ix + 1) * 2)
+            I.copy result 0 arr 0 (ix * 2)
+            I.write result (ix * 2) lo
+            I.write result (ix * 2 + 1) (pred x)
             r <- I.unsafeFreeze result
             return (Set r)
 

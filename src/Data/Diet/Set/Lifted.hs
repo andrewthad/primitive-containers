@@ -23,7 +23,6 @@ module Data.Diet.Set.Lifted
 import Prelude hiding (lookup,map,foldr)
 
 import Data.Semigroup (Semigroup)
-import Data.Functor.Classes (Show2(..))
 import Data.Primitive (Array)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
@@ -38,7 +37,7 @@ singleton :: Ord a
   -> Set a
 singleton lo hi = Set (I.singleton lo hi)
 
--- | /O(log n)/ Lookup the value at a key in the map.
+-- | /O(log n)/ Returns @True@ if the element is a member of the diet set.
 member :: Ord a => a -> Set a -> Bool
 member a (Set s) = I.member a s
 
