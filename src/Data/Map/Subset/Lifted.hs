@@ -19,6 +19,7 @@ import Prelude hiding (lookup)
 import Data.Map.Subset.Internal (Map)
 import Data.Set.Lifted.Internal (Set(..))
 import Data.Bifunctor (first)
+import Data.Semigroup (Semigroup)
 
 import qualified Data.Map.Subset.Internal as I
 

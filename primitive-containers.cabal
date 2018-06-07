@@ -1,5 +1,5 @@
 name: primitive-containers
-version: 0.2.0.0
+version: 0.2.0
 description: Please see the README on Github at <https://github.com/andrewthad/primitive-containers>
 homepage: https://github.com/andrewthad/primitive-containers
 bug-reports: https://github.com/andrewthad/primitive-containers/issues
@@ -25,8 +25,8 @@ library
   build-depends:
       base >=4.9 && <5
     , primitive >= 0.6.4
-    , primitive-sort
-    , contiguous
+    , primitive-sort >= 0.1 && < 0.2
+    , contiguous >= 0.2 && < 0.3
   exposed-modules:
     Data.Diet.Map.Lifted.Lifted
     Data.Diet.Map.Unboxed.Lifted
@@ -64,7 +64,7 @@ test-suite test
     , containers
     , primitive
     , primitive-containers
-    , quickcheck-classes >= 0.4.11.1
+    , quickcheck-classes >= 0.4.12
     , tasty
     , tasty-quickcheck
   ghc-options: -Wall -O2

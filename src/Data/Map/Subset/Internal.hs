@@ -20,7 +20,7 @@ import Prelude hiding (lookup,concat)
 import Data.Primitive.Contiguous (Contiguous,Element)
 import Data.Set.Internal (Set(..))
 import Data.Bifunctor (first)
-import Data.Semigroup (First(..))
+import Data.Semigroup (Semigroup,(<>),First(..))
 
 import qualified Data.Primitive.Contiguous as A
 import qualified Data.Set.Internal as S

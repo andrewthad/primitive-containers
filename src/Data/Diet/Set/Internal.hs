@@ -183,7 +183,7 @@ betweenInclusive lo hi (Set arr)
       Right ixLo -> case locate hi (Set arr) of
         Left ixHi -> runST $ do
           let len = ixHi - ixLo
-          res <- I.new (len * 2)
+          (res :: Mutable arr s a) <- I.new (len * 2)
           leftHi <- I.indexM arr (ixLo * 2 + 1)
           I.write res 0 lo
           I.write res 1 leftHi
@@ -194,7 +194,7 @@ betweenInclusive lo hi (Set arr)
           then uncheckedSingleton lo hi
           else runST $ do
             let len = ixHi - ixLo + 1
-            res <- I.new (len * 2)
+            (res :: Mutable arr s a) <- I.new (len * 2)
             leftHi <- I.indexM arr (ixLo * 2 + 1)
             I.write res 0 lo
             I.write res 1 leftHi
@@ -222,7 +222,7 @@ aboveInclusive x (Set arr) = case locate x (Set arr) of
             then Set arr
             else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
           else runST $ do
-            result <- I.new (I.size arr - ix * 2)
+            (result :: Mutable arr s a) <- I.new (I.size arr - ix * 2)
             I.write result 0 x
             I.write result 1 hi
             I.copy result 2 arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2)
@@ -242,7 +242,7 @@ aboveExclusive x (Set arr) = case locate x (Set arr) of
      in if hi == x
           then Set (I.clone arr ((ix + 1) * 2) (I.size arr - (ix + 1) * 2))
           else runST $ do
-            result <- I.new (I.size arr - ix * 2)
+            (result :: Mutable arr s a) <- I.new (I.size arr - ix * 2)
             I.write result 0 (succ x)
             I.write result 1 hi
             I.copy result 2 arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2)

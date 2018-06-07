@@ -18,6 +18,7 @@ import Prelude hiding (foldr)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Functor.Classes (Eq1(liftEq),Show1(liftShowsPrec))
 import Data.Primitive (Array)
+import Data.Semigroup (Semigroup)
 import Text.Show (showListWith)
 
 import qualified Data.Foldable as F
