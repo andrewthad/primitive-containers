@@ -24,3 +24,4 @@ concatSized size empty combine = go [] where
   pushStack x (s : ss) = if size x >= size s
     then pushStack (combine s x) ss
     else x : s : ss
+

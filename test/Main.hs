@@ -1,9 +1,11 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -17,7 +19,6 @@ import Data.Int
 import Test.Tasty (defaultMain,testGroup,TestTree)
 import Test.QuickCheck (Arbitrary,Gen,(===),(==>))
 import Data.List.NonEmpty (NonEmpty((:|)))
-import Control.Monad.ST (ST)
 import Control.Monad (forM)
 import qualified Test.Tasty.QuickCheck as TQC
 import qualified Test.QuickCheck as QC
@@ -37,6 +38,7 @@ import qualified Data.Diet.Map.Unboxed.Lifted as DMUL
 import qualified Data.Diet.Map.Lifted.Lifted as DMLL
 import qualified Data.Diet.Set.Lifted as DSL
 import qualified Data.Diet.Unbounded.Set.Lifted as DUSL
+import qualified Data.Map.Subset.Lifted as MSL
 
 main :: IO ()
 main = defaultMain $ testGroup "Data"
@@ -113,7 +115,15 @@ main = defaultMain $ testGroup "Data"
         ]
       ]
     , testGroup "Map"
-      [ testGroup "Lifted"
+      [ testGroup "Subset"
+        [ testGroup "Lifted"
+          [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MSL.Map Integer (SG.Sum Integer))))
+          , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (MSL.Map Integer (SG.First Integer))))
+          , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MSL.Map Integer (SG.Sum Integer))))
+          , TQC.testProperty "lookup" subsetMapLookupProp
+          ]
+        ]
+      , testGroup "Lifted"
         [ testGroup "Lifted"
           [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DMLL.Map Word8 Integer)))
           , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (DMLL.Map Word8 Word)))
@@ -142,6 +152,11 @@ int16 = Proxy
 
 int32 :: Proxy Int32
 int32 = Proxy
+
+subsetMapLookupProp :: QC.Property
+subsetMapLookupProp = QC.property $ \(xs :: MSL.Map Integer Integer) ->
+  let xs' = MSL.toList xs
+   in all (\(k,v) -> MSL.lookup k xs == Just v) xs' === True
 
 dietSetDifferenceProp :: QC.Property
 dietSetDifferenceProp = QC.property $ \(xs :: DSL.Set Word8) (ys :: DSL.Set Word8) ->
@@ -350,6 +365,20 @@ instance (Arbitrary k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v)
   arbitrary = DMLL.fromListAppend <$> QC.vectorOf 10 arbitraryOrderedPairValue
   shrink x = map E.fromList (QC.shrink (E.toList x))
     
+instance (Arbitrary k, Ord k, Arbitrary v, Eq v, Semigroup v) => Arbitrary (MSL.Map k v) where
+  arbitrary = do
+    len <- QC.choose (0,4)
+    xs <- QC.vectorOf len $ do
+      n <- QC.choose (0,3)
+      ys <- QC.vector n
+      v <- QC.arbitrary
+      return (SL.fromList ys, v)
+    return (MSL.fromList xs)
+  shrink x =
+    [ MSL.fromList (drop 1 y)
+    ]
+    where y = MSL.toList x
+
 instance (Arbitrary k, Prim k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v) => Arbitrary (DMUL.Map k v) where
   arbitrary = do
     sz <- QC.choose (0,10)
@@ -434,4 +463,6 @@ instance SG.Semigroup Integer where
 instance Monoid Integer where
   mempty = 0
   mappend = (SG.<>)
+
+deriving instance Arbitrary a => Arbitrary (SG.First a)
 

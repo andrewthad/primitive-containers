@@ -27,6 +27,7 @@ module Data.Set.Internal
   , foldl'
   , foldr'
   , foldMap'
+  , foldlM'
   ) where
 
 import Prelude hiding (compare,showsPrec,concat,foldr)
@@ -35,7 +36,6 @@ import qualified Prelude as P
 import Control.Monad.ST (ST,runST)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
-import qualified Data.Foldable as F
 import qualified Data.Primitive.Contiguous as A
 import qualified Data.Concatenation as C
 
@@ -249,3 +249,11 @@ foldMap' :: (Contiguous arr, Element arr a, Monoid m)
   -> m
 foldMap' f (Set arr) = A.foldMap' f arr
 {-# INLINEABLE foldMap' #-}
+
+foldlM' :: (Contiguous arr, Element arr a, Monad m)
+  => (b -> a -> m b)
+  -> b
+  -> Set arr a
+  -> m b
+foldlM' f b0 (Set arr) = A.foldlM' f b0 arr
+{-# INLINEABLE foldlM' #-}

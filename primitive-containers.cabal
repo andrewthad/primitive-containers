@@ -28,12 +28,12 @@ library
     , primitive-sort
     , contiguous
   exposed-modules:
-    Data.Diet.Set
-    Data.Diet.Unbounded.Set.Lifted
-    Data.Diet.Set.Lifted
-    Data.Diet.Set.Unboxed
     Data.Diet.Map.Lifted.Lifted
     Data.Diet.Map.Unboxed.Lifted
+    Data.Diet.Set
+    Data.Diet.Set.Lifted
+    Data.Diet.Set.Unboxed
+    Data.Diet.Unbounded.Set.Lifted
     Data.Map.Lifted.Lifted
     Data.Map.Unboxed.Lifted
     Data.Map.Unboxed.Unboxed
@@ -41,14 +41,17 @@ library
     Data.Set.Lifted
     Data.Set.Unboxed
     Data.Set.Unlifted
+    Data.Map.Subset.Lifted
   other-modules:
     Data.Concatenation
-    Data.Set.Internal
-    Data.Map.Internal
     Data.Diet.Map.Internal
     Data.Diet.Set.Internal
     Data.Diet.Unbounded.Set.Internal
-  ghc-options: -O2
+    Data.Map.Internal
+    Data.Map.Subset.Internal
+    Data.Set.Internal
+    Data.Set.Lifted.Internal
+  ghc-options: -O2 -Wall
   default-language: Haskell2010
 
 test-suite test
