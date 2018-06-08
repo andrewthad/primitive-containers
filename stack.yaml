@@ -2,6 +2,8 @@ resolver: lts-11.7
 packages:
 - '.'
 extra-deps:
-- git: https://github.com/andrewthad/primitive.git
-  commit: cb59c2e965e2e9007c8db224cec10335ecf4ec20
+- 'contiguous-0.2.0.0'
+- 'primitive-0.6.4.0'
+- 'primitive-sort-0.1.0.0'
+
 

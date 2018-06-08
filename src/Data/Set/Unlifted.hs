@@ -10,7 +10,18 @@ module Data.Set.Unlifted
   , singleton
   , member
   , size
+  , difference
+    -- * List Conversion
+  , toList
+  , fromList
+    -- * Folds
+  , foldr
+  , foldl'
+  , foldr'
+  , foldMap'
   ) where
+
+import Prelude hiding (foldr)
 
 import Data.Primitive.UnliftedArray (UnliftedArray, PrimUnlifted(..))
 import Data.Semigroup (Semigroup)
@@ -71,4 +82,46 @@ singleton = Set . I.singleton
 size :: PrimUnlifted a => Set a -> Int
 size (Set s) = I.size s
 
+-- | The difference of two sets.
+difference :: (PrimUnlifted a, Ord a) => Set a -> Set a -> Set a
+difference (Set x) (Set y) = Set (I.difference x y)
+
+-- | Convert a set to a list. The elements are given in ascending order.
+toList :: PrimUnlifted a => Set a -> [a]
+toList (Set s) = I.toList s
+
+-- | Convert a list to a set.
+fromList :: (PrimUnlifted a, Ord a) => [a] -> Set a
+fromList = Set . I.fromList
+
+-- | Right fold over the elements in the set. This is lazy in the accumulator.
+foldr :: PrimUnlifted a
+  => (a -> b -> b)
+  -> b
+  -> Set a
+  -> b
+foldr f b0 (Set s) = I.foldr f b0 s
+
+-- | Strict left fold over the elements in the set.
+foldl' :: PrimUnlifted a
+  => (b -> a -> b)
+  -> b
+  -> Set a
+  -> b
+foldl' f b0 (Set s) = I.foldl' f b0 s
+
+-- | Strict right fold over the elements in the set.
+foldr' :: PrimUnlifted a
+  => (a -> b -> b)
+  -> b
+  -> Set a
+  -> b
+foldr' f b0 (Set s) = I.foldr' f b0 s
+
+-- | Strict monoidal fold over the elements in the set.
+foldMap' :: (PrimUnlifted a, Monoid m)
+  => (a -> m)
+  -> Set a
+  -> m
+foldMap' f (Set arr) = I.foldMap' f arr
 
