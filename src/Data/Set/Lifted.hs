@@ -11,7 +11,8 @@ module Data.Set.Lifted
   , size
   , difference
   , (\\)
-    -- * List Conversion
+    -- * Conversion
+  , toArray
   , LI.toList
   , LI.fromList
     -- * Folds
@@ -24,6 +25,7 @@ module Data.Set.Lifted
 import Prelude hiding (foldr)
 import Data.Semigroup (Semigroup)
 import Data.Set.Lifted.Internal (Set(..))
+import Data.Primitive (Array)
 import qualified Data.Set.Internal as I
 import qualified Data.Set.Lifted.Internal as LI
 
@@ -53,4 +55,9 @@ foldMap' :: Monoid m
   -> Set a
   -> m
 foldMap' f (Set arr) = I.foldMap' f arr
+
+-- | /O(1)/ Convert a set to an array. The elements are given in ascending
+-- order. This function is zero-cost.
+toArray :: Set a -> Array a
+toArray (Set s) = I.toArray s
 

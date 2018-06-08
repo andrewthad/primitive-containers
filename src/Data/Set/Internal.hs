@@ -20,6 +20,7 @@ module Data.Set.Internal
   , fromListN
   , fromList
   , toList
+  , toArray
   , size
   , concat
     -- * Folds
@@ -139,6 +140,9 @@ showsPrec p xs = showParen (p > 10) $
 
 toList :: (Contiguous arr, Element arr a) => Set arr a -> [a]
 toList = foldr (:) []
+
+toArray :: Set arr a -> arr a
+toArray (Set a) = a
 
 member :: forall arr a. (Contiguous arr, Element arr a, Ord a) => a -> Set arr a -> Bool
 member a (Set arr) = go 0 (A.size arr - 1) where

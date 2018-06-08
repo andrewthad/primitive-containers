@@ -11,7 +11,8 @@ module Data.Set.Unlifted
   , member
   , size
   , difference
-    -- * List Conversion
+    -- * Conversion
+  , toArray
   , toList
   , fromList
     -- * Folds
@@ -86,11 +87,16 @@ size (Set s) = I.size s
 difference :: (PrimUnlifted a, Ord a) => Set a -> Set a -> Set a
 difference (Set x) (Set y) = Set (I.difference x y)
 
--- | Convert a set to a list. The elements are given in ascending order.
+-- | /O(1)/ Convert a set to an array. The elements are given in ascending
+-- order. This function is zero-cost.
+toArray :: Set a -> UnliftedArray a
+toArray (Set s) = I.toArray s
+
+-- | /O(n)/ Convert a set to a list. The elements are given in ascending order.
 toList :: PrimUnlifted a => Set a -> [a]
 toList (Set s) = I.toList s
 
--- | Convert a list to a set.
+-- | /O(n*log n)/ Convert a list to a set.
 fromList :: (PrimUnlifted a, Ord a) => [a] -> Set a
 fromList = Set . I.fromList
 
