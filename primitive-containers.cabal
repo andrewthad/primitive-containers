@@ -27,6 +27,7 @@ library
     , primitive >= 0.6.4
     , primitive-sort >= 0.1 && < 0.2
     , contiguous >= 0.2 && < 0.3
+    , quantification >= 0.4 && < 0.5
   exposed-modules:
     Data.Diet.Map.Lifted.Lifted
     Data.Diet.Map.Unboxed.Lifted
@@ -43,6 +44,11 @@ library
     Data.Set.Unboxed
     Data.Set.Unlifted
     Data.Map.Subset.Lifted
+    Data.Dependent.Map.Class
+    Data.Dependent.Map.Internal
+    Data.Dependent.Map.Lifted.Lifted
+    Data.Dependent.Map.Unlifted.Lifted
+    Data.Dependent.Map.Unboxed.Lifted
   other-modules:
     Data.Concatenation
     Data.Diet.Map.Internal
@@ -62,9 +68,10 @@ test-suite test
   build-depends:
       base
     , QuickCheck
-    , containers
+    , containers >= 0.5.10
     , primitive
     , primitive-containers
+    , quantification >= 0.4
     , quickcheck-classes >= 0.4.12
     , tasty
     , tasty-quickcheck

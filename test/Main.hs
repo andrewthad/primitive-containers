@@ -1,12 +1,18 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeInType #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -15,11 +21,17 @@ import Data.Primitive.UnliftedArray (PrimUnlifted)
 import Data.Word
 import Data.Proxy (Proxy(..))
 import Data.Int
+import Data.Kind (Type)
 
 import Test.Tasty (defaultMain,testGroup,TestTree)
 import Test.QuickCheck (Arbitrary,Gen,(===),(==>))
 import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.Exists (ToSing(..),DependentPair(..),ShowForall(..),ShowForeach(..))
+import Data.Exists (WitnessedEquality(..),WitnessedOrdering(..),EqForall(..),OrdForall(..))
+import Data.Exists (EqForeach(..),OrdForeach(..),EqForallPoly(..),OrdForallPoly(..),Sing)
 import Control.Monad (forM)
+import Data.Semigroup (Semigroup)
+import Unsafe.Coerce (unsafeCoerce)
 import qualified Test.Tasty.QuickCheck as TQC
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Classes as QCC
@@ -38,6 +50,8 @@ import qualified Data.Diet.Map.Unboxed.Lifted as DMUL
 import qualified Data.Diet.Map.Lifted.Lifted as DMLL
 import qualified Data.Diet.Set.Lifted as DSL
 import qualified Data.Diet.Unbounded.Set.Lifted as DUSL
+import qualified Data.Dependent.Map.Lifted.Lifted as DPMLL
+import qualified Data.Dependent.Map.Lifted.Lifted as DPMUL
 import qualified Data.Map.Subset.Lifted as MSL
 
 main :: IO ()
@@ -81,6 +95,24 @@ main = defaultMain $ testGroup "Data"
         , TQC.testProperty "foldlWithKey'" (mapFoldAgreement MUU.foldlWithKey' M.foldlWithKey)
         , TQC.testProperty "foldrWithKey'" (mapFoldAgreement MUU.foldrWithKey' M.foldrWithKey)
         , TQC.testProperty "foldMapWithKey'" (mapFoldMonoidAgreement MUU.foldMapWithKey' M.foldMapWithKey)
+        ]
+      ]
+    ]
+  , testGroup "Dependent"
+    [ testGroup "Map"
+      [ testGroup "Lifted"
+        [ testGroup "Lifted"
+          [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+          , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+          , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+          ]
+        ]
+      , testGroup "Unboxed"
+        [ testGroup "Lifted"
+          [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
+          , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
+          , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
+          ]
         ]
       ]
     ]
@@ -234,7 +266,7 @@ dietSetBetweenBorderNearProp = QC.property $ \(ys :: DSL.Set Word8) ->
 -- in the diet set.
 dietSetToSet :: (Enum a, Ord a) => DSL.Set a -> S.Set a
 dietSetToSet = DSL.foldr
-  (\lo hi s -> S.fromList (enumFromTo lo hi) <> s)
+  (\lo hi s -> S.fromList (enumFromTo lo hi) SG.<> s)
   mempty
 
 differenceProp :: QC.Property
@@ -290,7 +322,7 @@ dietDoubletonProp :: QC.Property
 dietDoubletonProp = QC.property $ \(loA :: Word8) (hiA :: Word8) (valA :: Int) (loB :: Word8) (hiB :: Word8) (valB :: Int) ->
   (hiA >= loA && hiB >= loB)
   ==>
-  (simpleDoubletonToList loA hiA valA loB hiB valB === E.toList (DMLL.singleton loA hiA valA <> DMLL.singleton loB hiB valB))
+  (simpleDoubletonToList loA hiA valA loB hiB valB === E.toList (DMLL.singleton loA hiA valA SG.<> DMLL.singleton loB hiB valB))
 
 dietValidProp :: QC.Property
 dietValidProp = QC.property $ \(xs :: DMLL.Map Word8 Int) ->
@@ -465,4 +497,196 @@ instance Monoid Integer where
   mappend = (SG.<>)
 
 deriving instance Arbitrary a => Arbitrary (SG.First a)
+
+data Universe
+  = UniverseInt
+  | UniverseOrdering
+  | UniverseBool
+  | UniverseChar
+
+data SingUniverse :: Universe -> Type where
+  SingUniverseInt :: SingUniverse 'UniverseInt
+  SingUniverseOrdering :: SingUniverse 'UniverseOrdering
+  SingUniverseBool :: SingUniverse 'UniverseBool
+  SingUniverseChar :: SingUniverse 'UniverseChar
+
+deriving instance Show (SingUniverse u)
+
+type instance Sing = SingUniverse
+
+type family Interpret (u :: Universe) :: Type where
+  Interpret 'UniverseInt = Int
+  Interpret 'UniverseOrdering = Ordering
+  Interpret 'UniverseBool = Bool
+  Interpret 'UniverseChar = Char
+
+newtype Value :: Universe -> Type where
+  Value :: Interpret u -> Value u
+
+instance EqForeach Value where
+  eqForeach SingUniverseInt (Value x) (Value y) = x == y
+  eqForeach SingUniverseOrdering (Value x) (Value y) = x == y
+  eqForeach SingUniverseBool (Value x) (Value y) = x == y
+  eqForeach SingUniverseChar (Value x) (Value y) = x == y
+
+instance OrdForeach Value where
+  compareForeach SingUniverseInt (Value x) (Value y) = compare x y
+  compareForeach SingUniverseOrdering (Value x) (Value y) = compare x y
+  compareForeach SingUniverseBool (Value x) (Value y) = compare x y
+  compareForeach SingUniverseChar (Value x) (Value y) = compare x y
+
+instance ShowForeach Value where
+  showsPrecForeach SingUniverseInt p (Value x) = showsPrec p x
+  showsPrecForeach SingUniverseBool p (Value x) = showsPrec p x
+  showsPrecForeach SingUniverseOrdering p (Value x) = showsPrec p x
+  showsPrecForeach SingUniverseChar p (Value x) = showsPrec p x
+
+-- This type interpret the lowest two bits of the Word8
+-- as the Universe value. Doing this is unsafe, but if the
+-- data constructor of a type like this is not exported, it
+-- is possible to build safe interfaces on top of this.
+newtype UnboxedKey u = UnboxedKey Word8
+  deriving (Show,Prim,Eq,Ord)
+
+unboxedIntKey :: Word8 -> UnboxedKey 'UniverseInt
+unboxedIntKey w = UnboxedKey (w * 4 + 0)
+
+unboxedBoolKey :: Word8 -> UnboxedKey 'UniverseBool
+unboxedBoolKey w = UnboxedKey (w * 4 + 1)
+
+unboxedOrderingKey :: Word8 -> UnboxedKey 'UniverseOrdering
+unboxedOrderingKey w = UnboxedKey (w * 4 + 2)
+
+unboxedCharKey :: Word8 -> UnboxedKey 'UniverseChar
+unboxedCharKey w = UnboxedKey (w * 4 + 3)
+
+instance ToSing UnboxedKey where
+  toSing (UnboxedKey w) = case mod w 4 of
+    0 -> unsafeCoerce SingUniverseInt
+    1 -> unsafeCoerce SingUniverseBool
+    2 -> unsafeCoerce SingUniverseOrdering
+    _ -> unsafeCoerce SingUniverseChar
+
+instance ShowForall UnboxedKey where
+  showsPrecForall = showsPrec
+
+instance EqForall UnboxedKey where
+  eqForall = (==)
+
+instance EqForallPoly UnboxedKey where
+  eqForallPoly (UnboxedKey a) (UnboxedKey b) = if a == b
+    then unsafeCoerce WitnessedEqualityEqual
+    else WitnessedEqualityUnequal
+
+instance OrdForall UnboxedKey where
+  compareForall = compare
+
+instance OrdForallPoly UnboxedKey where
+  compareForallPoly (UnboxedKey a) (UnboxedKey b) = case compare a b of
+    LT -> WitnessedOrderingLT
+    GT -> WitnessedOrderingGT
+    EQ -> unsafeCoerce WitnessedOrderingEQ
+
+data Key u = Key !Int !(SingUniverse u)
+  deriving (Show)
+
+instance ShowForall Key where
+  showsPrecForall = showsPrec
+
+instance ToSing Key where
+  toSing (Key _ s) = s
+
+instance EqForall Key where
+  eqForall (Key i1 _) (Key i2 _) = i1 == i2
+
+instance OrdForall Key where
+  compareForall (Key i1 _) (Key i2 _) = compare i1 i2
+
+instance EqForallPoly Key where
+  eqForallPoly (Key i1 s1) (Key i2 s2) = if i1 == i2
+    then case s1 of
+      SingUniverseInt -> case s2 of
+        SingUniverseInt -> WitnessedEqualityEqual
+        _ -> WitnessedEqualityUnequal
+      SingUniverseOrdering -> case s2 of
+        SingUniverseOrdering -> WitnessedEqualityEqual
+        _ -> WitnessedEqualityUnequal
+      SingUniverseBool -> case s2 of
+        SingUniverseBool -> WitnessedEqualityEqual
+        _ -> WitnessedEqualityUnequal
+      SingUniverseChar -> case s2 of
+        SingUniverseChar -> WitnessedEqualityEqual
+        _ -> WitnessedEqualityUnequal
+    else WitnessedEqualityUnequal
+
+instance EqForall SingUniverse where
+  eqForall _ _ = True
+
+instance OrdForall SingUniverse where
+  compareForall _ _ = EQ
+
+instance EqForallPoly SingUniverse where
+  eqForallPoly SingUniverseInt SingUniverseInt = WitnessedEqualityEqual
+  eqForallPoly SingUniverseInt _ = WitnessedEqualityUnequal
+  eqForallPoly SingUniverseBool SingUniverseBool = WitnessedEqualityEqual
+  eqForallPoly SingUniverseBool _ = WitnessedEqualityUnequal
+  eqForallPoly SingUniverseOrdering SingUniverseOrdering = WitnessedEqualityEqual
+  eqForallPoly SingUniverseOrdering _ = WitnessedEqualityUnequal
+  eqForallPoly SingUniverseChar SingUniverseChar = WitnessedEqualityEqual
+  eqForallPoly SingUniverseChar _ = WitnessedEqualityUnequal
+
+instance OrdForallPoly SingUniverse where
+  compareForallPoly SingUniverseInt SingUniverseInt      = WitnessedOrderingEQ
+  compareForallPoly SingUniverseInt SingUniverseOrdering = WitnessedOrderingLT
+  compareForallPoly SingUniverseInt SingUniverseBool     = WitnessedOrderingLT
+  compareForallPoly SingUniverseInt SingUniverseChar     = WitnessedOrderingLT
+  compareForallPoly SingUniverseOrdering SingUniverseInt      = WitnessedOrderingGT
+  compareForallPoly SingUniverseOrdering SingUniverseOrdering = WitnessedOrderingEQ
+  compareForallPoly SingUniverseOrdering SingUniverseBool     = WitnessedOrderingLT
+  compareForallPoly SingUniverseOrdering SingUniverseChar     = WitnessedOrderingLT
+  compareForallPoly SingUniverseBool SingUniverseInt      = WitnessedOrderingGT
+  compareForallPoly SingUniverseBool SingUniverseOrdering = WitnessedOrderingGT
+  compareForallPoly SingUniverseBool SingUniverseBool     = WitnessedOrderingEQ
+  compareForallPoly SingUniverseBool SingUniverseChar     = WitnessedOrderingLT
+  compareForallPoly SingUniverseChar SingUniverseInt      = WitnessedOrderingGT
+  compareForallPoly SingUniverseChar SingUniverseOrdering = WitnessedOrderingGT
+  compareForallPoly SingUniverseChar SingUniverseBool     = WitnessedOrderingGT
+  compareForallPoly SingUniverseChar SingUniverseChar     = WitnessedOrderingEQ
+
+instance OrdForallPoly Key where
+  compareForallPoly (Key i1 s1) (Key i2 s2) = case compare i1 i2 of
+    LT -> WitnessedOrderingLT
+    GT -> WitnessedOrderingGT
+    EQ -> compareForallPoly s1 s2
+
+class ArbitraryDependentPair k v where
+  arbitraryDependentPair :: Gen (DependentPair k v)
+
+instance ArbitraryDependentPair k v => Arbitrary (DependentPair k v) where
+  arbitrary = arbitraryDependentPair
+
+instance ArbitraryDependentPair Key Value where
+  arbitraryDependentPair = do
+    (i :: Int) <- QC.choose (0, 10)
+    QC.oneof
+      [ DependentPair (Key i SingUniverseInt) . Value <$> QC.arbitrary
+      , DependentPair (Key i SingUniverseBool) . Value <$> QC.arbitrary
+      , DependentPair (Key i SingUniverseChar) . Value <$> QC.arbitrary
+      , DependentPair (Key i SingUniverseOrdering) . Value <$> QC.arbitrary
+      ]
+
+instance ArbitraryDependentPair UnboxedKey Value where
+  arbitraryDependentPair = do
+    (i :: Word8) <- QC.choose (0, 10)
+    QC.oneof
+      [ DependentPair (unboxedIntKey i) . Value <$> QC.arbitrary
+      , DependentPair (unboxedBoolKey i) . Value <$> QC.arbitrary
+      , DependentPair (unboxedCharKey i) . Value <$> QC.arbitrary
+      , DependentPair (unboxedOrderingKey i) . Value <$> QC.arbitrary
+      ]
+    
+instance (ArbitraryDependentPair k v, OrdForallPoly k) => Arbitrary (DPMLL.Map k v) where
+  arbitrary = do
+    len <- QC.choose (0,35)
+    DPMLL.fromList <$> QC.vectorOf len arbitraryDependentPair
 

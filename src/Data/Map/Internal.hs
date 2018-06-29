@@ -14,6 +14,7 @@ module Data.Map.Internal
   , map
   , mapMaybe
     -- * Folds
+  , foldrWithKey
   , foldlWithKey'
   , foldrWithKey'
   , foldMapWithKey'
@@ -24,6 +25,8 @@ module Data.Map.Internal
   , foldrMapWithKeyM'
     -- * Functions
   , append
+  , appendWith
+  , appendRightBiased
   , lookup
   , showsPrec
   , equals
@@ -87,11 +90,45 @@ fromListWithN combine n xs =
       let (leftovers, result) = fromAscListWith combine (max 1 n) k v ys
        in concatWith combine (result : P.map (uncurry singleton) leftovers)
 
-fromListN :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => Int -> [(k,v)] -> Map karr varr k v
-fromListN = fromListWithN (\_ a -> a)
+fromListN :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+  => Int
+  -> [(k,v)]
+  -> Map karr varr k v
+{-# INLINABLE fromListN #-}
+fromListN n xs = runST $ do
+  (ks,vs) <- mutableArraysFromPairs (max n 1) xs
+  unsafeFreezeZip ks vs
+
+mutableArraysFromPairs :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+  => Int -- must be at least one
+  -> [(k,v)]
+  -> ST s (Mutable karr s k, Mutable varr s v)
+{-# INLINABLE mutableArraysFromPairs #-}
+mutableArraysFromPairs n xs = do
+  let go !ix !_ !ks !vs [] = return (ix,ks,vs)
+      go !ix !len !ks !vs ((k,v) : ys) = if ix < len
+        then do
+          I.write ks ix k
+          I.write vs ix v
+          go (ix + 1) len ks vs ys
+        else do
+          let len' = len * 2
+          ks' <- I.new len'
+          vs' <- I.new len'
+          I.copyMutable ks' 0 ks 0 len
+          I.copyMutable vs' 0 vs 0 len
+          I.write ks' ix k
+          I.write vs' ix v
+          go (ix + 1) len' ks' vs' ys
+  ks0 <- I.new n
+  vs0 <- I.new n
+  (len,ks',vs') <- go 0 n ks0 vs0 xs
+  ksFinal <- I.resize ks' len
+  vsFinal <- I.resize vs' len
+  return (ksFinal,vsFinal)
 
 fromList :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => [(k,v)] -> Map karr varr k v
-fromList = fromListN 1
+fromList = fromListN 8
 
 fromListAppendN :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => Int -> [(k,v)] -> Map karr varr k v
 fromListAppendN = fromListWithN (SG.<>)
@@ -182,7 +219,11 @@ showsPrec p xs = showParen (p > 10) $
 toList :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v) => Map karr varr k v -> [(k,v)]
 toList = foldrWithKey (\k v xs -> (k,v) : xs) []
 
-foldrWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v) => (k -> v -> b -> b) -> b -> Map karr varr k v -> b
+foldrWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (k -> v -> b -> b)
+  -> b
+  -> Map karr varr k v
+  -> b
 foldrWithKey f z (Map keys vals) =
   let !sz = I.size vals
       go !i
@@ -201,6 +242,9 @@ concatWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Con
   -> [Map karr varr k v]
   -> Map karr varr k v
 concatWith combine = C.concatSized size empty (appendWith combine)
+
+appendRightBiased :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
+appendRightBiased = appendWith const
 
 appendWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k) => (v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendWith combine (Map ksA vsA) (Map ksB vsB) =
@@ -263,7 +307,11 @@ unionArrWith combine keysA valsA keysB valsB
       !valsFinal <- I.resize valsDst total
       liftA2 (,) (I.unsafeFreeze keysFinal) (I.unsafeFreeze valsFinal)
  
-lookup :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => k -> Map karr varr k v -> Maybe v
+lookup :: forall karr varr k v.
+     (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+  => k
+  -> Map karr varr k v
+  -> Maybe v
 lookup a (Map arr vals) = go 0 (I.size vals - 1) where
   go :: Int -> Int -> Maybe v
   go !start !end = if end < start

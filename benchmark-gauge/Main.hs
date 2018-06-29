@@ -29,6 +29,13 @@ main = defaultMain
       , bench "primitive-lifted-lifted" $ whnf (DMLL.foldlWithKey' reduction 0) bigLiftedMap
       , bench "containers-map" $ whnf (M.foldlWithKey' reduction 0) bigContainersMap
       ]
+    , bgroup "fromList"
+      [ bgroup "primitive-unboxed-unboxed" 
+        [ bench "20" $ whnf DMUU.fromList randomKeyValue20
+        , bench "200" $ whnf DMUU.fromList randomKeyValue200
+        , bench "2000" $ whnf DMUU.fromList randomKeyValue2000
+        ]
+      ]
     ]
   , bgroup "Set"
     [ bgroup "lookup" 
@@ -124,6 +131,22 @@ ascArray200 = take 200 (enumFrom 0)
 
 ascArray2000 :: [Word]
 ascArray2000 = take 2000 (enumFrom 0)
+
+randomKeyValue20 :: [(Word,Word)]
+randomKeyValue20 = take 20 $ zip
+  (randoms (mkStdGen 75843))
+  (randoms (mkStdGen 4632465))
+
+randomKeyValue200 :: [(Word,Word)]
+randomKeyValue200 = take 200 $ zip
+  (randoms (mkStdGen 75843))
+  (randoms (mkStdGen 4632465))
+
+randomKeyValue2000 :: [(Word,Word)]
+randomKeyValue2000 = take 2000 $ zip
+  (randoms (mkStdGen 75843))
+  (randoms (mkStdGen 4632465))
+
 
 randomArray20 :: [Word]
 randomArray20 = take 20 (randoms (mkStdGen 75843))
