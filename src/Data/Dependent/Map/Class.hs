@@ -11,6 +11,7 @@
 {-# language TypeFamilies #-}
 {-# language TypeFamilyDependencies #-}
 {-# language TypeInType #-}
+{-# language UnboxedTuples #-}
 
 -- I really do not like the typeclasses defined in this module.
 -- With the QuantifiedConstraints extension (in GHC 8.6), we should
@@ -24,7 +25,8 @@ module Data.Dependent.Map.Class
 
 import Data.Kind (Type,Constraint)
 import Data.Proxy (Proxy(..))
-import Data.Exists (OrdForallPoly(..),EqForallPoly(..),weakenOrdering,weakenEquality)
+import Data.Exists (OrdForall(..),EqForall(..),PrimForallPhantom(..))
+import Data.Primitive (Prim(..))
 import Data.Primitive.Contiguous (Always)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import GHC.Exts
@@ -46,11 +48,23 @@ instance ApplyUniversally f PrimUnlifted => PrimUnlifted (Apply f a) where
   toArrayArray# (Apply v) = applyUniversallyUnlifted (Proxy :: Proxy f) (Proxy :: Proxy PrimUnlifted) (Proxy :: Proxy a) (toArrayArray# v)
   fromArrayArray# a = applyUniversallyLifted (Proxy :: Proxy f) (Proxy :: Proxy PrimUnlifted) (Proxy :: Proxy a) (fromArrayArray# a)
 
-instance EqForallPoly f => Eq (Apply f a) where
-  Apply x == Apply y = weakenEquality (eqForallPoly x y)
+instance EqForall f => Eq (Apply f a) where
+  Apply x == Apply y = eqForall x y
 
-instance OrdForallPoly f => Ord (Apply f a) where
-  compare (Apply x) (Apply y) = weakenOrdering (compareForallPoly x y)
+instance OrdForall f => Ord (Apply f a) where
+  compare (Apply x) (Apply y) = compareForall x y
+
+instance PrimForallPhantom f => Prim (Apply f a) where
+  sizeOf# _ = sizeOfForallPhantom# (proxy# :: Proxy# f)
+  alignment# _ = alignmentForallPhantom# (proxy# :: Proxy# f)
+  indexByteArray# = coerce (indexByteArrayForallPhantom# :: ByteArray# -> Int# -> f a)
+  readByteArray# = coerce (readByteArrayForallPhantom# :: MutableByteArray# s -> Int# -> State# s -> (# State# s, f a #) )
+  writeByteArray# = coerce (writeByteArrayForallPhantom# :: MutableByteArray# s -> Int# -> f a -> State# s -> State# s )
+  setByteArray# = coerce (setByteArrayForallPhantom# :: MutableByteArray# s -> Int# -> Int# -> f a -> State# s -> State# s )
+  indexOffAddr# = coerce (indexOffAddrForallPhantom# :: Addr# -> Int# -> f a)
+  readOffAddr# = coerce (readOffAddrForallPhantom# :: Addr# -> Int# -> State# s -> (# State# s, f a #) )
+  writeOffAddr# = coerce (writeOffAddrForallPhantom# :: Addr# -> Int# -> f a -> State# s -> State# s)
+  setOffAddr# = coerce (setOffAddrForallPhantom# :: Addr# -> Int# -> Int# -> f a -> State# s -> State# s)
 
 instance Universally f Always where
   universally _ _ _ y = y

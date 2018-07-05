@@ -27,7 +27,7 @@ library
     , primitive >= 0.6.4
     , primitive-sort >= 0.1 && < 0.2
     , contiguous >= 0.2 && < 0.3
-    , quantification >= 0.4 && < 0.5
+    , quantification >= 0.4.1 && < 0.5
   exposed-modules:
     Data.Diet.Map.Lifted.Lifted
     Data.Diet.Map.Unboxed.Lifted
