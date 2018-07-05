@@ -16,6 +16,7 @@ module Data.Dependent.Map.Internal
   , showsPrec
   , equals
   , compare
+  , unsafeFreezeZip
   ) where
 
 import Prelude hiding (lookup,showsPrec,compare)
@@ -103,7 +104,7 @@ fromListN n xs = runST $ do
   (ks,vs) <- mutableArraysFromPairs (max n 1) xs
   unsafeFreezeZip ks vs
 
--- This function is really unsafe. The user needs to use unsafeCoerce to even use it.
+-- | This function is really unsafe. The user needs to use unsafeCoerce to even use it.
 unsafeFreezeZip :: forall karr varr k v s.
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k)
   => Mutable karr s (k Any)

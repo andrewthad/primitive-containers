@@ -9,16 +9,18 @@ module Data.Dependent.Map.Unboxed.Lifted
   , lookup
   , toList
   , fromList
+  , unsafeFreezeZip
   ) where
 
 import Prelude hiding (lookup)
 
-import Data.Primitive (Array,PrimArray,Prim)
+import Data.Primitive (Array,PrimArray,Prim,MutablePrimArray,MutableArray)
 import Data.Semigroup (Semigroup)
 import Data.Dependent.Map.Class (Universally,ApplyUniversally)
 import Data.Exists (OrdForallPoly,DependentPair,ShowForall,ShowForeach,ToSing)
 import Data.Exists (EqForallPoly,EqForeach,OrdForeach)
-import GHC.Exts (IsList)
+import Control.Monad.ST (ST)
+import GHC.Exts (IsList,Any)
 
 import qualified Data.Dependent.Map.Internal as I
 import qualified GHC.Exts
@@ -39,6 +41,16 @@ fromListN n xs = Map (I.fromListN n xs)
 
 toList :: Universally k Prim => Map k v -> [DependentPair k v]
 toList (Map x) = I.toList x
+
+-- | This function is really unsafe. The user needs to use unsafeCoerce to even use it.
+unsafeFreezeZip :: 
+     (Universally k Prim, OrdForallPoly k)
+  => MutablePrimArray s (k Any)
+  -> MutableArray s (v Any)
+  -> ST s (Map k v)
+{-# INLINABLE unsafeFreezeZip #-}
+unsafeFreezeZip keys0 vals0 =
+  fmap Map (I.unsafeFreezeZip keys0 vals0)
 
 instance (Universally k Prim, ApplyUniversally k Prim, OrdForallPoly k) => IsList (Map k v) where
   type Item (Map k v) = DependentPair k v
