@@ -1,6 +1,10 @@
+cabal-version: 2.0
 name: primitive-containers
-version: 0.2.0
-description: Please see the README on Github at <https://github.com/andrewthad/primitive-containers>
+version: 0.3.0
+synopsis: containers backed by arrays
+description:
+  Containers backed by flat arrays. Updates require rebuilding the
+  entire structure, but lookups are cache coherent.
 homepage: https://github.com/andrewthad/primitive-containers
 bug-reports: https://github.com/andrewthad/primitive-containers/issues
 author: Andrew Martin
@@ -9,7 +13,6 @@ copyright: 2018 Andrew Martin
 license: BSD3
 license-file: LICENSE
 build-type: Simple
-cabal-version: >= 2.0
 
 extra-source-files:
     ChangeLog.md
@@ -27,7 +30,7 @@ library
     , primitive >= 0.6.4
     , primitive-sort >= 0.1 && < 0.2
     , contiguous >= 0.2 && < 0.3
-    , quantification >= 0.4.1 && < 0.5
+    , quantification >= 0.5.0 && < 0.6
   exposed-modules:
     Data.Diet.Map.Lifted.Lifted
     Data.Diet.Map.Unboxed.Lifted
