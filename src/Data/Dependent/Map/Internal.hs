@@ -17,6 +17,8 @@ module Data.Dependent.Map.Internal
   , equals
   , compare
   , unsafeFreezeZip
+  , toJSON
+  , parseJSON
   ) where
 
 import Prelude hiding (lookup,showsPrec,compare)
@@ -28,15 +30,25 @@ import Data.Proxy (Proxy(..))
 import GHC.Exts (Any,coerce)
 import Unsafe.Coerce (unsafeCoerce)
 import Data.Exists (OrdForallPoly(..),EqForallPoly(..),DependentPair(..),ShowForall,ToSing)
-import Data.Exists (ShowForeach,EqForeach,OrdForeach)
+import Data.Exists (ShowForeach,EqForeach,OrdForeach,ToJSONKeyForall,FromJSONForeach)
+import Data.Exists (ToJSONForall,ToJSONKeyFunctionForall,ToJSONForeach)
+import Data.Exists (FromJSONKeyExists)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Sort (sortUniqueTaggedMutable)
 import Data.Kind (Type)
+import Data.Aeson (ToJSON,FromJSON)
+import Data.Text (Text)
+import qualified Data.Vector as V
+import qualified Data.Exists as EX
+import qualified Data.Aeson as AE
+import qualified Data.Aeson.Types as AET
+import qualified Data.HashMap.Strict as HM
 import qualified Prelude as P
 import qualified Data.Map.Internal as I
 import qualified Data.Primitive.Contiguous as I
 import qualified Data.Dependent.Map.Class as C
 import qualified Data.Map.Internal as M
+import qualified Data.Foldable as F
 
 newtype Map karr varr (k :: u -> Type) (v :: u -> Type) = Map (M.Map karr varr (Apply k Any) (v Any))
 
@@ -47,6 +59,68 @@ singleton k v = id
   $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
   $ Map (M.singleton (wrapKey k) (wrapValue (Proxy :: Proxy v) (Proxy :: Proxy a) v))
+
+toJSON :: forall karr varr k v.
+     (ToJSONKeyForall k, ToJSONForeach v, ToSing k, Contiguous karr, Contiguous varr,ApplyUniversally v (Element varr),Universally k (Element karr))
+  => Map karr varr k v
+  -> AE.Value
+toJSON (Map m) = id
+  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ case EX.toJSONKeyForall :: ToJSONKeyFunctionForall k of
+      EX.ToJSONKeyValueForall toValue _ -> AE.Array $ V.fromListN
+        ( M.size m )
+        ( M.foldrWithKey
+          ( \(C.Apply k) v xs -> AE.toJSON (toValue k,EX.toJSONForeach (EX.toSing k) v) : xs
+          ) [] m
+        )
+      EX.ToJSONKeyTextForall toText _ -> AE.Object
+        ( M.foldlWithKey'
+          ( \hm (C.Apply k) v -> HM.insert (toText k) (EX.toJSONForeach (EX.toSing k) v) hm
+          ) HM.empty m
+        )
+
+parseJSON :: forall karr varr k v.
+     (FromJSONKeyExists k, ToSing k, OrdForallPoly k, FromJSONForeach v, Contiguous karr, Contiguous varr, ApplyUniversally v (Element varr),Universally k (Element karr),ApplyUniversally k (Element karr))
+  => AE.Value
+  -> AET.Parser (Map karr varr k v)
+parseJSON theValue =
+  case EX.fromJSONKeyExists :: AE.FromJSONKeyFunction (EX.Exists k) of
+    AE.FromJSONKeyCoerce _ -> error "Data.Dependent.Map.Internal.fromJSON: this cannot happen"
+    AE.FromJSONKeyText fromText -> AET.withObject "DependentMap"
+      (fmap fromList . HM.foldrWithKey (f1 fromText) (return []))
+      theValue
+    AE.FromJSONKeyTextParser fromText -> AET.withObject "DependentMap"
+      (fmap fromList . HM.foldrWithKey (f2 fromText) (return []))
+      theValue
+    AE.FromJSONKeyValue fromValue -> AET.withArray "DependentMap"
+      (fmap fromList . F.foldlM (f3 fromValue) [])
+      theValue
+  where
+  f1 :: (Text -> EX.Exists k) -> Text -> AE.Value -> AET.Parser [DependentPair k v] -> AET.Parser [DependentPair k v]
+  f1 fromText keyText valRaw m = case fromText keyText of
+    EX.Exists key -> do
+      let keySing = EX.toSing key
+      val <- EX.parseJSONForeach keySing valRaw
+      dm <- m
+      return (DependentPair key val : dm)
+  f2 :: (Text -> AET.Parser (EX.Exists k)) -> Text -> AE.Value -> AET.Parser [DependentPair k v] -> AET.Parser [DependentPair k v]
+  f2 fromText keyText valRaw m = do
+    EX.Exists key <- fromText keyText
+    let keySing = EX.toSing key
+    val <- EX.parseJSONForeach keySing valRaw
+    dm <- m
+    return (DependentPair key val : dm)
+  f3 :: (AE.Value -> AET.Parser (EX.Exists k)) -> [DependentPair k v] -> AE.Value -> AET.Parser [DependentPair k v]
+  f3 fromValue dm pairRaw = do
+    (keyRaw :: AE.Value,valRaw :: AE.Value) <- AE.parseJSON pairRaw
+    EX.Exists key <- fromValue keyRaw
+    let keySing = EX.toSing key
+    val <- EX.parseJSONForeach keySing valRaw
+    return (DependentPair key val : dm)
+
+
+        
 
 lookup :: forall karr varr k v a.
      (OrdForallPoly k, Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr))

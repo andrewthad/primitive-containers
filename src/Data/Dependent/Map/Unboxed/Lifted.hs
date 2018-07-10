@@ -14,14 +14,18 @@ module Data.Dependent.Map.Unboxed.Lifted
 
 import Prelude hiding (lookup)
 
+import Control.Monad.ST (ST)
+import Data.Aeson (FromJSON,ToJSON)
+import Data.Dependent.Map.Class (Universally,ApplyUniversally)
+import Data.Exists (EqForallPoly,EqForeach,OrdForeach)
+import Data.Exists (OrdForallPoly,DependentPair,ShowForall,ShowForeach,ToSing)
+import Data.Exists (ToJSONKeyForall,FromJSONKeyExists,ToJSONForeach)
+import Data.Exists (FromJSONForeach)
 import Data.Primitive (Array,PrimArray,Prim,MutablePrimArray,MutableArray)
 import Data.Semigroup (Semigroup)
-import Data.Dependent.Map.Class (Universally,ApplyUniversally)
-import Data.Exists (OrdForallPoly,DependentPair,ShowForall,ShowForeach,ToSing)
-import Data.Exists (EqForallPoly,EqForeach,OrdForeach)
-import Control.Monad.ST (ST)
 import GHC.Exts (IsList,Any)
 
+import qualified Data.Aeson as AE
 import qualified Data.Dependent.Map.Internal as I
 import qualified GHC.Exts
 
@@ -67,5 +71,9 @@ instance (Universally k Prim, ApplyUniversally k Prim, EqForallPoly k, ToSing k,
 instance (Universally k Prim, ApplyUniversally k Prim, OrdForallPoly k, ToSing k, OrdForeach v) => Ord (Map k v) where
   compare (Map x) (Map y) = I.compare x y
 
+instance (Universally k Prim, ToSing k, ToJSONKeyForall k, ToJSONForeach v) => ToJSON (Map k v) where
+  toJSON (Map m) = I.toJSON m
 
+instance (Universally k Prim, ApplyUniversally k Prim, ToSing k, FromJSONKeyExists k, FromJSONForeach v, OrdForallPoly k) => FromJSON (Map k v) where
+  parseJSON v = fmap Map (I.parseJSON v)
 

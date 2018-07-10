@@ -1,9 +1,0 @@
-resolver: lts-11.7
-packages:
-- '.'
-extra-deps:
-- 'contiguous-0.2.0.0'
-- 'primitive-0.6.4.0'
-- 'primitive-sort-0.1.0.0'
-
-

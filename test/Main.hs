@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE KindSignatures #-}
@@ -29,9 +30,17 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Exists (ToSing(..),DependentPair(..),ShowForall(..),ShowForeach(..))
 import Data.Exists (WitnessedEquality(..),WitnessedOrdering(..),EqForall(..),OrdForall(..))
 import Data.Exists (EqForeach(..),OrdForeach(..),EqForallPoly(..),OrdForallPoly(..),Sing)
+import Data.Exists (PrimForall(..),ToJSONKeyForall(..),ToJSONKeyFunctionForall(..))
+import Data.Exists (ToJSONForeach(..),FromJSONKeyExists(..),Exists(..))
+import Data.Exists (FromJSONForeach(..))
 import Control.Monad (forM)
 import Data.Semigroup (Semigroup)
 import Unsafe.Coerce (unsafeCoerce)
+import Data.Dependent.Map.Class (Universally(..),ApplyUniversally(..))
+import Text.Read (readMaybe)
+import qualified Data.Aeson as AE
+import qualified Data.Aeson.Encoding as AEE
+import qualified Data.Text as T
 import qualified Test.Tasty.QuickCheck as TQC
 import qualified Test.QuickCheck as QC
 import qualified Test.QuickCheck.Classes as QCC
@@ -51,7 +60,7 @@ import qualified Data.Diet.Map.Lifted.Lifted as DMLL
 import qualified Data.Diet.Set.Lifted as DSL
 import qualified Data.Diet.Unbounded.Set.Lifted as DUSL
 import qualified Data.Dependent.Map.Lifted.Lifted as DPMLL
-import qualified Data.Dependent.Map.Lifted.Lifted as DPMUL
+import qualified Data.Dependent.Map.Unboxed.Lifted as DPMUL
 import qualified Data.Map.Subset.Lifted as MSL
 
 main :: IO ()
@@ -112,6 +121,7 @@ main = defaultMain $ testGroup "Data"
           [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
+          , lawsToTest (QCC.jsonLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           ]
         ]
       ]
@@ -560,6 +570,30 @@ unboxedOrderingKey w = UnboxedKey (w * 4 + 2)
 unboxedCharKey :: Word8 -> UnboxedKey 'UniverseChar
 unboxedCharKey w = UnboxedKey (w * 4 + 3)
 
+instance ToJSONKeyForall UnboxedKey where
+  toJSONKeyForall = ToJSONKeyTextForall
+    (\(UnboxedKey n) -> T.pack (show n))
+    (\(UnboxedKey n) -> AEE.text (T.pack (show n)))
+
+instance FromJSONKeyExists UnboxedKey where
+  fromJSONKeyExists = AE.FromJSONKeyTextParser
+    (\t -> case readMaybe (T.unpack t) of
+      Nothing -> fail "Value, FromJSONKeyExists: bad value"
+      Just w -> return (Exists (UnboxedKey w))
+    )
+
+instance FromJSONForeach Value where
+  parseJSONForeach SingUniverseInt = fmap Value . AE.parseJSON 
+  parseJSONForeach SingUniverseBool = fmap Value . AE.parseJSON
+  parseJSONForeach SingUniverseOrdering = fmap Value . AE.parseJSON
+  parseJSONForeach SingUniverseChar = fmap Value . AE.parseJSON
+
+instance ToJSONForeach Value where
+  toJSONForeach SingUniverseInt (Value a) = AE.toJSON a
+  toJSONForeach SingUniverseBool (Value a) = AE.toJSON a
+  toJSONForeach SingUniverseOrdering (Value a) = AE.toJSON a
+  toJSONForeach SingUniverseChar (Value a) = AE.toJSON a
+
 instance ToSing UnboxedKey where
   toSing (UnboxedKey w) = case mod w 4 of
     0 -> unsafeCoerce SingUniverseInt
@@ -689,4 +723,29 @@ instance (ArbitraryDependentPair k v, OrdForallPoly k) => Arbitrary (DPMLL.Map k
   arbitrary = do
     len <- QC.choose (0,35)
     DPMLL.fromList <$> QC.vectorOf len arbitraryDependentPair
+
+instance (ArbitraryDependentPair k v, OrdForallPoly k, Universally k Prim, ApplyUniversally k Prim) => Arbitrary (DPMUL.Map k v) where
+  arbitrary = do
+    len <- QC.choose (0,35)
+    DPMUL.fromList <$> QC.vectorOf len arbitraryDependentPair
+
+instance Universally UnboxedKey Prim where
+  universally _ _ _ x = x
+
+instance ApplyUniversally UnboxedKey Prim where
+  applyUniversallyLifted _ _ _ x = x
+  applyUniversallyUnlifted _ _ _ x = x
+
+-- very unsafe instance
+instance PrimForall UnboxedKey where
+  sizeOfForall# _ = sizeOf# (undefined :: UnboxedKey a)
+  alignmentForall# _ = alignment# (undefined :: UnboxedKey a)
+  indexByteArrayForall# = indexByteArray#
+  readByteArrayForall# = readByteArray#
+  writeByteArrayForall# = writeByteArray#
+  setByteArrayForall# = setByteArray#
+  readOffAddrForall# = readOffAddr#
+  writeOffAddrForall# = writeOffAddr#
+  indexOffAddrForall# = indexOffAddr#
+  setOffAddrForall# = setOffAddr#
 
