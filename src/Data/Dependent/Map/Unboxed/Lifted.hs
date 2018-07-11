@@ -1,12 +1,14 @@
 {-# language FlexibleContexts #-}
 {-# language GeneralizedNewtypeDeriving #-}
 {-# language PolyKinds #-}
+{-# language RankNTypes #-}
 {-# language TypeFamilies #-}
 
 module Data.Dependent.Map.Unboxed.Lifted
   ( Map
   , singleton
   , lookup
+  , foldrWithKey
   , toList
   , fromList
   , unsafeFreezeZip
@@ -45,6 +47,14 @@ fromListN n xs = Map (I.fromListN n xs)
 
 toList :: Universally k Prim => Map k v -> [DependentPair k v]
 toList (Map x) = I.toList x
+
+foldrWithKey :: 
+     Universally k Prim
+  => (forall a. k a -> v a -> b -> b)
+  -> b
+  -> Map k v
+  -> b
+foldrWithKey f b (Map m) = I.foldrWithKey f b m
 
 -- | This function is really unsafe. The user needs to use unsafeCoerce to even use it.
 unsafeFreezeZip :: 

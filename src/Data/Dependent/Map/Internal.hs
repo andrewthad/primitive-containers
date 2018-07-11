@@ -19,6 +19,7 @@ module Data.Dependent.Map.Internal
   , unsafeFreezeZip
   , toJSON
   , parseJSON
+  , foldrWithKey
   ) where
 
 import Prelude hiding (lookup,showsPrec,compare)
