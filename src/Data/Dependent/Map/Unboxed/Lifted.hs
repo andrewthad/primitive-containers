@@ -6,6 +6,7 @@
 
 module Data.Dependent.Map.Unboxed.Lifted
   ( Map
+  , empty
   , singleton
   , lookup
   , foldrWithKey
@@ -33,6 +34,9 @@ import qualified Data.Dependent.Map.Internal as I
 import qualified GHC.Exts
 
 newtype Map k v = Map (I.Map PrimArray Array k v)
+
+empty :: Map k v
+empty = Map I.empty
 
 singleton :: Universally k Prim => k a -> v a -> Map k v
 singleton f v = Map (I.singleton f v)

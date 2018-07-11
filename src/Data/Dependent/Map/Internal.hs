@@ -7,6 +7,7 @@
 {-# LANGUAGE PolyKinds #-}
 module Data.Dependent.Map.Internal
   ( Map
+  , empty
   , singleton
   , lookup
   , fromList
@@ -53,6 +54,9 @@ import qualified Data.Map.Internal as M
 import qualified Data.Foldable as F
 
 newtype Map karr varr (k :: u -> Type) (v :: u -> Type) = Map (M.Map karr varr (Apply k Any) (v Any))
+
+empty :: (Contiguous karr, Contiguous varr) => Map karr varr k v
+empty = Map M.empty
 
 singleton :: forall karr varr k v a.
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr))
