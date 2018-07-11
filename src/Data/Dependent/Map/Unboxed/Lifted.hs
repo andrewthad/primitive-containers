@@ -9,6 +9,7 @@ module Data.Dependent.Map.Unboxed.Lifted
   , singleton
   , lookup
   , foldrWithKey
+  , foldMapWithKey
   , toList
   , fromList
   , unsafeFreezeZip
@@ -55,6 +56,13 @@ foldrWithKey ::
   -> Map k v
   -> b
 foldrWithKey f b (Map m) = I.foldrWithKey f b m
+
+foldMapWithKey :: 
+     (Universally k Prim, Monoid m)
+  => (forall a. k a -> v a -> m)
+  -> Map k v
+  -> m
+foldMapWithKey f (Map m) = I.foldMapWithKey f m
 
 -- | This function is really unsafe. The user needs to use unsafeCoerce to even use it.
 unsafeFreezeZip :: 

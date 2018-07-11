@@ -17,6 +17,7 @@ module Data.Map.Internal
   , foldrWithKey
   , foldlWithKey'
   , foldrWithKey'
+  , foldMapWithKey
   , foldMapWithKey'
     -- * Monadic Folds
   , foldlWithKeyM'
@@ -234,6 +235,20 @@ foldrWithKey f z (Map keys vals) =
              in f k v (go (i + 1))
    in go 0
 
+foldMapWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid m)
+  => (k -> v -> m)
+  -> Map karr varr k v
+  -> m
+foldMapWithKey f (Map keys vals) =
+  let !sz = I.size vals
+      go !i
+        | i == sz = mempty
+        | otherwise =
+            let (# k #) = I.index# keys i
+                (# v #) = I.index# vals i
+             in mappend (f k v) (go (i + 1))
+   in go 0
+
 concat :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => [Map karr varr k v] -> Map karr varr k v
 concat = concatWith (SG.<>)
 
@@ -411,14 +426,14 @@ foldrMapWithKeyM' f (Map ks vs) = go (I.size vs - 1) mempty
     else return accr
 {-# INLINEABLE foldrMapWithKeyM' #-}
 
-foldMapWithKey' :: forall karr varr k v b. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid b)
-  => (k -> v -> b)
+foldMapWithKey' :: forall karr varr k v m. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid m)
+  => (k -> v -> m)
   -> Map karr varr k v
-  -> b
+  -> m
 foldMapWithKey' f (Map ks vs) = go 0 mempty
   where
   !len = I.size vs
-  go :: Int -> b -> b
+  go :: Int -> m -> m
   go !ix !accl = if ix < len
     then 
       let (# k #) = I.index# ks ix

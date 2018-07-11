@@ -20,6 +20,7 @@ module Data.Dependent.Map.Internal
   , toJSON
   , parseJSON
   , foldrWithKey
+  , foldMapWithKey
   ) where
 
 import Prelude hiding (lookup,showsPrec,compare)
@@ -240,6 +241,16 @@ foldrWithKey f z (Map m) = id
   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
   $ M.foldrWithKey (unsafeCoerceRightFoldFunction f) z m
 
+foldMapWithKey :: forall karr varr k v m.
+     (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), Monoid m)
+  => (forall a. k a -> v a -> m)
+  -> Map karr varr k v
+  -> m
+foldMapWithKey f (Map m) = id
+  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ M.foldMapWithKey (unsafeCoerceFoldMapFunction f) m
+
 toList :: 
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr))
   => Map karr varr k v
@@ -250,6 +261,11 @@ unsafeCoerceRightFoldFunction ::
      (forall a. k a -> v a -> b -> b)
   -> Apply k Any -> v Any -> b -> b
 unsafeCoerceRightFoldFunction = unsafeCoerce
+
+unsafeCoerceFoldMapFunction :: 
+     (forall a. k a -> v a -> m)
+  -> Apply k Any -> v Any -> m
+unsafeCoerceFoldMapFunction = unsafeCoerce
 
 showsPrec :: (Contiguous karr, Universally k (Element karr), ShowForall k, ShowForeach v, ToSing k, Contiguous varr, ApplyUniversally v (Element varr))
   => Int -> Map karr varr k v -> ShowS
