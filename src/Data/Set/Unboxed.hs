@@ -17,12 +17,13 @@ module Data.Set.Unboxed
   , fromList
     -- * Folds
   , foldr
+  , foldMap
   , foldl'
   , foldr'
   , foldMap'
   ) where
 
-import Prelude hiding (foldr)
+import Prelude hiding (foldr,foldMap)
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Primitive.PrimArray (PrimArray)
@@ -129,6 +130,13 @@ foldMap' :: (Monoid m, Prim a)
   -> Set a
   -> m
 foldMap' f (Set arr) = I.foldMap' f arr
+
+-- | Lazy monoidal fold over the elements in the set.
+foldMap :: (Monoid m, Prim a)
+  => (a -> m)
+  -> Set a
+  -> m
+foldMap f (Set arr) = I.foldMap f arr
 
 
 

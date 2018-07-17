@@ -17,12 +17,13 @@ module Data.Set.Unlifted
   , fromList
     -- * Folds
   , foldr
+  , foldMap
   , foldl'
   , foldr'
   , foldMap'
   ) where
 
-import Prelude hiding (foldr)
+import Prelude hiding (foldr,foldMap)
 
 import Data.Primitive.UnliftedArray (UnliftedArray, PrimUnlifted(..))
 import Data.Semigroup (Semigroup)
@@ -107,6 +108,13 @@ foldr :: PrimUnlifted a
   -> Set a
   -> b
 foldr f b0 (Set s) = I.foldr f b0 s
+
+-- | Monoidal fold over the elements in the set. This is lazy in the accumulator.
+foldMap :: (PrimUnlifted a, Monoid m)
+  => (a -> m)
+  -> Set a
+  -> m
+foldMap f (Set s) = I.foldMap f s
 
 -- | Strict left fold over the elements in the set.
 foldl' :: PrimUnlifted a

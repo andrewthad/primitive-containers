@@ -20,9 +20,10 @@ module Data.Set.Lifted
   , LI.foldl'
   , LI.foldr'
   , foldMap'
+  , foldMap
   ) where
 
-import Prelude hiding (foldr)
+import Prelude hiding (foldr,foldMap)
 import Data.Semigroup (Semigroup)
 import Data.Set.Lifted.Internal (Set(..))
 import Data.Primitive (Array)
@@ -55,6 +56,13 @@ foldMap' :: Monoid m
   -> Set a
   -> m
 foldMap' f (Set arr) = I.foldMap' f arr
+
+-- | Lazy monoidal fold over the elements in the set.
+foldMap :: Monoid m
+  => (a -> m)
+  -> Set a
+  -> m
+foldMap f (Set arr) = I.foldMap f arr
 
 -- | /O(1)/ Convert a set to an array. The elements are given in ascending
 -- order. This function is zero-cost.

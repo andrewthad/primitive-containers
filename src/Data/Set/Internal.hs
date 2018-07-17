@@ -25,13 +25,14 @@ module Data.Set.Internal
   , concat
     -- * Folds
   , foldr
+  , foldMap
   , foldl'
   , foldr'
   , foldMap'
   , foldlM'
   ) where
 
-import Prelude hiding (compare,showsPrec,concat,foldr)
+import Prelude hiding (compare,showsPrec,concat,foldr,foldMap)
 import qualified Prelude as P
 
 import Control.Monad.ST (ST,runST)
@@ -230,6 +231,14 @@ foldr :: (Contiguous arr, Element arr a)
   -> b
 foldr f b0 (Set arr) = A.foldr f b0 arr
 {-# INLINEABLE foldr #-}
+
+-- | Monoidal fold over the elements in the set. This is lazy in the accumulator.
+foldMap :: (Contiguous arr, Element arr a, Monoid m)
+  => (a -> m)
+  -> Set arr a
+  -> m
+foldMap f (Set arr) = A.foldMap f arr
+{-# INLINEABLE foldMap #-}
 
 foldl' :: (Contiguous arr, Element arr a)
   => (b -> a -> b)
