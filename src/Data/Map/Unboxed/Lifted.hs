@@ -6,6 +6,7 @@
 {-# OPTIONS_GHC -O2 #-}
 module Data.Map.Unboxed.Lifted
   ( Map
+  , empty
   , singleton
   , lookup
   , size
@@ -71,6 +72,10 @@ instance (Prim k, Show k, Show v) => Show (Map k v) where
 -- | /O(log n)/ Lookup the value at a key in the map.
 lookup :: (Prim k, Ord k) => k -> Map k v -> Maybe v
 lookup a (Map s) = I.lookup a s
+
+-- | The empty map.
+empty :: Map k v
+empty = Map I.empty
 
 -- | /O(1)/ Create a map with a single element.
 singleton :: (Prim k) => k -> v -> Map k v
