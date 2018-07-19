@@ -6,6 +6,7 @@
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Map.Lifted.Lifted
   ( Map
+  , empty
   , singleton
   , lookup
   , size
@@ -61,6 +62,10 @@ instance Ord k => E.IsList (Map k v) where
 
 instance (Show k, Show v) => Show (Map k v) where
   showsPrec p (Map s) = I.showsPrec p s
+
+-- | The empty diet map.
+empty :: Map k v
+empty = Map I.empty
 
 -- | /O(log n)/ Lookup the value at a key in the map.
 lookup :: Ord k => k -> Map k v -> Maybe v

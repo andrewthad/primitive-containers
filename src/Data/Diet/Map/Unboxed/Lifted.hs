@@ -6,6 +6,7 @@
 {-# OPTIONS_GHC -O2 #-}
 module Data.Diet.Map.Unboxed.Lifted
   ( Map
+  , empty
   , singleton
   , lookup
     -- * List Conversion
@@ -27,6 +28,10 @@ import qualified Data.Semigroup as SG
 import qualified Data.Diet.Map.Internal as I
 
 newtype Map k v = Map (I.Map PrimArray Array k v)
+
+-- | The empty diet map.
+empty :: Map k v
+empty = Map I.empty
 
 -- | /O(1)/ Create a diet map with a single element.
 singleton :: (Prim k,Ord k)

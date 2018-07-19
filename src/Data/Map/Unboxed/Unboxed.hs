@@ -6,6 +6,7 @@
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Map.Unboxed.Unboxed
   ( Map
+  , empty
   , singleton
   , lookup
   , size
@@ -69,6 +70,10 @@ instance (Prim k, Show k, Prim v, Show v) => Show (Map k v) where
 -- | /O(log n)/ Lookup the value at a key in the map.
 lookup :: (Prim k, Ord k, Prim v) => k -> Map k v -> Maybe v
 lookup a (Map s) = I.lookup a s
+
+-- | The empty diet map.
+empty :: Map k v
+empty = Map I.empty
 
 -- | /O(1)/ Create a map with a single element.
 singleton :: (Prim k, Prim v) => k -> v -> Map k v
