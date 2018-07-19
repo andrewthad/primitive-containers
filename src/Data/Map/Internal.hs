@@ -13,6 +13,7 @@ module Data.Map.Internal
   , singleton
   , map
   , mapMaybe
+  , mapMaybeWithKey
     -- * Folds
   , foldrWithKey
   , foldlWithKey'
@@ -194,6 +195,7 @@ mapMaybe :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous
   => (v -> Maybe w)
   -> Map karr varr k v
   -> Map karr varr k w
+{-# INLINEABLE mapMaybe #-}
 mapMaybe f (Map ks vs) = runST $ do
   let !sz = I.size vs
   !(karr :: Mutable karr s k) <- I.new sz
@@ -206,6 +208,32 @@ mapMaybe f (Map ks vs) = runST $ do
             Just !b -> do
               I.write varr ixDst b
               I.write karr ixDst =<< I.indexM ks ixSrc
+              go (ixSrc + 1) (ixDst + 1)
+        else return ixDst
+  dstLen <- go 0 0
+  ksFinal <- I.resize karr dstLen >>= I.unsafeFreeze
+  vsFinal <- I.resize varr dstLen >>= I.unsafeFreeze
+  return (Map ksFinal vsFinal)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+mapMaybeWithKey :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+  => (k -> v -> Maybe w)
+  -> Map karr varr k v
+  -> Map karr varr k w
+{-# INLINEABLE mapMaybeWithKey #-}
+mapMaybeWithKey f (Map ks vs) = runST $ do
+  let !sz = I.size vs
+  !(karr :: Mutable karr s k) <- I.new sz
+  !(varr :: Mutable varr s w) <- I.new sz
+  let go !ixSrc !ixDst = if ixSrc < sz
+        then do
+          k <- I.indexM ks ixSrc
+          a <- I.indexM vs ixSrc
+          case f k a of
+            Nothing -> go (ixSrc + 1) ixDst
+            Just !b -> do
+              I.write varr ixDst b
+              I.write karr ixDst k
               go (ixSrc + 1) (ixDst + 1)
         else return ixDst
   dstLen <- go 0 0

@@ -12,6 +12,7 @@ module Data.Map.Lifted.Lifted
   , size
   , map
   , mapMaybe
+  , mapMaybeWithKey
     -- * Folds
   , foldlWithKey'
   , foldrWithKey'
@@ -126,6 +127,14 @@ mapMaybe ::
   -> Map k v
   -> Map k w
 mapMaybe f (Map m) = Map (I.mapMaybe f m)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+-- The predicate is given access to the key.
+mapMaybeWithKey ::
+     (k -> v -> Maybe w)
+  -> Map k v
+  -> Map k w
+mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
 
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.
