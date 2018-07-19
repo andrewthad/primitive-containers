@@ -7,6 +7,7 @@
 {-# OPTIONS_GHC -Wall #-}
 module Data.Set.Unboxed
   ( Set
+  , empty
   , singleton
   , member
   , size
@@ -72,6 +73,10 @@ instance (Prim a, Ord a) => E.IsList (Set a) where
 
 instance (Prim a, Show a) => Show (Set a) where
   showsPrec p (Set s) = I.showsPrec p s
+
+-- | The empty set.
+empty :: Set a
+empty = Set I.empty
 
 -- | The difference of two sets.
 difference :: (Ord a, Prim a) => Set a -> Set a -> Set a

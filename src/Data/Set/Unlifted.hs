@@ -7,6 +7,7 @@
 {-# OPTIONS_GHC -O2 #-}
 module Data.Set.Unlifted
   ( Set
+  , empty
   , singleton
   , member
   , size
@@ -75,6 +76,10 @@ instance (PrimUnlifted a, Show a) => Show (Set a) where
 -- | Test for membership in the set.
 member :: (PrimUnlifted a, Ord a) => a -> Set a -> Bool
 member a (Set s) = I.member a s
+
+-- | The empty set.
+empty :: Set a
+empty = Set I.empty
 
 -- | Construct a set with a single element.
 singleton :: PrimUnlifted a => a -> Set a

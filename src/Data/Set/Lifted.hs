@@ -6,6 +6,7 @@
 
 module Data.Set.Lifted
   ( Set
+  , empty
   , singleton
   , member
   , size
@@ -33,6 +34,10 @@ import qualified Data.Set.Lifted.Internal as LI
 -- | The difference of two sets.
 difference :: Ord a => Set a -> Set a -> Set a
 difference (Set x) (Set y) = Set (I.difference x y)
+
+-- | The empty set.
+empty :: Set a
+empty = Set I.empty
 
 -- | Infix operator for 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
