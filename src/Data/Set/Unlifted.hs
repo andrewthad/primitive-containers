@@ -22,6 +22,8 @@ module Data.Set.Unlifted
   , foldl'
   , foldr'
   , foldMap'
+    -- * Traversals
+  , itraverse_
   ) where
 
 import Prelude hiding (foldr,foldMap)
@@ -143,4 +145,12 @@ foldMap' :: (PrimUnlifted a, Monoid m)
   -> Set a
   -> m
 foldMap' f (Set arr) = I.foldMap' f arr
+
+-- | Traverse a set with the indices, discarding the result.
+itraverse_ :: (Applicative m, PrimUnlifted a)
+  => (Int -> a -> m b)
+  -> Set a
+  -> m ()
+itraverse_ f (Set arr) = I.itraverse_ f arr
+{-# INLINEABLE itraverse_ #-}
 

@@ -30,6 +30,8 @@ module Data.Set.Internal
   , foldr'
   , foldMap'
   , foldlM'
+    -- * Traversals
+  , itraverse_
   ) where
 
 import Prelude hiding (compare,showsPrec,concat,foldr,foldMap)
@@ -270,3 +272,10 @@ foldlM' :: (Contiguous arr, Element arr a, Monad m)
   -> m b
 foldlM' f b0 (Set arr) = A.foldlM' f b0 arr
 {-# INLINEABLE foldlM' #-}
+
+itraverse_ :: (Contiguous arr, Element arr a, Applicative m)
+  => (Int -> a -> m b)
+  -> Set arr a
+  -> m ()
+itraverse_ f (Set arr) = A.itraverse_ f arr
+{-# INLINEABLE itraverse_ #-}
