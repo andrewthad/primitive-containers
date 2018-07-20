@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-module Data.Map.Subset.Unlifted
+module Data.Map.Subset.Strict.Unlifted
   ( I.Map
   , singleton
   , lookup
@@ -16,13 +16,13 @@ module Data.Map.Subset.Unlifted
 
 import Prelude hiding (lookup)
 
-import Data.Map.Subset.Internal (Map)
+import Data.Map.Subset.Strict.Internal (Map)
 import Data.Set.Unlifted.Internal (Set(..))
 import Data.Bifunctor (first)
 import Data.Semigroup (Semigroup)
 import Data.Primitive (PrimUnlifted)
 
-import qualified Data.Map.Subset.Internal as I
+import qualified Data.Map.Subset.Strict.Internal as I
 
 singleton :: (PrimUnlifted k, Monoid v, Eq v)
   => Set k

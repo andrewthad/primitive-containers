@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
@@ -6,7 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-module Data.Map.Subset.Internal
+module Data.Map.Subset.Lazy.Internal
   ( Map
   , lookup
   , empty
@@ -35,13 +36,13 @@ import qualified Data.Foldable as F
 --    greater than the key in their parent.
 -- 2. A parent's two children must not be equal.
 --
--- This type cannot be a Functor since it needs to uses
--- an Eq instance for a kind of simple compression.
+-- Unlike the strict variant, which imposes an Eq constraint on
+-- values, the lazy variant is able to have a Functor instance.
 data Map k v
-  = MapElement !k !(Map k v) !(Map k v)
-  | MapValue !v
+  = MapElement k (Map k v) (Map k v)
+  | MapValue v
   | MapEmpty
-  deriving (Eq,Ord)
+  deriving (Functor,Eq,Ord)
 
 instance (Semigroup v, Eq v, Ord k) => Semigroup (Map k v) where
   (<>) = append
@@ -69,12 +70,12 @@ toList :: (Contiguous arr, Element arr k)
   -> [(Set arr k,v)]
 toList = foldrWithKey (\k v xs -> (k,v) : xs) []
 
-fromList :: (Contiguous arr, Element arr k, Ord k, Eq v)
+fromList :: (Contiguous arr, Element arr k, Ord k)
   => [(Set arr k,v)]
   -> Map k v
 fromList = unsafeMapValues getFirst . concat . P.map (\(s,v) -> singleton s (First v))
 
-concat :: (Ord k,Semigroup v,Eq v)
+concat :: (Ord k,Semigroup v)
   => [Map k v]
   -> Map k v
 concat = F.foldl' (\r x -> append r x) empty
@@ -93,7 +94,7 @@ foldrWithKey f b0 = go 0 [] b0 where
 empty :: Map k v
 empty = MapEmpty
 
-singleton :: (Eq v, Contiguous arr, Element arr k)
+singleton :: (Contiguous arr, Element arr k)
   => Set arr k
   -> v
   -> Map k v
@@ -126,17 +127,15 @@ followAbsent (MapElement _ _ x) = followAbsent x
 followAbsent (MapValue v) = Just v
 followAbsent MapEmpty = Nothing
 
-augment :: (Eq k, Eq v) => (v -> v) -> v -> Map k v -> Map k v
+augment :: Eq k => (v -> v) -> v -> Map k v -> Map k v
 augment _ v MapEmpty = MapValue v
 augment f _ (MapValue x) = MapValue (f x)
 augment f v (MapElement k present absent) =
   let present' = augment f v present
       absent' = augment f v absent
-   in if present' == absent'
-        then present' 
-        else MapElement k present' absent'
+   in MapElement k present' absent'
 
-append :: forall k v. (Semigroup v, Eq v, Ord k) => Map k v -> Map k v -> Map k v
+append :: forall k v. (Semigroup v, Ord k) => Map k v -> Map k v -> Map k v
 append = go where
   go :: Map k v -> Map k v -> Map k v
   go MapEmpty m = m
@@ -152,19 +151,14 @@ append = go where
     EQ -> 
       let present = go presentX presentY
           absent = go absentX absentY
-       in if present == absent
-            then present
-            else MapElement elemX present absent
+       in MapElement elemX present absent
     LT ->
       let present = go presentX (MapElement elemY presentY absentY)
           absent = go absentX (MapElement elemY presentY absentY)
-       in if present == absent
-            then present
-            else MapElement elemX present absent
+       in MapElement elemX present absent
     GT ->
       let present = go (MapElement elemX presentX absentX) presentY
           absent = go (MapElement elemX presentX absentX) absentY
-       in if present == absent
-            then present
-            else MapElement elemY present absent
+       in MapElement elemY present absent
       
+

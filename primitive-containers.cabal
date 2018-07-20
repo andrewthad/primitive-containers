@@ -51,8 +51,10 @@ library
     Data.Set.Lifted
     Data.Set.Unboxed
     Data.Set.Unlifted
-    Data.Map.Subset.Lifted
-    Data.Map.Subset.Unlifted
+    Data.Map.Subset.Strict.Lifted
+    Data.Map.Subset.Strict.Unlifted
+    Data.Map.Subset.Lazy.Lifted
+    Data.Map.Subset.Lazy.Unlifted
     Data.Dependent.Map.Class
     Data.Dependent.Map.Internal
     Data.Dependent.Map.Lifted.Lifted
@@ -64,7 +66,8 @@ library
     Data.Diet.Set.Internal
     Data.Diet.Unbounded.Set.Internal
     Data.Map.Internal
-    Data.Map.Subset.Internal
+    Data.Map.Subset.Strict.Internal
+    Data.Map.Subset.Lazy.Internal
     Data.Set.Internal
     Data.Set.Lifted.Internal
     Data.Set.Unlifted.Internal

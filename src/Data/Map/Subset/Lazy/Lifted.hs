@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-module Data.Map.Subset.Lifted
+module Data.Map.Subset.Lazy.Lifted
   ( I.Map
   , singleton
   , lookup
@@ -16,15 +16,15 @@ module Data.Map.Subset.Lifted
 
 import Prelude hiding (lookup)
 
-import Data.Map.Subset.Internal (Map)
+import Data.Map.Subset.Lazy.Internal (Map)
 import Data.Set.Lifted.Internal (Set(..))
 import Data.Bifunctor (first)
 import Data.Semigroup (Semigroup)
 
-import qualified Data.Map.Subset.Internal as I
+import qualified Data.Map.Subset.Lazy.Internal as I
 
-singleton :: (Monoid v, Eq v)
-  => Set k
+singleton :: 
+     Set k
   -> v
   -> Map k v
 singleton (Set s) v = I.singleton s v
@@ -35,5 +35,6 @@ lookup (Set s) m = I.lookup s m
 toList :: Map k v -> [(Set k,v)]
 toList = map (first Set) . I.toList
 
-fromList :: (Ord k, Eq v, Semigroup v) => [(Set k,v)] -> Map k v
+fromList :: (Ord k, Semigroup v) => [(Set k,v)] -> Map k v
 fromList = I.fromList . map (first getSet)
+

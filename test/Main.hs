@@ -61,7 +61,7 @@ import qualified Data.Diet.Set.Lifted as DSL
 import qualified Data.Diet.Unbounded.Set.Lifted as DUSL
 import qualified Data.Dependent.Map.Lifted.Lifted as DPMLL
 import qualified Data.Dependent.Map.Unboxed.Lifted as DPMUL
-import qualified Data.Map.Subset.Lifted as MSL
+import qualified Data.Map.Subset.Strict.Lifted as MSL
 
 main :: IO ()
 main = defaultMain $ testGroup "Data"
