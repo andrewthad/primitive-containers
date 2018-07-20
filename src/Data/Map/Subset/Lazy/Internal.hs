@@ -56,15 +56,6 @@ instance (Show k, Show v) => Show (Map k v) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (P.map (first SL.Set) (toList xs))
 
--- the functon f must satisfy the following:
--- a == b <=> f a == f b
-unsafeMapValues :: (v -> w) -> Map k v -> Map k w
-unsafeMapValues f = go where
-  go MapEmpty = MapEmpty
-  go (MapValue x) = MapValue (f x)
-  go (MapElement k present absent) =
-    MapElement k (go present) (go absent)
-
 toList :: (Contiguous arr, Element arr k)
   => Map k v
   -> [(Set arr k,v)]
@@ -73,7 +64,7 @@ toList = foldrWithKey (\k v xs -> (k,v) : xs) []
 fromList :: (Contiguous arr, Element arr k, Ord k)
   => [(Set arr k,v)]
   -> Map k v
-fromList = unsafeMapValues getFirst . concat . P.map (\(s,v) -> singleton s (First v))
+fromList = fmap getFirst . concat . P.map (\(s,v) -> singleton s (First v))
 
 concat :: (Ord k,Semigroup v)
   => [Map k v]
