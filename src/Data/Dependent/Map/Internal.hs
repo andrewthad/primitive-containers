@@ -13,6 +13,7 @@ module Data.Dependent.Map.Internal
   , fromList
   , fromListN
   , appendRightBiased
+  , append
   , toList
   , showsPrec
   , equals
@@ -35,7 +36,7 @@ import Unsafe.Coerce (unsafeCoerce)
 import Data.Exists (OrdForallPoly(..),EqForallPoly(..),DependentPair(..),ShowForall,ToSing)
 import Data.Exists (ShowForeach,EqForeach,OrdForeach,ToJSONKeyForall,FromJSONForeach)
 import Data.Exists (ToJSONForall,ToJSONKeyFunctionForall,ToJSONForeach)
-import Data.Exists (FromJSONKeyExists)
+import Data.Exists (FromJSONKeyExists,SemigroupForeach,Sing)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Sort (sortUniqueTaggedMutable)
 import Data.Kind (Type)
@@ -140,6 +141,24 @@ lookup k (Map m) = id
   $ case M.lookup (wrapKey k) m of
       Nothing -> Nothing
       Just v -> Just (unwrapValue (Proxy :: Proxy v) (Proxy :: Proxy a) v)
+
+appendWith :: forall karr varr k v.
+     (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k, ToSing k)
+  => (forall a. Sing a -> v a -> v a -> v a)
+  -> Map karr varr k v
+  -> Map karr varr k v
+  -> Map karr varr k v
+appendWith f (Map m1) (Map m2) = id
+  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ Map (M.appendKeyWith (\(C.Apply k) v1 v2 -> f (EX.toSing k) v1 v2) m1 m2)
+
+append :: forall karr varr k v.
+     (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k, SemigroupForeach v, ToSing k)
+  => Map karr varr k v
+  -> Map karr varr k v
+  -> Map karr varr k v
+append = appendWith EX.appendForeach
 
 appendRightBiased :: forall karr varr k v.
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k)

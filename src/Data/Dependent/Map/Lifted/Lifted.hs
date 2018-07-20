@@ -15,10 +15,11 @@ import Prelude hiding (lookup)
 import Data.Primitive (Array)
 import Data.Semigroup (Semigroup)
 import Data.Exists (OrdForallPoly,DependentPair,ShowForall,ShowForeach,ToSing)
-import Data.Exists (EqForallPoly,EqForeach,OrdForeach)
+import Data.Exists (EqForallPoly,EqForeach,OrdForeach,SemigroupForeach)
 import GHC.Exts (IsList)
 
 import qualified Data.Dependent.Map.Internal as I
+import qualified Data.Semigroup as SG
 import qualified GHC.Exts
 
 newtype Map k v = Map (I.Map Array Array k v)
@@ -53,4 +54,10 @@ instance (EqForallPoly k, ToSing k, EqForeach v) => Eq (Map k v) where
 instance (OrdForallPoly k, ToSing k, OrdForeach v) => Ord (Map k v) where
   compare (Map x) (Map y) = I.compare x y
 
+instance (ToSing k, OrdForallPoly k, SemigroupForeach v) => Semigroup (Map k v) where
+  Map x <> Map y = Map (I.append x y)
+
+instance (ToSing k, OrdForallPoly k, SemigroupForeach v) => Monoid (Map k v) where
+  mempty = Map I.empty
+  mappend = (SG.<>)
 

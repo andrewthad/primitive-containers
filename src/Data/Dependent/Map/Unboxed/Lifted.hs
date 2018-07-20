@@ -23,13 +23,14 @@ import Data.Aeson (FromJSON,ToJSON)
 import Data.Dependent.Map.Class (Universally,ApplyUniversally)
 import Data.Exists (EqForallPoly,EqForeach,OrdForeach)
 import Data.Exists (OrdForallPoly,DependentPair,ShowForall,ShowForeach,ToSing)
-import Data.Exists (ToJSONKeyForall,FromJSONKeyExists,ToJSONForeach)
+import Data.Exists (ToJSONKeyForall,FromJSONKeyExists,ToJSONForeach,SemigroupForeach)
 import Data.Exists (FromJSONForeach)
 import Data.Primitive (Array,PrimArray,Prim,MutablePrimArray,MutableArray)
 import Data.Semigroup (Semigroup)
 import GHC.Exts (IsList,Any)
 
 import qualified Data.Aeson as AE
+import qualified Data.Semigroup as SG
 import qualified Data.Dependent.Map.Internal as I
 import qualified GHC.Exts
 
@@ -98,4 +99,11 @@ instance (Universally k Prim, ToSing k, ToJSONKeyForall k, ToJSONForeach v) => T
 
 instance (Universally k Prim, ApplyUniversally k Prim, ToSing k, FromJSONKeyExists k, FromJSONForeach v, OrdForallPoly k) => FromJSON (Map k v) where
   parseJSON v = fmap Map (I.parseJSON v)
+
+instance (Universally k Prim, ToSing k, OrdForallPoly k, SemigroupForeach v) => Semigroup (Map k v) where
+  Map x <> Map y = Map (I.append x y)
+
+instance (Universally k Prim, ToSing k, OrdForallPoly k, SemigroupForeach v) => Monoid (Map k v) where
+  mempty = Map I.empty
+  mappend = (SG.<>)
 

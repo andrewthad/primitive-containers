@@ -28,6 +28,7 @@ module Data.Map.Internal
     -- * Functions
   , append
   , appendWith
+  , appendKeyWith
   , appendRightBiased
   , lookup
   , showsPrec
@@ -289,18 +290,25 @@ concatWith combine = C.concatSized size empty (appendWith combine)
 appendRightBiased :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendRightBiased = appendWith const
 
-appendWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k) => (v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
-appendWith combine (Map ksA vsA) (Map ksB vsB) =
+appendKeyWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+  => (k -> v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
+appendKeyWith combine (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith combine ksA vsA ksB vsB of
+    (k,v) -> Map k v
+  
+appendWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+  => (v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
+appendWith combine (Map ksA vsA) (Map ksB vsB) =
+  case unionArrWith (\_ x y -> combine x y) ksA vsA ksB vsB of
     (k,v) -> Map k v
   
 append :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k, Semigroup v) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 append (Map ksA vsA) (Map ksB vsB) =
-  case unionArrWith (SG.<>) ksA vsA ksB vsB of
+  case unionArrWith (\_ x y -> x SG.<> y) ksA vsA ksB vsB of
     (k,v) -> Map k v
   
 unionArrWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
-  => (v -> v -> v)
+  => (k -> v -> v -> v)
   -> karr k -- keys a
   -> varr v -- values a
   -> karr k -- keys b
@@ -324,7 +332,7 @@ unionArrWith combine keysA valsA keysB valsB
                 case P.compare keyA keyB of
                   EQ -> do
                     I.write keysDst ixDst keyA
-                    let r = combine valA valB
+                    let r = combine keyA valA valB
                     I.write valsDst ixDst r
                     go (ixA + 1) (ixB + 1) (ixDst + 1)
                   LT -> do
