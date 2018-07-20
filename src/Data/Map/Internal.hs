@@ -169,7 +169,7 @@ fromAscListWith combine !n !k0 !v0 xs0 = runST $ do
             I.write vals ix v
             go (ix + 1) k sz keys vals xs
           EQ -> do
-            !oldVal <- I.read vals (ix - 1)
+            oldVal <- I.read vals (ix - 1)
             let !newVal = combine oldVal v
             I.write vals (ix - 1) newVal
             go ix k sz keys vals xs
@@ -205,7 +205,7 @@ mapMaybe f (Map ks vs) = runST $ do
           a <- I.indexM vs ixSrc
           case f a of
             Nothing -> go (ixSrc + 1) ixDst
-            Just !b -> do
+            Just b -> do
               I.write varr ixDst b
               I.write karr ixDst =<< I.indexM ks ixSrc
               go (ixSrc + 1) (ixDst + 1)
@@ -258,8 +258,8 @@ foldrWithKey f z (Map keys vals) =
       go !i
         | i == sz = z
         | otherwise =
-            let !k = I.index keys i
-                !v = I.index vals i
+            let !(# k #) = I.index# keys i
+                !(# v #) = I.index# vals i
              in f k v (go (i + 1))
    in go 0
 
@@ -272,8 +272,8 @@ foldMapWithKey f (Map keys vals) =
       go !i
         | i == sz = mempty
         | otherwise =
-            let (# k #) = I.index# keys i
-                (# v #) = I.index# vals i
+            let !(# k #) = I.index# keys i
+                !(# v #) = I.index# vals i
              in mappend (f k v) (go (i + 1))
    in go 0
 
@@ -319,12 +319,12 @@ unionArrWith combine keysA valsA keysB valsB
               then do
                 let !keyA = I.index keysA ixA
                     !keyB = I.index keysB ixB
-                    !valA = I.index valsA ixA
-                    !valB = I.index valsB ixB
+                    !(# valA #) = I.index# valsA ixA
+                    !(# valB #) = I.index# valsB ixB
                 case P.compare keyA keyB of
                   EQ -> do
                     I.write keysDst ixDst keyA
-                    let !r = combine valA valB
+                    let r = combine valA valB
                     I.write valsDst ixDst r
                     go (ixA + 1) (ixB + 1) (ixDst + 1)
                   LT -> do

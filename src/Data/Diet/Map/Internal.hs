@@ -261,7 +261,7 @@ unionArrWith combine keysA valsA keysB valsB
                       then copyB ixB' (indexLoKeyB ixB') (indexHiKeyB ixB') (indexValueB ixB') ixDst'
                       else return ixDst'
         copyB :: Int -> k -> k -> v -> Int -> ST s Int
-        copyB !ixB !loB !hiB !valB !ixDst = do
+        copyB !ixB !loB !hiB valB !ixDst = do
           prevHi <- readDstHiKey (ixDst - 1) 
           prevVal <- readDstVal (ixDst - 1) 
           ixDst' <- if pred loB == prevHi && valB == prevVal
@@ -298,8 +298,8 @@ unionArrWith combine keysA valsA keysB valsB
         !loB0 = indexLoKeyB 0
         !hiA0 = indexHiKeyA 0
         !hiB0 = indexHiKeyB 0
-        !valA0 = indexValueA 0
-        !valB0 = indexValueB 0
+        valA0 = indexValueA 0
+        valB0 = indexValueB 0
     total <- case compare loA0 loB0 of
       LT -> if hiA0 < loB0
         then do
@@ -373,7 +373,7 @@ foldrWithKey f z (Map keys vals) =
         | otherwise =
             let !lo = I.index keys (i * 2)
                 !hi = I.index keys (i * 2 + 1)
-                !v = I.index vals i
+                !(# v #) = I.index# vals i
              in f lo hi v (go (i + 1))
    in go 0
 

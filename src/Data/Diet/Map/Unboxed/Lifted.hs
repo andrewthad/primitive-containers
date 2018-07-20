@@ -9,6 +9,7 @@ module Data.Diet.Map.Unboxed.Lifted
   , empty
   , singleton
   , lookup
+  , mapEqualityMorphism
     -- * List Conversion
   , fromList
   , fromListAppend
@@ -82,3 +83,18 @@ fromListAppendN :: (Ord k, Enum k, Prim k, Semigroup v, Eq v)
   -> [(k,k,v)] -- ^ key-value pairs
   -> Map k v
 fromListAppendN n = Map . I.fromListAppendN n
+
+-- | Map an equality morphism over the values in a diet map. An equality
+-- morphism @f@ must satisfy the law:
+--
+-- > ∀ x y. x == y ↔ f x == f y
+--
+-- Since this does not actually use the 'Eq' constraint on the new value
+-- type, it is lazy in the values.
+mapEqualityMorphism :: (Prim k, Ord k)
+  => (v -> w) -- ^ equality morphism
+  -> Map k v
+  -> Map k w
+mapEqualityMorphism f (Map m) = Map (I.map f m)
+
+
