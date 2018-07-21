@@ -41,6 +41,9 @@ import qualified Data.Map.Internal as I
 --   type must both have 'Prim' instances.
 newtype Map k v = Map (I.Map Array Array k v)
 
+instance Functor (Map k) where
+  fmap = map
+
 instance (Ord k, Semigroup v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.append x y)
 

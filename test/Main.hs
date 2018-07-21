@@ -83,6 +83,7 @@ main = defaultMain $ testGroup "Data"
       , TQC.testProperty "foldl'" (QCCL.foldlProp int16 SL.foldl')
       , TQC.testProperty "foldr'" (QCCL.foldrProp int32 SL.foldr')
       , TQC.testProperty "difference" differenceProp
+      , TQC.testProperty "intersection" intersectionProp
       ]
     , testGroup "Unlifted"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
@@ -284,6 +285,12 @@ differenceProp = QC.property $ \(xs :: S.Set Word8) (ys :: S.Set Word8) ->
   let xs' = SL.fromList (S.toList xs)
       ys' = SL.fromList (S.toList ys)
    in SL.toList (SL.difference xs' ys') === S.toList (S.difference xs ys)
+
+intersectionProp :: QC.Property
+intersectionProp = QC.property $ \(xs :: S.Set Word8) (ys :: S.Set Word8) ->
+  let xs' = SL.fromList (S.toList xs)
+      ys' = SL.fromList (S.toList ys)
+   in SL.toList (SL.intersection xs' ys') === S.toList (S.intersection xs ys)
 
 mapFoldMonoidAgreement ::
      ((Int -> Int -> [Int]) -> MUU.Map Int Int -> [Int])

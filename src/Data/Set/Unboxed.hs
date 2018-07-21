@@ -13,6 +13,7 @@ module Data.Set.Unboxed
   , size
   , difference
   , (\\)
+  , intersection
     -- * List Conversion
   , toList
   , fromList
@@ -87,6 +88,11 @@ difference (Set x) (Set y) = Set (I.difference x y)
 -- | Infix operator for 'difference'.
 (\\) :: (Ord a, Prim a) => Set a -> Set a -> Set a
 (\\) (Set x) (Set y) = Set (I.difference x y)
+
+-- | The intersection of two sets.
+intersection :: (Ord a, Prim a) => Set a -> Set a -> Set a
+intersection (Set x) (Set y) = Set (I.intersection x y)
+
 -- | Test whether or not an element is present in a set.
 member :: (Prim a, Ord a) => a -> Set a -> Bool
 member a (Set s) = I.member a s

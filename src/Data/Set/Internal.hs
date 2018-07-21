@@ -12,6 +12,7 @@ module Data.Set.Internal
   , empty
   , singleton
   , difference
+  , intersection
   , append
   , member
   , showsPrec
@@ -97,6 +98,33 @@ difference s1@(Set arr1) s2@(Set arr2)
               let !remaining = sz1 - ix1
               A.copy dst dstIx arr1 ix1 remaining
               return (dstIx + remaining)
+      dstSz <- go 0 0 0
+      dstFrozen <- A.resize dst dstSz >>= A.unsafeFreeze
+      return (Set dstFrozen)
+  where
+    !sz1 = size s1
+    !sz2 = size s2
+
+intersection :: forall a arr. (Contiguous arr, Element arr a, Ord a)
+  => Set arr a
+  -> Set arr a
+  -> Set arr a
+intersection s1@(Set arr1) s2@(Set arr2)
+  | sz1 == 0 = empty
+  | sz2 == 0 = empty
+  | otherwise = runST $ do
+      dst <- A.new (min sz1 sz2)
+      let go !ix1 !ix2 !dstIx = if ix2 < sz2 && ix1 < sz1
+            then do
+              v1 <- A.indexM arr1 ix1
+              v2 <- A.indexM arr2 ix2
+              case P.compare v1 v2 of
+                EQ -> do
+                  A.write dst dstIx v1
+                  go (ix1 + 1) (ix2 + 1) (dstIx + 1)
+                LT -> go (ix1 + 1) ix2 dstIx
+                GT -> go ix1 (ix2 + 1) dstIx
+            else return dstIx
       dstSz <- go 0 0 0
       dstFrozen <- A.resize dst dstSz >>= A.unsafeFreeze
       return (Set dstFrozen)

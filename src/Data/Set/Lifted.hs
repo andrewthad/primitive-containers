@@ -12,6 +12,7 @@ module Data.Set.Lifted
   , size
   , difference
   , (\\)
+  , intersection
     -- * Conversion
   , toArray
   , LI.toList
@@ -36,6 +37,10 @@ import qualified Data.Set.Lifted.Internal as LI
 -- | The difference of two sets.
 difference :: Ord a => Set a -> Set a -> Set a
 difference (Set x) (Set y) = Set (I.difference x y)
+
+-- | The intersection of two sets.
+intersection :: Ord a => Set a -> Set a -> Set a
+intersection (Set x) (Set y) = Set (I.intersection x y)
 
 -- | The empty set.
 empty :: Set a
