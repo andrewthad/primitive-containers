@@ -16,6 +16,7 @@ module Data.Diet.Set.Internal
   , equals
   , showsPrec
   , difference
+  , intersection
   , foldr
   , size
     -- unsafe indexing
@@ -527,6 +528,35 @@ difference setA@(Set arrA) setB@(Set arrB)
           -- we should use a more efficient concat since
           -- we know everything is ordered.
        in concat (lowFragment ++ inners 0 ++ highFragment)
+  where
+    !szA = size setA
+    !szB = size setB
+
+-- This implementation suffers from the same problems as the implementation
+-- for difference. Notice that it's a bit simpler since we do not have to
+-- negate the diet set. This means we do not have to do the weirdness with
+-- treating the first and last elements specially and the weirdness with
+-- straddling ranges as we walk the second diet set.
+intersection :: forall a arr. (Contiguous arr, Element arr a, Ord a, Enum a)
+  => Set arr a
+  -> Set arr a
+  -> Set arr a
+intersection setA@(Set arrA) setB@(Set arrB)
+  | szA == 0 = empty
+  | szB == 0 = empty
+  | otherwise =
+      let inners :: Int -> [Set arr a]
+          inners !ix = if ix < szB
+            then
+              let inner = betweenInclusive
+                    (I.index arrB (2 * ix))
+                    (I.index arrB (2 * ix + 1))
+                    (Set arrA)
+               in inner : inners (ix + 1) 
+            else []
+          -- we should use a more efficient concat since
+          -- we know everything is ordered.
+       in concat (inners 0)
   where
     !szA = size setA
     !szB = size setB

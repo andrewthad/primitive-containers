@@ -144,6 +144,7 @@ main = defaultMain $ testGroup "Data"
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Word16)))
         , TQC.testProperty "member" (dietMemberProp @Word8 E.fromList DSL.member)
         , TQC.testProperty "difference" dietSetDifferenceProp
+        , TQC.testProperty "intersection" dietSetIntersectionProp
         , TQC.testProperty "aboveInclusive" dietSetAboveProp
         , testGroup "belowInclusive"
           [ TQC.testProperty "basic" dietSetBelowProp
@@ -206,6 +207,12 @@ dietSetDifferenceProp = QC.property $ \(xs :: DSL.Set Word8) (ys :: DSL.Set Word
   let xs' = dietSetToSet xs
       ys' = dietSetToSet ys
    in DSL.difference xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.difference xs' ys')))
+
+dietSetIntersectionProp :: QC.Property
+dietSetIntersectionProp = QC.property $ \(xs :: DSL.Set Word8) (ys :: DSL.Set Word8) ->
+  let xs' = dietSetToSet xs
+      ys' = dietSetToSet ys
+   in DSL.intersection xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.intersection xs' ys')))
 
 dietSetAboveProp :: QC.Property
 dietSetAboveProp = QC.property $ \(y :: Word8) (ys :: DSL.Set Word8) ->

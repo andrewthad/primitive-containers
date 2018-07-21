@@ -9,6 +9,7 @@ module Data.Diet.Set.Lifted
   , singleton
   , member
   , difference
+  , intersection
     -- * Split
   , aboveInclusive
   , belowInclusive
@@ -82,6 +83,13 @@ difference :: (Ord a, Enum a)
   -> Set a -- ^ subtrahend
   -> Set a
 difference (Set x) (Set y) = Set (I.difference x y)
+
+-- | The intersection of two diet sets.
+intersection :: (Ord a, Enum a)
+  => Set a -- ^ minuend
+  -> Set a -- ^ subtrahend
+  -> Set a
+intersection (Set x) (Set y) = Set (I.intersection x y)
 
 foldr :: (a -> a -> b -> b) -> b -> Set a -> b
 foldr f z (Set arr) = I.foldr f z arr
