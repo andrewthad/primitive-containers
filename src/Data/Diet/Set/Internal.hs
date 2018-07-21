@@ -508,13 +508,11 @@ difference setA@(Set arrA) setB@(Set arrB)
           highestA = I.index arrA (szA * 2 - 1)
           lowestB = I.index arrB 0
           highestB = I.index arrB (szB * 2 - 1)
-          -- TODO: if we ever add exclusive variants of below
-          -- and above, we should switch to using them here.
           lowFragment = if lowestA < lowestB
-            then [belowInclusive (pred lowestB) (Set arrA)]
+            then [belowExclusive lowestB (Set arrA)]
             else []
           highFragment = if highestA > highestB
-            then [aboveInclusive (succ highestB) (Set arrA)]
+            then [aboveExclusive highestB (Set arrA)]
             else []
           -- we should use a more efficient concat since
           -- we know everything is ordered.
