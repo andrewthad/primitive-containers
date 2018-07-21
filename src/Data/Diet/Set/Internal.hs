@@ -487,6 +487,16 @@ append (Set keysA) (Set keysB)
     !keysFinal <- I.resize keysDst (total * 2)
     fmap Set (I.unsafeFreeze keysFinal)
 
+-- This is a disappointing implementation, but it's the best I can
+-- come up with given that I'm not willing to spend very much time
+-- on it. Basically, it builds a list of diet sets where each set is
+-- a slice of setA that only contains the elements from a contiguous range
+-- of the negation of setB. This is simple to implement and it's easy
+-- to see that it is correct. However, it is inefficient. There is a
+-- better solution that writes to a output buffer directly without
+-- building any intermediate artifacts. Additionally, the better solution
+-- should not need an Enum constraint. If anyone can figure out the better
+-- way to do this, I would gladly take a PR for it.
 difference :: forall a arr. (Contiguous arr, Element arr a, Ord a, Enum a)
   => Set arr a
   -> Set arr a
