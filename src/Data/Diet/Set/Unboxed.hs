@@ -5,7 +5,7 @@
 
 {-# OPTIONS_GHC -O2 #-}
 module Data.Diet.Set.Unboxed
-  ( Set
+  ( Set(..)
   , singleton
   , member
   , difference
@@ -32,6 +32,8 @@ import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Diet.Set.Internal as I
 
+-- | A diet set. Currently, the data constructor for this type is
+-- exported. Please do not use it.
 newtype Set a = Set (I.Set PrimArray a)
 
 -- | /O(1)/ Create a diet set with a single element.

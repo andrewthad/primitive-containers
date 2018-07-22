@@ -16,6 +16,7 @@ module Data.Diet.Map.Internal
   , lookup
   , concat
   , equals
+  , fromSet
   , showsPrec
   , liftShowsPrec2
     -- list conversion
@@ -34,6 +35,7 @@ import Data.Semigroup (Semigroup)
 import Data.Foldable (foldl')
 import Text.Show (showListWith)
 import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
+import Data.Diet.Set.Internal (Set(..))
 import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
@@ -376,6 +378,27 @@ foldrWithKey f z (Map keys vals) =
                 !(# v #) = I.index# vals i
              in f lo hi v (go (i + 1))
    in go 0
+
+-- Convert a diet set to a diet map. The function takes the
+-- low and high keys in a range. This function should probably
+-- have a test written for it.
+fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (k -> k -> v) -> Set karr k -> Map karr varr k v
+fromSet f (Set keys) = Map keys values
+  where
+  values = runST $ do
+    let !sz = div (I.size keys) 2
+    m <- I.new sz
+    let go !ix !twiceIx = if ix < sz
+          then do
+            let !(# lo #) = I.index# keys twiceIx
+                !(# hi #) = I.index# keys (twiceIx + 1)
+            I.write m ix (f lo hi)
+            go (ix + 1) (twiceIx + 2)
+          else return ()
+    go 0 0
+    I.unsafeFreeze m
+
 
 showsPrec :: (Contiguous karr, Element karr k, Show k, Contiguous varr, Element varr v, Show v) => Int -> Map karr varr k v -> ShowS
 showsPrec p xs = showParen (p > 10) $

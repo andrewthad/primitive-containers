@@ -7,7 +7,7 @@
 
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Diet.Set.Internal
-  ( Set
+  ( Set(..)
   , empty
   , singleton
   , append
@@ -45,6 +45,9 @@ import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as I
 import qualified Data.Concatenation as C
 
+-- Although the data constructor for this type is exported,
+-- it isn't needed by anything in the diet Set modules. It is needed
+-- by the diet Map modules to implement conversion functions.
 newtype Set arr a = Set (arr a)
 
 empty :: Contiguous arr => Set arr a

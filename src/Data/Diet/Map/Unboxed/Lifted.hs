@@ -10,6 +10,7 @@ module Data.Diet.Map.Unboxed.Lifted
   , singleton
   , lookup
   , mapEqualityMorphism
+  , fromSet
     -- * List Conversion
   , fromList
   , fromListAppend
@@ -19,11 +20,12 @@ module Data.Diet.Map.Unboxed.Lifted
 
 import Prelude hiding (lookup,map)
 
-import Data.Semigroup (Semigroup)
-import Data.Primitive.Types (Prim)
+import Data.Diet.Set.Unboxed (Set(..))
 import Data.Functor.Classes (Show2(..))
-import Data.Primitive.PrimArray (PrimArray)
 import Data.Primitive.Array (Array)
+import Data.Primitive.PrimArray (PrimArray)
+import Data.Primitive.Types (Prim)
+import Data.Semigroup (Semigroup)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Diet.Map.Internal as I
@@ -97,4 +99,10 @@ mapEqualityMorphism :: (Prim k, Ord k)
   -> Map k w
 mapEqualityMorphism f (Map m) = Map (I.map f m)
 
-
+-- | Convert a diet set to a diet map, constructing each value
+-- from the low and high key in its corresponding range.
+fromSet :: Prim k
+  => (k -> k -> v)
+  -> Set k
+  -> Map k v
+fromSet f (Set s) = Map (I.fromSet f s)
