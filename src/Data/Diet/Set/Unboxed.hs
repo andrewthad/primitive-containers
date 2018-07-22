@@ -10,6 +10,7 @@ module Data.Diet.Set.Unboxed
   , member
   , difference
   , intersection
+  , negate
     -- * Split
   , aboveInclusive
   , belowInclusive
@@ -22,7 +23,7 @@ module Data.Diet.Set.Unboxed
   , fromListN
   ) where
 
-import Prelude hiding (lookup,map,foldr)
+import Prelude hiding (lookup,map,foldr,negate)
 
 import Data.Semigroup (Semigroup)
 import Data.Functor.Classes (Show2(..))
@@ -98,6 +99,14 @@ intersection :: (Ord a, Enum a, Prim a)
   -> Set a -- ^ subtrahend
   -> Set a
 intersection (Set x) (Set y) = Set (I.intersection x y)
+
+-- | The negation of a diet set. The resulting set contains
+-- all elements that were not contained by the argument set,
+-- and it only contains these elements.
+negate :: (Ord a, Enum a, Prim a, Bounded a)
+  => Set a
+  -> Set a
+negate (Set x) = Set (I.negate x)
 
 foldr :: Prim a => (a -> a -> b -> b) -> b -> Set a -> b
 foldr f z (Set arr) = I.foldr f z arr

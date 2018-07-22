@@ -1,9 +1,11 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UnboxedTuples #-}
 
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Diet.Set.Internal
@@ -17,6 +19,7 @@ module Data.Diet.Set.Internal
   , showsPrec
   , difference
   , intersection
+  , negate
   , foldr
   , size
     -- unsafe indexing
@@ -36,9 +39,10 @@ module Data.Diet.Set.Internal
   , toList
   ) where
 
-import Prelude hiding (lookup,showsPrec,concat,map,foldr)
+import Prelude hiding (lookup,showsPrec,concat,map,foldr,negate)
 
 import Control.Monad.ST (ST,runST)
+import Data.Bool (bool)
 import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
 import qualified Data.Foldable as F
 import qualified Prelude as P
@@ -490,6 +494,49 @@ append (Set keysA) (Set keysB)
           go 0 loA0 hiA0 0 loA0 hiB0 1
     !keysFinal <- I.resize keysDst (total * 2)
     fmap Set (I.unsafeFreeze keysFinal)
+
+-- The element type must have a Bounded instance for
+-- this to work.
+negate :: (Contiguous arr, Element arr a, Ord a, Enum a, Bounded a)
+  => Set arr a
+  -> Set arr a
+negate set@(Set arr)
+  | sz == 0 = uncheckedSingleton minBound maxBound
+  | otherwise = runST $ do
+      let !(# lowest #) = I.index# arr 0
+          !(# highest #) = I.index# arr (sz * 2 - 1)
+          anyBeneath = lowest /= minBound
+          anyAbove = highest /= maxBound
+          newSz =
+            (bool 0 1 anyBeneath) +
+            (bool 0 1 anyAbove) +
+            (sz - 1)
+      marr <- I.new (newSz * 2)
+      startDstIx <- if anyBeneath
+        then do
+          I.write marr 0 minBound
+          I.write marr 1 (pred lowest)
+          return 1
+        else return 0
+      let go !ix !dstIx = if ix < sz - 1
+            then do
+              hi <- I.indexM arr (2 * ix + 1)
+              I.write marr (dstIx * 2) (succ hi)
+              lo <- I.indexM arr (2 * ix + 2)
+              I.write marr (dstIx * 2 + 1) (pred lo)
+              go (ix + 1) (dstIx + 1)
+            else return ()
+      go 0 startDstIx
+      if anyAbove
+        then do
+          I.write marr (newSz * 2 - 2) (succ highest)
+          I.write marr (newSz * 2 - 1) maxBound
+        else return ()
+      frozen <- I.unsafeFreeze marr
+      return (Set frozen)
+  where
+  sz = size set
+  
 
 -- This is a disappointing implementation, but it's the best I can
 -- come up with given that I'm not willing to spend very much time

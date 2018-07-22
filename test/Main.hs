@@ -26,6 +26,7 @@ import Data.Kind (Type)
 
 import Test.Tasty (defaultMain,testGroup,TestTree)
 import Test.QuickCheck (Arbitrary,Gen,(===),(==>))
+import Data.Bool (bool)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Exists (ToSing(..),DependentPair(..),ShowForall(..),ShowForeach(..))
 import Data.Exists (WitnessedEquality(..),WitnessedOrdering(..),EqForall(..),OrdForall(..))
@@ -145,6 +146,7 @@ main = defaultMain $ testGroup "Data"
         , TQC.testProperty "member" (dietMemberProp @Word8 E.fromList DSL.member)
         , TQC.testProperty "difference" dietSetDifferenceProp
         , TQC.testProperty "intersection" dietSetIntersectionProp
+        , TQC.testProperty "negate" dietSetNegateProp
         , TQC.testProperty "aboveInclusive" dietSetAboveProp
         , testGroup "belowInclusive"
           [ TQC.testProperty "basic" dietSetBelowProp
@@ -213,6 +215,12 @@ dietSetIntersectionProp = QC.property $ \(xs :: DSL.Set Word8) (ys :: DSL.Set Wo
   let xs' = dietSetToSet xs
       ys' = dietSetToSet ys
    in DSL.intersection xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.intersection xs' ys')))
+
+dietSetNegateProp :: QC.Property
+dietSetNegateProp = QC.property $ \(xs :: DSL.Set Word8) ->
+  let xs' = dietSetToSet xs
+      expected = foldMap (\n -> bool (S.singleton n) mempty (S.member n xs')) [minBound..maxBound]
+   in DSL.negate xs === mconcat (map (\x -> DSL.singleton x x) (F.toList expected))
 
 dietSetAboveProp :: QC.Property
 dietSetAboveProp = QC.property $ \(y :: Word8) (ys :: DSL.Set Word8) ->

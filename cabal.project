@@ -1,1 +1,1 @@
-packages: . , ../quantification , ../contiguous
+packages: . , ../quantification , ../contiguous, ../contiguous-checked

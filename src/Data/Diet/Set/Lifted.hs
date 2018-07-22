@@ -10,6 +10,7 @@ module Data.Diet.Set.Lifted
   , member
   , difference
   , intersection
+  , negate
     -- * Split
   , aboveInclusive
   , belowInclusive
@@ -21,7 +22,7 @@ module Data.Diet.Set.Lifted
   , fromListN
   ) where
 
-import Prelude hiding (lookup,map,foldr)
+import Prelude hiding (lookup,map,foldr,negate)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive (Array)
@@ -30,7 +31,8 @@ import qualified Data.Semigroup as SG
 import qualified Data.Diet.Set.Internal as I
 
 -- | A diet set. Currently, the data constructor for this type is
--- exported. Please do not use it.
+-- exported. Please do not use it. It will be moved to an internal
+-- module at some point.
 newtype Set a = Set (I.Set Array a)
 
 -- | /O(1)/ Create a diet set with a single element.
@@ -92,6 +94,14 @@ intersection :: (Ord a, Enum a)
   -> Set a -- ^ subtrahend
   -> Set a
 intersection (Set x) (Set y) = Set (I.intersection x y)
+
+-- | The negation of a diet set. The resulting set contains
+-- all elements that were not contained by the argument set,
+-- and it only contains these elements.
+negate :: (Ord a, Enum a, Bounded a)
+  => Set a
+  -> Set a
+negate (Set x) = Set (I.negate x)
 
 foldr :: (a -> a -> b -> b) -> b -> Set a -> b
 foldr f z (Set arr) = I.foldr f z arr
