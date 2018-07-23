@@ -8,6 +8,7 @@
 
 module Data.Map.Subset.Lazy.Lifted
   ( I.Map
+  , I.empty
   , singleton
   , lookup
   , toList
