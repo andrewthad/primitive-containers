@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -O2 #-}
-module Data.Diet.Map.Unboxed.Lifted
+module Data.Diet.Map.Strict.Unboxed.Lifted
   ( Map
   , empty
   , singleton
@@ -28,7 +28,7 @@ import Data.Primitive.Types (Prim)
 import Data.Semigroup (Semigroup)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
-import qualified Data.Diet.Map.Internal as I
+import qualified Data.Diet.Map.Strict.Internal as I
 
 newtype Map k v = Map (I.Map PrimArray Array k v)
 

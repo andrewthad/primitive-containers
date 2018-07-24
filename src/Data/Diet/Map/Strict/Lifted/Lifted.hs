@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -O2 #-}
-module Data.Diet.Map.Lifted.Lifted
+module Data.Diet.Map.Strict.Lifted.Lifted
   ( Map
   , singleton
   , lookup
@@ -22,7 +22,7 @@ import Data.Functor.Classes (Show2(..))
 import Data.Primitive (Array)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
-import qualified Data.Diet.Map.Internal as I
+import qualified Data.Diet.Map.Strict.Internal as I
 
 newtype Map k v = Map (I.Map Array Array k v)
 

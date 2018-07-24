@@ -25,7 +25,9 @@ import Data.Int
 import Data.Kind (Type)
 
 import Test.Tasty (defaultMain,testGroup,TestTree)
+import Test.Tasty.HUnit (testCase,(@?=))
 import Test.QuickCheck (Arbitrary,Gen,(===),(==>))
+import Test.HUnit.Base (assertEqual)
 import Data.Bool (bool)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Exists (ToSing(..),DependentPair(..),ShowForall(..),ShowForeach(..))
@@ -39,6 +41,7 @@ import Data.Semigroup (Semigroup)
 import Unsafe.Coerce (unsafeCoerce)
 import Data.Dependent.Map.Class (Universally(..),ApplyUniversally(..))
 import Text.Read (readMaybe)
+import Data.Continuous.Set.Lifted (Inclusivity(..))
 import qualified Data.Aeson as AE
 import qualified Data.Aeson.Encoding as AEE
 import qualified Data.Text as T
@@ -56,9 +59,10 @@ import qualified Data.Set.Unboxed as SU
 import qualified Data.Set.Lifted as SL
 import qualified Data.Set.Unlifted as SUL
 import qualified Data.Map.Unboxed.Unboxed as MUU
-import qualified Data.Diet.Map.Unboxed.Lifted as DMUL
-import qualified Data.Diet.Map.Lifted.Lifted as DMLL
+import qualified Data.Diet.Map.Strict.Unboxed.Lifted as DMUL
+import qualified Data.Diet.Map.Strict.Lifted.Lifted as DMLL
 import qualified Data.Diet.Set.Lifted as DSL
+import qualified Data.Continuous.Set.Lifted as CSL
 import qualified Data.Diet.Unbounded.Set.Lifted as DUSL
 import qualified Data.Dependent.Map.Lifted.Lifted as DPMLL
 import qualified Data.Dependent.Map.Unboxed.Lifted as DPMUL
@@ -124,6 +128,35 @@ main = defaultMain $ testGroup "Data"
           , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           , lawsToTest (QCC.jsonLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
+          ]
+        ]
+      ]
+    ]
+  , testGroup "Continuous"
+    [ testGroup "Set"
+      [ testGroup "Lifted"
+        [ testGroup "Unit" 
+          [ testCase "A" $ do
+              let s = CSL.singleton Nothing (Just (Inclusive,55 :: Integer))
+                      <>
+                      CSL.singleton (Just (Exclusive,200 :: Integer)) Nothing
+                  str = show s
+              assertEqual (str ++ " contains 50") (CSL.member 50 s) True
+              assertEqual (str ++ " contains 270") (CSL.member 270 s) True
+              assertEqual (str ++ " contains 55") (CSL.member 55 s) True
+              assertEqual (str ++ " does not contain 200") (CSL.member 200 s) False
+              assertEqual (str ++ " does not contain 56") (CSL.member 56 s) False
+          , testCase "B" $ do
+              let s = CSL.singleton Nothing (Just (Inclusive,14 :: Integer))
+                      <>
+                      CSL.singleton (Just (Exclusive,14 :: Integer)) Nothing
+              s @?= CSL.universe
+          , testCase "C" $ do
+              let s = CSL.singleton Nothing (Just (Exclusive,14 :: Integer))
+                      <>
+                      CSL.singleton (Just (Exclusive,14 :: Integer)) Nothing
+                  str = show s
+              assertEqual (str ++ " does not contain 14") (CSL.member 14 s) False
           ]
         ]
       ]

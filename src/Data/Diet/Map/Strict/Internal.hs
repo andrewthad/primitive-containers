@@ -7,7 +7,7 @@
 {-# LANGUAGE MagicHash #-}
 
 {-# OPTIONS_GHC -O2 -Wall #-}
-module Data.Diet.Map.Internal
+module Data.Diet.Map.Strict.Internal
   ( Map
   , empty
   , singleton

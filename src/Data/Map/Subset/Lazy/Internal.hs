@@ -12,6 +12,7 @@ module Data.Map.Subset.Lazy.Internal
   , lookup
   , empty
   , singleton
+  , antisingleton
   , toList
   , fromList
   ) where
@@ -90,6 +91,12 @@ singleton :: (Contiguous arr, Element arr k)
   -> v
   -> Map k v
 singleton s v = S.foldr (\k m -> MapElement k m empty) (MapValue v) s
+
+antisingleton :: (Contiguous arr, Element arr k)
+  => Set arr k
+  -> v
+  -> Map k v
+antisingleton s v = S.foldr (\k m -> MapElement k empty m) (MapValue v) s
   
 lookup :: forall arr k v. (Ord k, Contiguous arr, Element arr k)
   => Set arr k

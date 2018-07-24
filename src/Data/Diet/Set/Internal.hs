@@ -6,8 +6,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
-
-{-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Diet.Set.Internal
   ( Set(..)
   , empty
@@ -100,8 +98,8 @@ member a (Set arr) = go 0 ((div (I.size arr) 2) - 1) where
   go !start !end = if end <= start
     then if end == start
       then 
-        let !valLo = I.index arr (2 * start)
-            !valHi = I.index arr (2 * start + 1)
+        let !(# valLo #) = I.index# arr (2 * start)
+            !(# valHi #) = I.index# arr (2 * start + 1)
          in a >= valLo && a <= valHi
       else False
     else
