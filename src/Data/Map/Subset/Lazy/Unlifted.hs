@@ -9,9 +9,13 @@
 module Data.Map.Subset.Lazy.Unlifted
   ( I.Map
   , I.empty
+    -- * Singleton Subset Maps
   , singleton
   , antisingleton
+  , fromPolarities
+    -- * Querying
   , lookup
+    -- * List Conversion
   , toList
   , fromList
   ) where
@@ -24,6 +28,7 @@ import Data.Bifunctor (first)
 import Data.Semigroup (Semigroup)
 import Data.Primitive (PrimUnlifted)
 
+import qualified Data.Map.Unlifted.Lifted as M
 import qualified Data.Map.Subset.Lazy.Internal as I
 
 -- | A subset map with a single set as its key.
@@ -41,6 +46,15 @@ antisingleton :: PrimUnlifted k
   -> v -- ^ value
   -> Map k v
 antisingleton (Set s) v = I.singleton s v
+
+-- | Construct a singleton subset map by interpreting a
+-- @Data.Map.Unlifted.Lifted.Map@ as requirements about
+-- what must be present and absent.
+fromPolarities :: PrimUnlifted k
+  => M.Map k Bool -- ^ Map of required presences and absences
+  -> v -- 
+  -> Map k v 
+fromPolarities (M.Map m) v = I.fromPolarities m v
 
 lookup :: (Ord k, PrimUnlifted k) => Set k -> Map k v -> Maybe v
 lookup (Set s) m = I.lookup s m

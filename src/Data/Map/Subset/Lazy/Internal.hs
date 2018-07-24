@@ -13,23 +13,27 @@ module Data.Map.Subset.Lazy.Internal
   , empty
   , singleton
   , antisingleton
+  , fromPolarities
   , toList
   , fromList
   ) where
 
 import Prelude hiding (lookup,concat)
 
-import Data.Primitive.Contiguous (Contiguous,Element)
-import Data.Set.Internal (Set(..))
 import Data.Bifunctor (first)
+import Data.Bool (bool)
+import Data.Primitive (Array)
+import Data.Primitive.Contiguous (Contiguous,Element)
 import Data.Semigroup (Semigroup,(<>),First(..))
+import Data.Set.Internal (Set(..))
 
+import qualified Data.Foldable as F
+import qualified Data.Map.Internal as M
 import qualified Data.Primitive.Contiguous as A
+import qualified Data.Semigroup as SG
 import qualified Data.Set.Internal as S
 import qualified Data.Set.Lifted.Internal as SL
-import qualified Data.Semigroup as SG
 import qualified Prelude as P
-import qualified Data.Foldable as F
 
 -- There are two invariants for Map.
 --
@@ -97,6 +101,14 @@ antisingleton :: (Contiguous arr, Element arr k)
   -> v
   -> Map k v
 antisingleton s v = S.foldr (\k m -> MapElement k empty m) (MapValue v) s
+
+fromPolarities :: (Contiguous karr, Element karr k)
+  => M.Map karr Array k Bool
+  -> v
+  -> Map k v
+fromPolarities s v = M.foldrWithKey
+  (\k p m -> MapElement k (bool empty m p) (bool m empty p))
+  (MapValue v) s
   
 lookup :: forall arr k v. (Ord k, Contiguous arr, Element arr k)
   => Set arr k
