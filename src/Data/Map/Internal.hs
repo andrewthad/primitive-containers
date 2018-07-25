@@ -42,6 +42,7 @@ module Data.Map.Internal
   , fromList
   , fromListAppend
   , fromListAppendN
+  , fromSet
     -- * Array Conversion
   , unsafeFreezeZip
   ) where
@@ -51,9 +52,9 @@ import Prelude hiding (compare,showsPrec,lookup,map,concat)
 import Control.Applicative (liftA2)
 import Control.Monad.ST (ST,runST)
 import Data.Semigroup (Semigroup)
-import Data.Foldable (foldl')
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
 import Data.Primitive.Sort (sortUniqueTaggedMutable)
+import Data.Set.Internal (Set(..))
 import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
@@ -510,4 +511,10 @@ foldrWithKey' f b0 (Map ks vs) = go (I.size vs - 1) b0
        in go (ix - 1) (f k v acc)
     else acc
 {-# INLINEABLE foldrWithKey' #-}
+
+fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (k -> v)
+  -> Set karr k
+  -> Map karr varr k v
+fromSet f (Set arr) = Map arr (I.map f arr)
 

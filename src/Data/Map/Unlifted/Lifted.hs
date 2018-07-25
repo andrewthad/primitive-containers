@@ -25,6 +25,7 @@ module Data.Map.Unlifted.Lifted
   , fromListAppend
   , fromListN
   , fromListAppendN
+  , fromSet
     -- * Array Conversion
   , unsafeFreezeZip
   ) where
@@ -35,6 +36,7 @@ import Control.Monad.ST (ST)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.UnliftedArray (PrimUnlifted,UnliftedArray,MutableUnliftedArray)
 import Data.Primitive (Array,MutableArray)
+import Data.Set.Unlifted.Internal (Set(..))
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
@@ -106,6 +108,15 @@ fromListN n = Map . I.fromListN n
 -- choosing the last occurrence.
 fromListAppend :: (PrimUnlifted k, Ord k, Semigroup v) => [(k,v)] -> Map k v
 fromListAppend = Map . I.fromListAppend
+
+-- | /O(n)/ Build a map from a set. This function is uses the underlying
+-- array that backs the set as the array for the keys. It constructs the
+-- values by apply the given function to each key.
+fromSet :: PrimUnlifted k
+  => (k -> v)
+  -> Set k
+  -> Map k v
+fromSet f (Set s) = Map (I.fromSet f s)
 
 -- | /O(n*log n)/ This function has the same behavior as 'fromListN',
 -- but it combines values with the 'Semigroup' instances instead of

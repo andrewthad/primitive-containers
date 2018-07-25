@@ -25,6 +25,7 @@ module Data.Map.Unlifted.Unboxed
   , fromListAppend
   , fromListN
   , fromListAppendN
+  , fromSet
     -- * Array Conversion
   , unsafeFreezeZip
   ) where
@@ -36,6 +37,7 @@ import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted,UnliftedArray,MutableUnliftedArray)
 import Data.Primitive.PrimArray (PrimArray,MutablePrimArray)
+import Data.Set.Unlifted.Internal (Set(..))
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
@@ -113,6 +115,15 @@ fromListAppendN :: (PrimUnlifted k, Ord k, Prim v, Semigroup v)
   -> [(k,v)] -- ^ key-value pairs
   -> Map k v
 fromListAppendN n = Map . I.fromListAppendN n
+
+-- | /O(n)/ Build a map from a set. This function is uses the underlying
+-- array that backs the set as the array for the keys. It constructs the
+-- values by apply the given function to each key.
+fromSet :: (PrimUnlifted k, Prim v)
+  => (k -> v)
+  -> Set k
+  -> Map k v
+fromSet f (Set s) = Map (I.fromSet f s)
 
 -- | /O(1)/ The number of elements in the map.
 size :: Prim v => Map k v -> Int
