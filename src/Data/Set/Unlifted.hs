@@ -12,6 +12,7 @@ module Data.Set.Unlifted
   , member
   , size
   , difference
+  , intersection
     -- * Conversion
   , toArray
   , S.toList
@@ -56,6 +57,10 @@ size (Set s) = I.size s
 -- | The difference of two sets.
 difference :: (PrimUnlifted a, Ord a) => Set a -> Set a -> Set a
 difference (Set x) (Set y) = Set (I.difference x y)
+
+-- | The intersection of two sets.
+intersection :: (Ord a, PrimUnlifted a) => Set a -> Set a -> Set a
+intersection (Set x) (Set y) = Set (I.intersection x y)
 
 -- | /O(1)/ Convert a set to an array. The elements are given in ascending
 -- order. This function is zero-cost.
