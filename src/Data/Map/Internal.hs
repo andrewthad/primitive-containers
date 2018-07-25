@@ -303,7 +303,8 @@ appendWith combine (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith (\_ x y -> combine x y) ksA vsA ksB vsB of
     (k,v) -> Map k v
   
-append :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k, Semigroup v) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
+append :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k, Semigroup v)
+  => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 append (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith (\_ x y -> x SG.<> y) ksA vsA ksB vsB of
     (k,v) -> Map k v
