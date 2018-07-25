@@ -13,6 +13,7 @@ module Data.Map.Lifted.Lifted
   , map
   , mapMaybe
   , mapMaybeWithKey
+  , union
     -- * Folds
   , foldlWithKey'
   , foldrWithKey'
@@ -200,3 +201,9 @@ foldrWithKey' ::
   -> Map k v -- ^ map
   -> b
 foldrWithKey' f b0 (Map m) = I.foldrWithKey' f b0 m
+
+-- | /O(n+m)/ The expression (@'union' t1 t2@) takes the left-biased union
+-- of @t1@ and @t2@. It prefers @t1@ when duplicate keys are encountered.
+union :: Ord k => Map k v -> Map k v -> Map k v
+union (Map a) (Map b) = Map (I.appendWith const a b)
+
