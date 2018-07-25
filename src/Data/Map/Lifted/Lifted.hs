@@ -28,12 +28,14 @@ module Data.Map.Lifted.Lifted
   , fromListAppend
   , fromListN
   , fromListAppendN
+  , fromSet
   ) where
 
 import Prelude hiding (lookup,map)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Array (Array)
+import Data.Set.Lifted.Internal (Set(..))
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
@@ -104,6 +106,15 @@ fromListN n = Map . I.fromListN n
 -- choosing the last occurrence.
 fromListAppend :: (Ord k, Semigroup v) => [(k,v)] -> Map k v
 fromListAppend = Map . I.fromListAppend
+
+-- | /O(n)/ Build a map from a set. This function is uses the underlying
+-- array that backs the set as the array for the keys. It constructs the
+-- values by apply the given function to each key.
+fromSet ::
+     (k -> v)
+  -> Set k
+  -> Map k v
+fromSet f (Set s) = Map (I.fromSet f s)
 
 -- | /O(n*log n)/ This function has the same behavior as 'fromListN',
 -- but it combines values with the 'Semigroup' instances instead of
