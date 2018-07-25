@@ -5,7 +5,7 @@
 
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Map.Lifted.Lifted
-  ( Map
+  ( Map(..)
   , empty
   , singleton
   , lookup
