@@ -32,7 +32,9 @@ import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Primitive.PrimArray (PrimArray)
 import Data.Semigroup (Semigroup)
+import Data.Hashable (Hashable)
 import qualified Data.Foldable as F
+import qualified Data.Hashable as H
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
 import qualified Data.Set.Internal as I
@@ -59,6 +61,9 @@ instance (Prim a, Eq a) => Eq (Set a) where
 
 instance (Prim a, Ord a) => Ord (Set a) where
   compare (Set x) (Set y) = I.compare x y
+
+instance (Hashable a, Prim a) => Hashable (Set a) where
+  hashWithSalt s (Set arr) = I.liftHashWithSalt H.hashWithSalt s arr
 
 -- | The functions that convert a list to a 'Set' are asymptotically
 -- better that using @'foldMap' 'singleton'@, with a cost of /O(n*log n)/

@@ -17,11 +17,15 @@ import Prelude hiding (foldr)
 
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Functor.Classes (Eq1(liftEq),Show1(liftShowsPrec))
+import Data.Hashable (Hashable)
+import Data.Hashable.Lifted (Hashable1)
 import Data.Primitive (Array)
 import Data.Semigroup (Semigroup)
 import Text.Show (showListWith)
 
 import qualified Data.Foldable as F
+import qualified Data.Hashable as H
+import qualified Data.Hashable.Lifted as HL
 import qualified Data.Semigroup as SG
 import qualified Data.Set.Internal as I
 import qualified GHC.Exts as E
@@ -68,6 +72,12 @@ instance Show a => Show (Set a) where
 instance Show1 Set where
   liftShowsPrec f _ p s = showParen (p > 10) $
    showString "fromList " . showListWith (f 0) (toList s)
+
+instance Hashable1 Set where
+  liftHashWithSalt f s (Set arr) = I.liftHashWithSalt f s arr
+
+instance Hashable a => Hashable (Set a) where
+  hashWithSalt = HL.hashWithSalt1
 
 -- | Convert a set to a list. The elements are given in ascending order.
 toList :: Set a -> [a]

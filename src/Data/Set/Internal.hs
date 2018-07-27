@@ -31,16 +31,18 @@ module Data.Set.Internal
   , foldr'
   , foldMap'
   , foldlM'
+  , liftHashWithSalt
     -- * Traversals
   , itraverse_
   ) where
 
 import Prelude hiding (compare,showsPrec,concat,foldr,foldMap)
-import qualified Prelude as P
 
 import Control.Monad.ST (ST,runST)
+import Data.Hashable (Hashable)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
+import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as A
 import qualified Data.Concatenation as C
 
@@ -307,3 +309,13 @@ itraverse_ :: (Contiguous arr, Element arr a, Applicative m)
   -> m ()
 itraverse_ f (Set arr) = A.itraverse_ f arr
 {-# INLINEABLE itraverse_ #-}
+
+liftHashWithSalt :: (Contiguous arr, Element arr a)
+  => (Int -> a -> Int)
+  -> Int -- ^ salt
+  -> Set arr a -- ^ set
+  -> Int
+liftHashWithSalt f s (Set arr) = A.liftHashWithSalt f s arr
+{-# INLINEABLE liftHashWithSalt #-}
+
+

@@ -12,12 +12,14 @@ module Data.Set.Unlifted.Internal
 
 import Prelude hiding (foldr)
 
+import Data.Hashable (Hashable)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..),UnliftedArray)
 import Data.Primitive (Array)
 import Data.Semigroup (Semigroup)
 import Text.Show (showListWith)
 
 import qualified Data.Foldable as F
+import qualified Data.Hashable as H
 import qualified Data.Semigroup as SG
 import qualified Data.Set.Internal as I
 import qualified GHC.Exts as E
@@ -32,6 +34,9 @@ instance (Ord a, PrimUnlifted a) => Semigroup (Set a) where
   Set x <> Set y = Set (I.append x y)
   stimes = SG.stimesIdempotentMonoid
   sconcat xs = Set (I.concat (E.coerce (F.toList xs)))
+
+instance (Hashable a, PrimUnlifted a) => Hashable (Set a) where
+  hashWithSalt s (Set arr) = I.liftHashWithSalt H.hashWithSalt s arr
 
 instance (PrimUnlifted a, Ord a) => Monoid (Set a) where
   mempty = Set I.empty
