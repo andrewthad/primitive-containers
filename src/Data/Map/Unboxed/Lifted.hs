@@ -14,6 +14,10 @@ module Data.Map.Unboxed.Lifted
   , mapMaybe
   , mapMaybeWithKey
     -- * Folds
+  , foldrWithKey
+  , foldlWithKey'
+  , foldrWithKey'
+  , foldMapWithKey
   , foldMapWithKey'
     -- * Monadic Folds
   , foldlWithKeyM'
@@ -177,6 +181,40 @@ foldrMapWithKeyM' :: (Monad m, Monoid b, Prim k)
   -> Map k v -- ^ map
   -> m b
 foldrMapWithKeyM' f (Map m) = I.foldrMapWithKeyM' f m
+
+-- | /O(n)/ Left fold over the keys and values with a strict accumulator.
+foldlWithKey' :: Prim k
+  => (b -> k -> v -> b) -- ^ reduction
+  -> b -- ^ initial accumulator
+  -> Map k v -- ^ map
+  -> b
+foldlWithKey' f b0 (Map m) = I.foldlWithKey' f b0 m
+
+-- | /O(n)/ Right fold over the keys and values with a lazy accumulator.
+foldrWithKey :: Prim k
+  => (k -> v -> b -> b) -- ^ reduction
+  -> b -- ^ initial accumulator
+  -> Map k v -- ^ map
+  -> b
+foldrWithKey f b0 (Map m) = I.foldrWithKey f b0 m
+
+-- | /O(n)/ Right fold over the keys and values with a strict accumulator.
+foldrWithKey' :: Prim k
+  => (k -> v -> b -> b) -- ^ reduction
+  -> b -- ^ initial accumulator
+  -> Map k v -- ^ map
+  -> b
+foldrWithKey' f b0 (Map m) = I.foldrWithKey' f b0 m
+
+-- | /O(n)/ Fold over the keys and values of the map with a lazy monoidal
+-- accumulator. This function does not have left and right variants since
+-- the associativity required by a monoid instance means that both variants
+-- would always produce the same result.
+foldMapWithKey :: (Monoid b, Prim k)
+  => (k -> v -> b)
+  -> Map k v
+  -> b
+foldMapWithKey f (Map m) = I.foldMapWithKey f m
 
 -- | /O(n)/ Fold over the keys and values of the map with a strict monoidal
 -- accumulator. This function does not have left and right variants since
