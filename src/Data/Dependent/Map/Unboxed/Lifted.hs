@@ -10,6 +10,7 @@ module Data.Dependent.Map.Unboxed.Lifted
   , singleton
   , lookup
   , foldrWithKey
+  , foldlWithKeyM'
   , foldMapWithKey
   , toList
   , fromList
@@ -61,6 +62,14 @@ foldrWithKey ::
   -> Map k v
   -> b
 foldrWithKey f b (Map m) = I.foldrWithKey f b m
+
+foldlWithKeyM' :: 
+     (Universally k Prim, Monad m)
+  => (forall a. b -> k a -> v a -> m b)
+  -> b
+  -> Map k v
+  -> m b
+foldlWithKeyM' f b (Map m) = I.foldlWithKeyM' f b m
 
 foldMapWithKey :: 
      (Universally k Prim, Monoid m)

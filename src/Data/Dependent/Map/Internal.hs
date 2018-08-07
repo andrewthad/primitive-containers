@@ -23,6 +23,7 @@ module Data.Dependent.Map.Internal
   , toJSON
   , parseJSON
   , foldrWithKey
+  , foldlWithKeyM'
   , foldMapWithKey
   ) where
 
@@ -275,11 +276,27 @@ foldMapWithKey f (Map m) = id
   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
   $ M.foldMapWithKey (unsafeCoerceFoldMapFunction f) m
 
+foldlWithKeyM' :: forall karr varr k v m b.
+     (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), Monad m)
+  => (forall a. b -> k a -> v a -> m b)
+  -> b
+  -> Map karr varr k v
+  -> m b
+foldlWithKeyM' f z (Map m) = id
+  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ M.foldlWithKeyM' (unsafeCoerceLeftFoldFunctionM f) z m
+
 toList :: 
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr))
   => Map karr varr k v
   -> [DependentPair k v]
 toList = foldrWithKey (\k v xs -> DependentPair k v : xs) []
+
+unsafeCoerceLeftFoldFunctionM :: 
+     (forall a. b -> k a -> v a -> m b)
+  -> b -> Apply k Any -> v Any -> m b
+unsafeCoerceLeftFoldFunctionM = unsafeCoerce
 
 unsafeCoerceRightFoldFunction :: 
      (forall a. k a -> v a -> b -> b)
