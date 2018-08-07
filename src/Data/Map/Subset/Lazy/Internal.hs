@@ -49,10 +49,10 @@ data Map k v
   | MapEmpty
   deriving (Functor,Eq,Ord)
 
-instance (Semigroup v, Eq v, Ord k) => Semigroup (Map k v) where
+instance (Semigroup v, Ord k) => Semigroup (Map k v) where
   (<>) = append
 
-instance (Semigroup v, Eq v, Ord k) => Monoid (Map k v) where
+instance (Semigroup v, Ord k) => Monoid (Map k v) where
   mempty = empty
   mappend = (SG.<>)
   -- mconcat = concat 
