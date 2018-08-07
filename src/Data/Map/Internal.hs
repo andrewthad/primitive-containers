@@ -40,6 +40,7 @@ module Data.Map.Internal
   , toList
   , concat
   , size
+  , keys
     -- * List Conversion
   , fromListN
   , fromList
@@ -159,37 +160,37 @@ fromAscListWith combine !n !k0 !v0 xs0 = runST $ do
   I.write keys0 0 k0
   I.write vals0 0 v0
   let go :: forall s. Int -> k -> Int -> Mutable karr s k -> Mutable varr s v -> [(k,v)] -> ST s ([(k,v)], Map karr varr k v)
-      go !ix !_ !sz !keys !vals [] = if ix == sz
+      go !ix !_ !sz !theKeys !vals [] = if ix == sz
         then do
-          arrKeys <- I.unsafeFreeze keys
+          arrKeys <- I.unsafeFreeze theKeys
           arrVals <- I.unsafeFreeze vals
           return ([],Map arrKeys arrVals)
         else do
-          keys' <- I.resize keys ix
+          keys' <- I.resize theKeys ix
           arrKeys <- I.unsafeFreeze keys'
           vals' <- I.resize vals ix
           arrVals <- I.unsafeFreeze vals'
           return ([],Map arrKeys arrVals)
-      go !ix !old !sz !keys !vals ((k,v) : xs) = if ix < sz
+      go !ix !old !sz !theKeys !vals ((k,v) : xs) = if ix < sz
         then case P.compare k old of
           GT -> do
-            I.write keys ix k
+            I.write theKeys ix k
             I.write vals ix v
-            go (ix + 1) k sz keys vals xs
+            go (ix + 1) k sz theKeys vals xs
           EQ -> do
             oldVal <- I.read vals (ix - 1)
             let !newVal = combine oldVal v
             I.write vals (ix - 1) newVal
-            go ix k sz keys vals xs
+            go ix k sz theKeys vals xs
           LT -> do
-            keys' <- I.resize keys ix
+            keys' <- I.resize theKeys ix
             arrKeys <- I.unsafeFreeze keys'
             vals' <- I.resize vals ix
             arrVals <- I.unsafeFreeze vals'
             return ((k,v) : xs,Map arrKeys arrVals)
         else do
           let sz' = sz * 2
-          keys' <- I.resize keys sz'
+          keys' <- I.resize theKeys sz'
           vals' <- I.resize vals sz'
           go ix old sz' keys' vals' ((k,v) : xs)
   go 1 k0 n keys0 vals0 xs0
@@ -261,12 +262,12 @@ foldrWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr 
   -> b
   -> Map karr varr k v
   -> b
-foldrWithKey f z (Map keys vals) =
+foldrWithKey f z (Map theKeys vals) =
   let !sz = I.size vals
       go !i
         | i == sz = z
         | otherwise =
-            let !(# k #) = I.index# keys i
+            let !(# k #) = I.index# theKeys i
                 !(# v #) = I.index# vals i
              in f k v (go (i + 1))
    in go 0
@@ -275,12 +276,12 @@ foldMapWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element var
   => (k -> v -> m)
   -> Map karr varr k v
   -> m
-foldMapWithKey f (Map keys vals) =
+foldMapWithKey f (Map theKeys vals) =
   let !sz = I.size vals
       go !i
         | i == sz = mempty
         | otherwise =
-            let !(# k #) = I.index# keys i
+            let !(# k #) = I.index# theKeys i
                 !(# v #) = I.index# vals i
              in mappend (f k v) (go (i + 1))
    in go 0
@@ -540,4 +541,7 @@ fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   -> Set karr k
   -> Map karr varr k v
 fromSet f (Set arr) = Map arr (I.map f arr)
+
+keys :: (Contiguous karr) => Map karr varr k v -> Set karr k
+keys (Map k _) = Set k
 

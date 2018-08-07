@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Data.Dependent.Map.Internal
-  ( Map
+  ( Map(..)
   , empty
   , null
   , singleton

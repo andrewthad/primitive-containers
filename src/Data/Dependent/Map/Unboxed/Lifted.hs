@@ -16,8 +16,10 @@ module Data.Dependent.Map.Unboxed.Lifted
   , traverseWithKey_
   , toList
   , fromList
-  , unsafeFreezeZip
   , size
+    -- * Unsafe Functions
+  , unsafeFreezeZip
+  , unsafeCoerceKeys
   ) where
 
 import Prelude hiding (lookup,null)
@@ -30,13 +32,17 @@ import Data.Exists (OrdForallPoly,DependentPair,ShowForall,ShowForeach,ToSing)
 import Data.Exists (ToJSONKeyForall,FromJSONKeyExists,ToJSONForeach,SemigroupForeach)
 import Data.Exists (FromJSONForeach)
 import Data.Primitive (Array,PrimArray,Prim,MutablePrimArray,MutableArray)
+import Data.Proxy (Proxy)
 import Data.Semigroup (Semigroup)
 import GHC.Exts (IsList,Any)
+import Unsafe.Coerce (unsafeCoerce)
 
 import qualified Data.Aeson as AE
 import qualified Data.Semigroup as SG
 import qualified Data.Dependent.Map.Internal as I
 import qualified GHC.Exts
+import qualified Data.Set.Unboxed.Internal as SU
+import qualified Data.Map.Internal as M
 
 newtype Map k v = Map (I.Map PrimArray Array k v)
 
@@ -94,7 +100,9 @@ traverseWithKey_ ::
   -> m ()
 traverseWithKey_ f (Map m) = I.traverseWithKey_ f m
 
--- | This function is really unsafe. The user needs to use unsafeCoerce to even use it.
+-- | This function is even more unsafe than the @unsafeFreezeZip@ provided by
+-- @Data.Map.Unboxed.Lifted@. The user needs to use @unsafeCoerce@ to even use this
+-- function.
 unsafeFreezeZip :: 
      (Universally k Prim, OrdForallPoly k)
   => MutablePrimArray s (k Any)
@@ -103,6 +111,21 @@ unsafeFreezeZip ::
 {-# INLINABLE unsafeFreezeZip #-}
 unsafeFreezeZip keys0 vals0 =
   fmap Map (I.unsafeFreezeZip keys0 vals0)
+
+-- | /O(1)/ This function is highly unsafe. The user is responsible for ensuring
+-- that:
+--
+-- * Both @k'@ and @forall a. k a@ have the same runtime representation.
+-- * The @Ord@ instance for @k'@ agrees with the @OrdForallPoly@ instance
+--   for @k@.
+unsafeCoerceKeys :: Proxy k' -> Map k v -> SU.Set k'
+unsafeCoerceKeys p (Map (I.Map m)) =
+  -- TODO: Technical debt. Add this function to the Internal module
+  -- so that the data constructor does not have to be exported.
+  unsafeCoerceSet p (SU.Set (M.keys m))
+
+unsafeCoerceSet :: Proxy k' -> SU.Set (k Any) -> SU.Set k'
+unsafeCoerceSet _ = unsafeCoerce
 
 instance (Universally k Prim, ApplyUniversally k Prim, OrdForallPoly k) => IsList (Map k v) where
   type Item (Map k v) = DependentPair k v

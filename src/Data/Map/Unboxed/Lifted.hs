@@ -13,6 +13,7 @@ module Data.Map.Unboxed.Lifted
   , map
   , mapMaybe
   , mapMaybeWithKey
+  , keys
     -- * Folds
   , foldrWithKey
   , foldlWithKey'
@@ -39,6 +40,7 @@ import Control.Monad.ST (ST)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
 import Data.Primitive (PrimArray,Array,MutablePrimArray,MutableArray)
+import Data.Set.Unboxed.Internal (Set(..))
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
@@ -240,4 +242,8 @@ unsafeFreezeZip :: (Ord k, Prim k)
   => MutablePrimArray s k
   -> MutableArray s v
   -> ST s (Map k v)
-unsafeFreezeZip keys vals = fmap Map (I.unsafeFreezeZip keys vals)
+unsafeFreezeZip theKeys vals = fmap Map (I.unsafeFreezeZip theKeys vals)
+
+-- | /O(1)/ Get the keys from the map.
+keys :: Map k v -> Set k
+keys (Map m) = Set (I.keys m)
