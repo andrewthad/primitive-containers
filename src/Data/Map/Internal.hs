@@ -25,6 +25,8 @@ module Data.Map.Internal
   , foldrWithKeyM'
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
+    -- * Traversals
+  , traverseWithKey_
     -- * Functions
   , append
   , appendWith
@@ -407,8 +409,8 @@ foldlWithKeyM' f b0 (Map ks vs) = go 0 b0
   go :: Int -> b -> m b
   go !ix !acc = if ix < len
     then
-      let (# k #) = I.index# ks ix
-          (# v #) = I.index# vs ix
+      let !(# k #) = I.index# ks ix
+          !(# v #) = I.index# vs ix
        in f acc k v >>= go (ix + 1)
     else return acc
 {-# INLINEABLE foldlWithKeyM' #-}
@@ -423,8 +425,8 @@ foldrWithKeyM' f b0 (Map ks vs) = go (I.size vs - 1) b0
   go :: Int -> b -> m b
   go !ix !acc = if ix >= 0
     then
-      let (# k #) = I.index# ks ix
-          (# v #) = I.index# vs ix
+      let !(# k #) = I.index# ks ix
+          !(# v #) = I.index# vs ix
        in f k v acc >>= go (ix - 1)
     else return acc
 {-# INLINEABLE foldrWithKeyM' #-}
@@ -439,13 +441,29 @@ foldlMapWithKeyM' f (Map ks vs) = go 0 mempty
   go :: Int -> b -> m b
   go !ix !accl = if ix < len
     then
-      let (# k #) = I.index# ks ix
-          (# v #) = I.index# vs ix
+      let !(# k #) = I.index# ks ix
+          !(# v #) = I.index# vs ix
        in do
          accr <- f k v
          go (ix + 1) (mappend accl accr)
     else return accl
 {-# INLINEABLE foldlMapWithKeyM' #-}
+
+traverseWithKey_ :: forall karr varr k v m b. (Applicative m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (k -> v -> m b)
+  -> Map karr varr k v
+  -> m ()
+traverseWithKey_ f (Map ks vs) = go 0
+  where
+  !len = I.size vs
+  go :: Int -> m ()
+  go !ix = if ix < len
+    then
+      let !(# k #) = I.index# ks ix
+          !(# v #) = I.index# vs ix
+       in f k v *> go (ix + 1)
+    else pure ()
+{-# INLINEABLE traverseWithKey_ #-}
 
 foldrMapWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid b)
   => (k -> v -> m b)
@@ -456,11 +474,11 @@ foldrMapWithKeyM' f (Map ks vs) = go (I.size vs - 1) mempty
   go :: Int -> b -> m b
   go !ix !accr = if ix >= 0
     then
-      let (# k #) = I.index# ks ix
-          (# v #) = I.index# vs ix
+      let !(# k #) = I.index# ks ix
+          !(# v #) = I.index# vs ix
        in do
          accl <- f k v
-         go (ix + 1) (mappend accl accr)
+         go (ix - 1) (mappend accl accr)
     else return accr
 {-# INLINEABLE foldrMapWithKeyM' #-}
 
@@ -474,8 +492,8 @@ foldMapWithKey' f (Map ks vs) = go 0 mempty
   go :: Int -> m -> m
   go !ix !accl = if ix < len
     then 
-      let (# k #) = I.index# ks ix
-          (# v #) = I.index# vs ix
+      let !(# k #) = I.index# ks ix
+          !(# v #) = I.index# vs ix
        in go (ix + 1) (mappend accl (f k v))
     else accl
 {-# INLINEABLE foldMapWithKey' #-}
@@ -491,8 +509,8 @@ foldlWithKey' f b0 (Map ks vs) = go 0 b0
   go :: Int -> b -> b
   go !ix !acc = if ix < len
     then 
-      let (# k #) = I.index# ks ix
-          (# v #) = I.index# vs ix
+      let !(# k #) = I.index# ks ix
+          !(# v #) = I.index# vs ix
        in go (ix + 1) (f acc k v)
     else acc
 {-# INLINEABLE foldlWithKey' #-}
@@ -507,8 +525,8 @@ foldrWithKey' f b0 (Map ks vs) = go (I.size vs - 1) b0
   go :: Int -> b -> b
   go !ix !acc = if ix >= 0
     then
-      let (# k #) = I.index# ks ix
-          (# v #) = I.index# vs ix
+      let !(# k #) = I.index# ks ix
+          !(# v #) = I.index# vs ix
        in go (ix - 1) (f k v acc)
     else acc
 {-# INLINEABLE foldrWithKey' #-}

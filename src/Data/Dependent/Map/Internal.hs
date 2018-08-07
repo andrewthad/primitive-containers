@@ -25,6 +25,8 @@ module Data.Dependent.Map.Internal
   , foldrWithKey
   , foldlWithKeyM'
   , foldMapWithKey
+  , traverseWithKey_
+  , size
   ) where
 
 import Prelude hiding (lookup,showsPrec,compare)
@@ -276,6 +278,16 @@ foldMapWithKey f (Map m) = id
   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
   $ M.foldMapWithKey (unsafeCoerceFoldMapFunction f) m
 
+traverseWithKey_ :: forall karr varr k v m b.
+     (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), Applicative m)
+  => (forall a. k a -> v a -> m b)
+  -> Map karr varr k v
+  -> m ()
+traverseWithKey_ f (Map m) = id
+  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ M.traverseWithKey_ (unsafeCoerceFoldMapFunction f) m
+
 foldlWithKeyM' :: forall karr varr k v m b.
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), Monad m)
   => (forall a. b -> k a -> v a -> m b)
@@ -324,6 +336,11 @@ compare :: (Contiguous karr, Universally k (Element karr), OrdForallPoly k, OrdF
   -> Map karr varr k v
   -> Ordering
 compare a b = P.compare (toList a) (toList b)
+
+size :: forall karr varr k v. (Contiguous varr, ApplyUniversally v (Element varr)) => Map karr varr k v -> Int
+size (Map m) = id
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ M.size m
 
 -- data Map karr varr f = Map !(karr (f Any)) !(varr (Value f Any))
 -- 

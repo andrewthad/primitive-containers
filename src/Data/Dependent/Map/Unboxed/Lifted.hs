@@ -12,9 +12,11 @@ module Data.Dependent.Map.Unboxed.Lifted
   , foldrWithKey
   , foldlWithKeyM'
   , foldMapWithKey
+  , traverseWithKey_
   , toList
   , fromList
   , unsafeFreezeZip
+  , size
   ) where
 
 import Prelude hiding (lookup)
@@ -55,6 +57,9 @@ fromListN n xs = Map (I.fromListN n xs)
 toList :: Universally k Prim => Map k v -> [DependentPair k v]
 toList (Map x) = I.toList x
 
+size :: Map k v -> Int
+size (Map x) = I.size x
+
 foldrWithKey :: 
      Universally k Prim
   => (forall a. k a -> v a -> b -> b)
@@ -77,6 +82,13 @@ foldMapWithKey ::
   -> Map k v
   -> m
 foldMapWithKey f (Map m) = I.foldMapWithKey f m
+
+traverseWithKey_ :: 
+     (Universally k Prim, Applicative m)
+  => (forall a. k a -> v a -> m b)
+  -> Map k v
+  -> m ()
+traverseWithKey_ f (Map m) = I.traverseWithKey_ f m
 
 -- | This function is really unsafe. The user needs to use unsafeCoerce to even use it.
 unsafeFreezeZip :: 
