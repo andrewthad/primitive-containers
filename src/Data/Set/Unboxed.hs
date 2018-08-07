@@ -24,6 +24,7 @@ module Data.Set.Unboxed
   , foldr'
   , foldMap'
     -- * Traversals
+  , traverse_
   , itraverse_
   ) where
 
@@ -155,6 +156,13 @@ foldMap :: (Monoid m, Prim a)
   -> Set a
   -> m
 foldMap f (Set arr) = I.foldMap f arr
+
+-- | Traverse a set, discarding the result.
+traverse_ :: (Applicative m, Prim a)
+  => (a -> m b)
+  -> Set a
+  -> m ()
+traverse_ f (Set arr) = I.traverse_ f arr
 
 -- | Traverse a set with the indices, discarding the result.
 itraverse_ :: (Applicative m, Prim a)
