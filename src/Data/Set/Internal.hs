@@ -33,6 +33,7 @@ module Data.Set.Internal
   , foldlM'
   , liftHashWithSalt
     -- * Traversals
+  , traverse_
   , itraverse_
   ) where
 
@@ -302,6 +303,13 @@ foldlM' :: (Contiguous arr, Element arr a, Monad m)
   -> m b
 foldlM' f b0 (Set arr) = A.foldlM' f b0 arr
 {-# INLINEABLE foldlM' #-}
+
+traverse_ :: (Contiguous arr, Element arr a, Applicative m)
+  => (a -> m b)
+  -> Set arr a
+  -> m ()
+traverse_ f (Set arr) = A.traverse_ f arr
+{-# INLINEABLE traverse_ #-}
 
 itraverse_ :: (Contiguous arr, Element arr a, Applicative m)
   => (Int -> a -> m b)
