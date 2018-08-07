@@ -9,6 +9,7 @@ module Data.Set.Unboxed
   ( S.Set
   , empty
   , singleton
+  , null
   , member
   , size
   , difference
@@ -28,7 +29,7 @@ module Data.Set.Unboxed
   , itraverse_
   ) where
 
-import Prelude hiding (foldr,foldMap)
+import Prelude hiding (foldr,foldMap,null)
 import Data.Hashable (Hashable)
 import Data.Primitive.PrimArray (PrimArray)
 import Data.Primitive.Types (Prim)
@@ -61,6 +62,10 @@ intersection (Set x) (Set y) = Set (I.intersection x y)
 -- | Test whether or not an element is present in a set.
 member :: (Prim a, Ord a) => a -> Set a -> Bool
 member a (Set s) = I.member a s
+
+-- | /O(1)/ Is the set empty?
+null :: Set a -> Bool
+null (Set s) = I.null s
 
 -- | Construct a set with a single element.
 singleton :: Prim a => a -> Set a

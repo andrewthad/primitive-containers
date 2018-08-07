@@ -10,6 +10,7 @@
 module Data.Set.Internal
   ( Set(..)
   , empty
+  , null
   , singleton
   , difference
   , intersection
@@ -37,7 +38,7 @@ module Data.Set.Internal
   , itraverse_
   ) where
 
-import Prelude hiding (compare,showsPrec,concat,foldr,foldMap)
+import Prelude hiding (compare,showsPrec,concat,foldr,foldMap,null)
 
 import Control.Monad.ST (ST,runST)
 import Data.Hashable (Hashable)
@@ -56,6 +57,9 @@ instance Contiguous arr => PrimUnlifted (Set arr a) where
 append :: (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
 append (Set x) (Set y) = Set (unionArr x y)
   
+null :: Contiguous arr => Set arr a -> Bool
+null (Set x) = A.null x
+
 empty :: Contiguous arr => Set arr a
 empty = Set A.empty
 
