@@ -9,6 +9,7 @@
 module Data.Dependent.Map.Internal
   ( Map
   , empty
+  , null
   , singleton
   , lookup
   , fromList
@@ -29,7 +30,7 @@ module Data.Dependent.Map.Internal
   , size
   ) where
 
-import Prelude hiding (lookup,showsPrec,compare)
+import Prelude hiding (lookup,showsPrec,compare,null)
 
 import Data.Dependent.Map.Class (Universally,Apply,ApplyUniversally)
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
@@ -62,6 +63,9 @@ newtype Map karr varr (k :: u -> Type) (v :: u -> Type) = Map (M.Map karr varr (
 
 empty :: (Contiguous karr, Contiguous varr) => Map karr varr k v
 empty = Map M.empty
+
+null :: forall karr varr k v. (Contiguous varr) => Map karr varr k v -> Bool
+null (Map m) = M.null m
 
 singleton :: forall karr varr k v a.
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr))

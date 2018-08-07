@@ -11,6 +11,7 @@ module Data.Map.Internal
   ( Map
   , empty
   , singleton
+  , null
   , map
   , mapMaybe
   , mapMaybeWithKey
@@ -49,7 +50,7 @@ module Data.Map.Internal
   , unsafeFreezeZip
   ) where
 
-import Prelude hiding (compare,showsPrec,lookup,map,concat)
+import Prelude hiding (compare,showsPrec,lookup,map,concat,null)
 
 import Control.Applicative (liftA2)
 import Control.Monad.ST (ST,runST)
@@ -68,6 +69,9 @@ data Map karr varr k v = Map !(karr k) !(varr v)
 
 empty :: (Contiguous karr, Contiguous varr) => Map karr varr k v
 empty = Map I.empty I.empty
+
+null :: Contiguous varr => Map karr varr k v -> Bool
+null (Map _ vals) = I.null vals
 
 singleton :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v) => k -> v -> Map karr varr k v
 singleton k v = Map

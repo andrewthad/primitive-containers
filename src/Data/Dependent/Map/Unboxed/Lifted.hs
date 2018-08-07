@@ -7,6 +7,7 @@
 module Data.Dependent.Map.Unboxed.Lifted
   ( Map
   , empty
+  , null
   , singleton
   , lookup
   , foldrWithKey
@@ -19,7 +20,7 @@ module Data.Dependent.Map.Unboxed.Lifted
   , size
   ) where
 
-import Prelude hiding (lookup)
+import Prelude hiding (lookup,null)
 
 import Control.Monad.ST (ST)
 import Data.Aeson (FromJSON,ToJSON)
@@ -41,6 +42,9 @@ newtype Map k v = Map (I.Map PrimArray Array k v)
 
 empty :: Map k v
 empty = Map I.empty
+
+null :: Map k v -> Bool
+null (Map m) = I.null m
 
 singleton :: Universally k Prim => k a -> v a -> Map k v
 singleton f v = Map (I.singleton f v)
