@@ -22,6 +22,8 @@ module Data.Map.Unboxed.Unboxed
   , foldrWithKeyM'
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
+    -- * Traversals
+  , traverseWithKey_
     -- * List Conversion
   , fromList
   , fromListAppend
@@ -175,6 +177,13 @@ foldrMapWithKeyM' :: (Monad m, Monoid b, Prim k, Prim v)
   -> Map k v -- ^ map
   -> m b
 foldrMapWithKeyM' f (Map m) = I.foldrMapWithKeyM' f m
+
+-- | /O(n)/ Traverse the keys and values of the map from left to right.
+traverseWithKey_ :: (Monad m, Prim k, Prim v)
+  => (k -> v -> m b) -- ^ reduction
+  -> Map k v -- ^ map
+  -> m ()
+traverseWithKey_ f (Map m) = I.traverseWithKey_ f m
 
 -- | /O(n)/ Fold over the keys and values of the map with a strict monoidal
 -- accumulator. This function does not have left and right variants since
