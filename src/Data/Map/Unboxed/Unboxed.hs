@@ -25,6 +25,7 @@ module Data.Map.Unboxed.Unboxed
     -- * Traversals
   , traverseWithKey_
     -- * List Conversion
+  , toList
   , fromList
   , fromListAppend
   , fromListN
@@ -81,6 +82,10 @@ empty = Map I.empty
 -- | /O(1)/ Create a map with a single element.
 singleton :: (Prim k, Prim v) => k -> v -> Map k v
 singleton k v = Map (I.singleton k v)
+
+-- | /O(n)/ A list of key-value pairs in ascending order.
+toList :: (Prim k, Ord k, Prim v) => Map k v -> [(k,v)]
+toList (Map m) = I.toList m
 
 -- | /O(n*log n)/ Create a map from a list of key-value pairs.
 -- If the list contains more than one value for the same key,
