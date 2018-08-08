@@ -1,5 +1,6 @@
 {-# language GeneralizedNewtypeDeriving #-}
 {-# language PolyKinds #-}
+{-# language RankNTypes #-}
 {-# language TypeFamilies #-}
 
 module Data.Dependent.Map.Lifted.Lifted
@@ -8,6 +9,8 @@ module Data.Dependent.Map.Lifted.Lifted
   , lookup
   , toList
   , fromList
+  , mapMaybe
+  , mapMaybeWithKey
   ) where
 
 import Prelude hiding (lookup)
@@ -38,6 +41,18 @@ fromListN n xs = Map (I.fromListN n xs)
 
 toList :: Map k v -> [DependentPair k v]
 toList (Map x) = I.toList x
+
+mapMaybe ::
+     (forall a. v a -> Maybe (w a))
+  -> Map k v
+  -> Map k w
+mapMaybe f (Map m) = Map (I.mapMaybe f m)
+
+mapMaybeWithKey ::
+     (forall a. k a -> v a -> Maybe (w a))
+  -> Map k v
+  -> Map k w
+mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
 
 instance OrdForallPoly k => IsList (Map k v) where
   type Item (Map k v) = DependentPair k v
