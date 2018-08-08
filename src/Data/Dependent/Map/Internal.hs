@@ -14,6 +14,7 @@ module Data.Dependent.Map.Internal
   , lookup
   , fromList
   , fromListN
+  , mapMaybe
   , appendRightBiased
   , append
   , toList
@@ -346,30 +347,13 @@ size (Map m) = id
   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
   $ M.size m
 
--- data Map karr varr f = Map !(karr (f Any)) !(varr (Value f Any))
--- 
--- keyToAny :: f a -> f Any
--- keyToAny = unsafeCoerce
--- 
--- valueToAny :: Proxy f -> Proxy a -> Value f a -> Value f Any
--- valueToAny _ _ = unsafeCoerce
--- 
--- 
--- singleton :: forall karr varr f k.
---      (Contiguous karr, Universally f (Element karr), Contiguous varr, ValueUniversally f (Element varr))
---   => f k -> Value f k -> Map karr varr f
--- singleton k v = id
---   $ C.universally (Proxy :: Proxy f) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
---   $ C.valueUniversally (Proxy :: Proxy f) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
---   $ Map
---     ( runST $ do
---         arr <- I.new 1
---         I.write arr 0 (keyToAny k)
---         I.unsafeFreeze arr
---     )
---     ( runST $ do
---         arr <- I.new 1
---         I.write arr 0 (valueToAny (Proxy :: Proxy f) (Proxy :: Proxy k) v)
---         I.unsafeFreeze arr
---     )
+mapMaybe :: forall karr varr k v w. (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), ApplyUniversally w (Element varr))
+  => (forall a. v a -> Maybe (w a))
+  -> Map karr varr k v
+  -> Map karr varr k w
+mapMaybe f (Map m) = id
+  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy w) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ Map (M.mapMaybe f m)
 
