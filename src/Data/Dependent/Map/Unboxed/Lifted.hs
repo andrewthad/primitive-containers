@@ -16,6 +16,7 @@ module Data.Dependent.Map.Unboxed.Lifted
   , traverseWithKey_
   , toList
   , fromList
+  , map
   , mapMaybe
   , mapMaybeWithKey
   , size
@@ -24,7 +25,7 @@ module Data.Dependent.Map.Unboxed.Lifted
   , unsafeCoerceKeys
   ) where
 
-import Prelude hiding (lookup,null)
+import Prelude hiding (lookup,null,map)
 
 import Control.Monad.ST (ST)
 import Data.Aeson (FromJSON,ToJSON)
@@ -101,6 +102,13 @@ traverseWithKey_ ::
   -> Map k v
   -> m ()
 traverseWithKey_ f (Map m) = I.traverseWithKey_ f m
+
+map ::
+     Universally k Prim
+  => (forall a. v a -> w a)
+  -> Map k v
+  -> Map k w
+map f (Map m) = Map (I.map f m)
 
 mapMaybe ::
      Universally k Prim

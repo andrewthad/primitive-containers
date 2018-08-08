@@ -14,6 +14,7 @@ module Data.Dependent.Map.Internal
   , lookup
   , fromList
   , fromListN
+  , map
   , mapMaybe
   , mapMaybeWithKey
   , appendRightBiased
@@ -32,7 +33,7 @@ module Data.Dependent.Map.Internal
   , size
   ) where
 
-import Prelude hiding (lookup,showsPrec,compare,null)
+import Prelude hiding (lookup,showsPrec,compare,null,map)
 
 import Data.Dependent.Map.Class (Universally,Apply,ApplyUniversally)
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
@@ -352,6 +353,16 @@ size :: forall karr varr k v. (Contiguous varr, ApplyUniversally v (Element varr
 size (Map m) = id
   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
   $ M.size m
+
+map :: forall karr varr k v w. (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), ApplyUniversally w (Element varr))
+  => (forall a. v a -> w a)
+  -> Map karr varr k v
+  -> Map karr varr k w
+map f (Map m) = id
+  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy w) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ Map (M.map f m)
 
 mapMaybe :: forall karr varr k v w. (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), ApplyUniversally w (Element varr))
   => (forall a. v a -> Maybe (w a))
