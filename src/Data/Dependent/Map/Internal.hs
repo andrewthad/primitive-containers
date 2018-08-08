@@ -15,6 +15,7 @@ module Data.Dependent.Map.Internal
   , fromList
   , fromListN
   , mapMaybe
+  , mapMaybeWithKey
   , appendRightBiased
   , append
   , toList
@@ -310,6 +311,11 @@ toList ::
   -> [DependentPair k v]
 toList = foldrWithKey (\k v xs -> DependentPair k v : xs) []
 
+unsafeCoerceMapMaybeWithKeyFunction ::
+     (forall a. k a -> v a -> Maybe (w a))
+  -> Apply k Any -> v Any -> Maybe (w Any)
+unsafeCoerceMapMaybeWithKeyFunction = unsafeCoerce
+
 unsafeCoerceLeftFoldFunctionM :: 
      (forall a. b -> k a -> v a -> m b)
   -> b -> Apply k Any -> v Any -> m b
@@ -356,4 +362,14 @@ mapMaybe f (Map m) = id
   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
   $ C.applyUniversallyLifted (Proxy :: Proxy w) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
   $ Map (M.mapMaybe f m)
+
+mapMaybeWithKey :: forall karr varr k v w. (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), ApplyUniversally w (Element varr))
+  => (forall a. k a -> v a -> Maybe (w a))
+  -> Map karr varr k v
+  -> Map karr varr k w
+mapMaybeWithKey f (Map m) = id
+  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ C.applyUniversallyLifted (Proxy :: Proxy w) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+  $ Map (M.mapMaybeWithKey (unsafeCoerceMapMaybeWithKeyFunction f) m)
 

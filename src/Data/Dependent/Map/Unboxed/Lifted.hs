@@ -17,6 +17,7 @@ module Data.Dependent.Map.Unboxed.Lifted
   , toList
   , fromList
   , mapMaybe
+  , mapMaybeWithKey
   , size
     -- * Unsafe Functions
   , unsafeFreezeZip
@@ -107,6 +108,13 @@ mapMaybe ::
   -> Map k v
   -> Map k w
 mapMaybe f (Map m) = Map (I.mapMaybe f m)
+
+mapMaybeWithKey ::
+     Universally k Prim
+  => (forall a. k a -> v a -> Maybe (w a))
+  -> Map k v
+  -> Map k w
+mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
 
 -- | This function is even more unsafe than the @unsafeFreezeZip@ provided by
 -- @Data.Map.Unboxed.Lifted@. The user needs to use @unsafeCoerce@ to even use this
