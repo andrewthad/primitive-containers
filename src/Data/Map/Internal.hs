@@ -43,6 +43,7 @@ module Data.Map.Internal
   , concat
   , size
   , keys
+  , elems
     -- * List Conversion
   , fromListN
   , fromList
@@ -602,6 +603,9 @@ fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   -> Map karr varr k v
 fromSet f (Set arr) = Map arr (I.map f arr)
 
-keys :: (Contiguous karr) => Map karr varr k v -> Set karr k
+keys :: Map karr varr k v -> Set karr k
 keys (Map k _) = Set k
+
+elems :: Map karr varr k v -> varr v
+elems (Map _ v) = v
 

@@ -32,6 +32,7 @@ module Data.Map.Unboxed.Lifted
   , fromListAppend
   , fromListN
   , fromListAppendN
+  , elems
     -- * Array Conversion
   , unsafeFreezeZip
   ) where
@@ -260,3 +261,8 @@ intersectionWith :: (Prim k, Ord k)
   -> Map k b
   -> Map k c
 intersectionWith f (Map a) (Map b) = Map (I.intersectionWith f a b)
+
+-- | /O(1)/ The values in a map. This is a zero-cost operation.
+elems :: Map k v -> Array v
+elems (Map m) = I.elems m
+
