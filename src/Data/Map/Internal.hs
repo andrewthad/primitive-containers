@@ -13,6 +13,7 @@ module Data.Map.Internal
   , singleton
   , null
   , map
+  , mapWithKey
   , mapMaybe
   , mapMaybeWithKey
     -- * Folds
@@ -198,6 +199,29 @@ fromAscListWith combine !n !k0 !v0 xs0 = runST $ do
 
 map :: (Contiguous varr, Element varr v, Element varr w) => (v -> w) -> Map karr varr k v -> Map karr varr k w
 map f (Map k v) = Map k (I.map f v)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+mapWithKey :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+  => (k -> v -> w)
+  -> Map karr varr k v
+  -> Map karr varr k w
+{-# INLINEABLE mapWithKey #-}
+mapWithKey f (Map ks vs) = runST $ do
+  let !sz = I.size vs
+  !(karr :: Mutable karr s k) <- I.new sz
+  !(varr :: Mutable varr s w) <- I.new sz
+  let go !ix = if ix < sz
+        then do
+          k <- I.indexM ks ix
+          a <- I.indexM vs ix
+          I.write varr ix (f k a)
+          I.write karr ix k
+          go (ix + 1)
+        else return ix
+  dstLen <- go 0
+  ksFinal <- I.resize karr dstLen >>= I.unsafeFreeze
+  vsFinal <- I.resize varr dstLen >>= I.unsafeFreeze
+  return (Map ksFinal vsFinal)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
 mapMaybe :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
