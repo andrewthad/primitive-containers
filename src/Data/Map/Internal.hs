@@ -34,6 +34,7 @@ module Data.Map.Internal
   , appendWith
   , appendKeyWith
   , appendRightBiased
+  , intersectionWith
   , lookup
   , showsPrec
   , equals
@@ -340,6 +341,41 @@ append (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith (\_ x y -> x SG.<> y) ksA vsA ksB vsB of
     (k,v) -> Map k v
   
+intersectionWith :: forall k v w x karr varr warr xarr.
+     (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Contiguous warr, Element warr w, Contiguous xarr, Element xarr x, Ord k)
+  => (v -> w -> x)
+  -> Map karr varr k v
+  -> Map karr warr k w
+  -> Map karr xarr k x
+intersectionWith f s1@(Map karr1 varr1) s2@(Map karr2 varr2)
+  | sz1 == 0 = empty
+  | sz2 == 0 = empty
+  | otherwise = runST $ do
+      let maxSz = min sz1 sz2
+      kdst <- I.new maxSz
+      vdst <- I.new maxSz
+      let go !ix1 !ix2 !dstIx = if ix2 < sz2 && ix1 < sz1
+            then do
+              k1 <- I.indexM karr1 ix1
+              k2 <- I.indexM karr2 ix2
+              case P.compare k1 k2 of
+                EQ -> do
+                  v1 <- I.indexM varr1 ix1
+                  v2 <- I.indexM varr2 ix2
+                  I.write kdst dstIx k1
+                  I.write vdst dstIx (f v1 v2)
+                  go (ix1 + 1) (ix2 + 1) (dstIx + 1)
+                LT -> go (ix1 + 1) ix2 dstIx
+                GT -> go ix1 (ix2 + 1) dstIx
+            else return dstIx
+      dstSz <- go 0 0 0
+      kdstFrozen <- I.resize kdst dstSz >>= I.unsafeFreeze
+      vdstFrozen <- I.resize vdst dstSz >>= I.unsafeFreeze
+      return (Map kdstFrozen vdstFrozen)
+  where
+    !sz1 = size s1
+    !sz2 = size s2
+
 unionArrWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
   => (k -> v -> v -> v)
   -> karr k -- keys a

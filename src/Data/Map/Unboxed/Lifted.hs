@@ -14,6 +14,7 @@ module Data.Map.Unboxed.Lifted
   , mapMaybe
   , mapMaybeWithKey
   , keys
+  , intersectionWith
     -- * Folds
   , foldrWithKey
   , foldlWithKey'
@@ -247,3 +248,10 @@ unsafeFreezeZip theKeys vals = fmap Map (I.unsafeFreezeZip theKeys vals)
 -- | /O(1)/ Get the keys from the map.
 keys :: Map k v -> Set k
 keys (Map m) = Set (I.keys m)
+
+intersectionWith :: (Prim k, Ord k)
+  => (a -> b -> c)
+  -> Map k a
+  -> Map k b
+  -> Map k c
+intersectionWith f (Map a) (Map b) = Map (I.intersectionWith f a b)
