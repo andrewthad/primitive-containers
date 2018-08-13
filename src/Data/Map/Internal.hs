@@ -44,6 +44,7 @@ module Data.Map.Internal
   , size
   , keys
   , elems
+  , restrict
     -- * List Conversion
   , fromListN
   , fromList
@@ -52,6 +53,7 @@ module Data.Map.Internal
   , fromSet
     -- * Array Conversion
   , unsafeFreezeZip
+  , unsafeZipPresorted
   ) where
 
 import Prelude hiding (compare,showsPrec,lookup,map,concat,null)
@@ -452,7 +454,9 @@ size (Map _ arr) = I.size arr
 
 -- | Sort and deduplicate the key array, preserving the last value associated
 -- with each key. The argument arrays may not be reused after being passed
--- to this function.
+-- to this function. This function is only unsafe because of the requirement
+-- that the arguments not be reused. If the arrays do not match in size, the
+-- larger one will be truncated to the length of the shorter one.
 unsafeFreezeZip :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
   => Mutable karr s k
   -> Mutable varr s v
@@ -463,6 +467,19 @@ unsafeFreezeZip keys0 vals0 = do
   vals2 <- I.unsafeFreeze vals1
   return (Map keys2 vals2)
 {-# INLINEABLE unsafeFreezeZip #-}
+
+-- | There are two preconditions:
+--
+-- * The array of keys is sorted
+-- * The array of keys and the array of values have the same length.
+--
+-- If either of these conditions is not met, this function will introduce
+-- undefined behavior or segfaults.
+unsafeZipPresorted :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => karr k -- array of keys, must already be sorted
+  -> varr v -- array of values
+  -> Map karr varr k v
+unsafeZipPresorted = Map
 
 foldlWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   => (b -> k -> v -> m b)
@@ -596,6 +613,63 @@ foldrWithKey' f b0 (Map ks vs) = go (I.size vs - 1) b0
        in go (ix - 1) (f k v acc)
     else acc
 {-# INLINEABLE foldrWithKey' #-}
+
+-- The algorithm used here is good when the subset is small, but
+-- when the subset is large, it is worse that just walking the map.
+restrict :: forall karr varr k v. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+  => Map karr varr k v
+  -> Set karr k
+  -> Map karr varr k v
+restrict m@(Map ks vs) (Set rs)
+  | I.same ks rs = m
+  | otherwise = stage1 0
+  where
+  szMap = I.size vs
+  szSet = I.size rs
+  szMin = min szMap szSet
+  -- Locate the first difference between the two. This stage is useful
+  -- because, in the case that the subset perfectly matches the keys,
+  -- we do not need to do any copying.
+  stage1 :: Int -> Map karr varr k v
+  stage1 !ix = if ix < szMin
+    then
+      let !(# k #) = I.index# ks ix
+          !(# r #) = I.index# rs ix
+       in if k == r
+            then stage1 (ix + 1)
+            else stage2 ix
+    else if szMin == szMap
+      then m
+      else Map rs vs
+  -- In stage two, we walk the map and the set with possibly differing
+  -- indices, writing each matching key (along with its value) into
+  -- the result map.
+  stage2 :: Int -> Map karr varr k v
+  stage2 !ix = runST $ do
+    ksMut <- I.new szMin
+    vsMut <- I.new szMin
+    I.copy ksMut 0 ks 0 ix
+    I.copy vsMut 0 vs 0 ix
+    let -- TODO: Turn this into a galloping search. It would
+        -- probably be worth trying this out on
+        -- Data.Set.Internal.intersection first.
+        go !ixRes !ixm !ixs = if ixm < szMin && ixs < szMin
+          then do
+            k <- I.indexM ks ixm
+            r <- I.indexM rs ixs
+            case P.compare k r of
+              EQ -> do
+                I.write ksMut ixRes k
+                I.write vsMut ixRes =<< I.indexM vs ixm
+                go (ixRes + 1) (ixm + 1) (ixs + 1)
+              LT -> go ixRes (ixm + 1) ixs
+              GT -> go ixRes ixm (ixs + 1)
+          else return ixRes
+    total <- go ix ix ix
+    ks' <- I.resize ksMut total >>= I.unsafeFreeze
+    vs' <- I.resize vsMut total >>= I.unsafeFreeze
+    return (Map ks' vs')
+{-# INLINEABLE restrict #-}
 
 fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   => (k -> v)

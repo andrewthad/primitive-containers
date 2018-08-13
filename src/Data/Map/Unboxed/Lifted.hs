@@ -15,6 +15,7 @@ module Data.Map.Unboxed.Lifted
   , mapMaybeWithKey
   , keys
   , intersectionWith
+  , restrict
     -- * Folds
   , foldrWithKey
   , foldlWithKey'
@@ -261,6 +262,12 @@ intersectionWith :: (Prim k, Ord k)
   -> Map k b
   -> Map k c
 intersectionWith f (Map a) (Map b) = Map (I.intersectionWith f a b)
+
+restrict :: (Prim k, Ord k)
+  => Map k v
+  -> Set k
+  -> Map k v
+restrict (Map m) (Set s) = Map (I.restrict m s)
 
 -- | /O(1)/ The values in a map. This is a zero-cost operation.
 elems :: Map k v -> Array v
