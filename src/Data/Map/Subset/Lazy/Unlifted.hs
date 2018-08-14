@@ -45,7 +45,7 @@ antisingleton :: PrimUnlifted k
   => Set k -- ^ negative set
   -> v -- ^ value
   -> Map k v
-antisingleton (Set s) v = I.singleton s v
+antisingleton (Set s) v = I.antisingleton s v
 
 -- | Construct a singleton subset map by interpreting a
 -- @Data.Map.Unlifted.Lifted.Map@ as requirements about
