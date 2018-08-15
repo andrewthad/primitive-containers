@@ -40,11 +40,13 @@ module Data.Map.Unboxed.Lifted
 
 import Prelude hiding (lookup,map)
 
+import Control.DeepSeq (NFData)
 import Control.Monad.ST (ST)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
 import Data.Primitive (PrimArray,Array,MutablePrimArray,MutableArray)
 import Data.Set.Unboxed.Internal (Set(..))
+import qualified Control.DeepSeq
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
@@ -56,6 +58,9 @@ newtype Map k v = Map (I.Map PrimArray Array k v)
 -- | This fails the functor laws since fmap is strict.
 instance Prim k => Functor (Map k) where
   fmap = map
+
+instance (Prim k, NFData k, NFData v) => NFData (Map k v) where
+  rnf (Map m) = I.rnf m
 
 instance (Prim k, Ord k, Semigroup v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.append x y)

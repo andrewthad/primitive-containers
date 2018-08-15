@@ -45,6 +45,7 @@ module Data.Map.Internal
   , keys
   , elems
   , restrict
+  , rnf
     -- * List Conversion
   , fromListN
   , fromList
@@ -59,6 +60,7 @@ module Data.Map.Internal
 import Prelude hiding (compare,showsPrec,lookup,map,concat,null)
 
 import Control.Applicative (liftA2)
+import Control.DeepSeq (NFData)
 import Control.Monad.ST (ST,runST)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
@@ -682,4 +684,9 @@ keys (Map k _) = Set k
 
 elems :: Map karr varr k v -> varr v
 elems (Map _ v) = v
+
+rnf :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, NFData k, NFData v)
+  => Map karr varr k v
+  -> ()
+rnf (Map k v) = seq (I.rnf k) (seq (I.rnf v) ())
 

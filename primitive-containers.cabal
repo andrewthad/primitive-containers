@@ -31,6 +31,7 @@ library
     , primitive-sort >= 0.1 && < 0.2
     , contiguous >= 0.2 && < 0.3
     , hashable >= 1.2.5
+    , deepseq >= 1.4
       -- move these five out when we kick out dependent maps 
     , quantification >= 0.5.0 && < 0.6
     , aeson >= 1.0 && < 1.5
