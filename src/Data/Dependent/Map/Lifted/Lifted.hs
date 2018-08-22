@@ -15,12 +15,16 @@ module Data.Dependent.Map.Lifted.Lifted
 
 import Prelude hiding (lookup)
 
+import Data.Aeson (FromJSON,ToJSON)
 import Data.Primitive (Array)
 import Data.Semigroup (Semigroup)
+import Data.Exists (EqForallPoly,EqForeach,OrdForeach)
 import Data.Exists (OrdForallPoly,DependentPair,ShowForall,ShowForeach,ToSing)
-import Data.Exists (EqForallPoly,EqForeach,OrdForeach,SemigroupForeach)
+import Data.Exists (ToJSONKeyForall,FromJSONKeyExists,ToJSONForeach,SemigroupForeach)
+import Data.Exists (FromJSONForeach)
 import GHC.Exts (IsList)
 
+import qualified Data.Aeson as AE
 import qualified Data.Dependent.Map.Internal as I
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts
@@ -75,4 +79,10 @@ instance (ToSing k, OrdForallPoly k, SemigroupForeach v) => Semigroup (Map k v) 
 instance (ToSing k, OrdForallPoly k, SemigroupForeach v) => Monoid (Map k v) where
   mempty = Map I.empty
   mappend = (SG.<>)
+
+instance (ToSing k, ToJSONKeyForall k, ToJSONForeach v) => ToJSON (Map k v) where
+  toJSON (Map m) = I.toJSON m
+
+instance (ToSing k, FromJSONKeyExists k, FromJSONForeach v, OrdForallPoly k) => FromJSON (Map k v) where
+  parseJSON v = fmap Map (I.parseJSON v)
 
