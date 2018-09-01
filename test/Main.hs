@@ -22,6 +22,7 @@ import Data.Primitive.UnliftedArray (PrimUnlifted)
 import Data.Word
 import Data.Proxy (Proxy(..))
 import Data.Int
+import Data.Functor.Const (Const(..))
 import Data.Kind (Type)
 
 import Test.Tasty (defaultMain,testGroup,TestTree)
@@ -87,8 +88,12 @@ main = defaultMain $ testGroup "Data"
       , TQC.testProperty "foldr" (QCCL.foldrProp int32 SL.foldr)
       , TQC.testProperty "foldl'" (QCCL.foldlProp int16 SL.foldl')
       , TQC.testProperty "foldr'" (QCCL.foldrProp int32 SL.foldr')
+      , TQC.testProperty "foldMap" foldMapSetProp
+      , TQC.testProperty "foldMap'" foldMapStrictSetProp
       , TQC.testProperty "difference" differenceProp
       , TQC.testProperty "intersection" intersectionProp
+      , TQC.testProperty "traverse_" traverseSetProp
+      , TQC.testProperty "itraverse_" itraverseSetProp
       ]
     , testGroup "Unlifted"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
@@ -339,6 +344,27 @@ intersectionProp = QC.property $ \(xs :: S.Set Word8) (ys :: S.Set Word8) ->
   let xs' = SL.fromList (S.toList xs)
       ys' = SL.fromList (S.toList ys)
    in SL.toList (SL.intersection xs' ys') === S.toList (S.intersection xs ys)
+
+traverseSetProp :: QC.Property
+traverseSetProp = QC.property $ \(xs :: S.Set Word8) ->
+  let xs' = SL.fromList (S.toList xs)
+   in SL.traverse_ (Const . SG.Sum) xs' === F.traverse_ (Const . SG.Sum) xs
+
+foldMapSetProp :: QC.Property
+foldMapSetProp = QC.property $ \(xs :: S.Set Word8) ->
+  let xs' = SL.fromList (S.toList xs)
+   in SL.foldMap SG.Sum xs' === F.foldMap SG.Sum xs
+
+foldMapStrictSetProp :: QC.Property
+foldMapStrictSetProp = QC.property $ \(xs :: S.Set Word8) ->
+  let xs' = SL.fromList (S.toList xs)
+   in SL.foldMap' SG.Sum xs' === F.foldMap SG.Sum xs
+
+itraverseSetProp :: QC.Property
+itraverseSetProp = QC.property $ \(xs :: S.Set Int) ->
+  let xs' = SL.fromList (S.toList xs)
+      zs = zip (enumFrom (0 :: Int)) (S.toList xs)
+   in SL.itraverse_ (\ix x -> Const (SG.Sum (ix + x))) xs' === F.traverse_ (\(ix,x) -> Const (SG.Sum (ix + x))) zs
 
 mapFoldMonoidAgreement ::
      ((Int -> Int -> [Int]) -> MUU.Map Int Int -> [Int])

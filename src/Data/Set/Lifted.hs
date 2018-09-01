@@ -24,6 +24,7 @@ module Data.Set.Lifted
   , foldMap'
   , foldMap
     -- * Traversals
+  , traverse_
   , itraverse_
   ) where
 
@@ -80,6 +81,13 @@ foldMap f (Set arr) = I.foldMap f arr
 -- order. This function is zero-cost.
 toArray :: Set a -> Array a
 toArray (Set s) = I.toArray s
+
+-- | Traverse a set, discarding the result.
+traverse_ :: Applicative m
+  => (a -> m b)
+  -> Set a
+  -> m ()
+traverse_ f (Set arr) = I.traverse_ f arr
 
 -- | Traverse a set with the indices, discarding the result.
 itraverse_ :: Applicative m
