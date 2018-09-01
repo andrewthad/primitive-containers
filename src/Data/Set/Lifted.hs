@@ -8,6 +8,7 @@ module Data.Set.Lifted
   ( Set
   , empty
   , singleton
+  , null
   , member
   , size
   , difference
@@ -28,7 +29,7 @@ module Data.Set.Lifted
   , itraverse_
   ) where
 
-import Prelude hiding (foldr,foldMap)
+import Prelude hiding (foldr,foldMap,null)
 import Data.Semigroup (Semigroup)
 import Data.Set.Lifted.Internal (Set(..))
 import Data.Primitive (Array)
@@ -50,6 +51,10 @@ empty = Set I.empty
 -- | Infix operator for 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 (\\) (Set x) (Set y) = Set (I.difference x y)
+
+-- | True if the set is empty
+null :: Set a -> Bool
+null (Set s) = I.null s
 
 -- | Test whether or not an element is present in a set.
 member :: Ord a => a -> Set a -> Bool

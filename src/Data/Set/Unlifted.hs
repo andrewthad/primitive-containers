@@ -9,6 +9,7 @@ module Data.Set.Unlifted
   ( S.Set
   , empty
   , singleton
+  , null
   , member
   , size
   , difference
@@ -28,14 +29,11 @@ module Data.Set.Unlifted
   , itraverse_
   ) where
 
-import Prelude hiding (foldr,foldMap)
+import Prelude hiding (foldr,foldMap,null)
 
 import Data.Primitive.UnliftedArray (UnliftedArray, PrimUnlifted(..))
 import Data.Semigroup (Semigroup)
 import Data.Set.Unlifted.Internal (Set(..))
-import qualified Data.Foldable as F
-import qualified Data.Semigroup as SG
-import qualified GHC.Exts as E
 import qualified Data.Set.Internal as I
 import qualified Data.Set.Unlifted.Internal as S
 
@@ -46,6 +44,10 @@ member a (Set s) = I.member a s
 -- | The empty set.
 empty :: Set a
 empty = Set I.empty
+
+-- | True if the set is empty
+null :: Set a -> Bool
+null (Set s) = I.null s
 
 -- | Construct a set with a single element.
 singleton :: PrimUnlifted a => a -> Set a

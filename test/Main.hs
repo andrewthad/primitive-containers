@@ -115,6 +115,7 @@ main = defaultMain $ testGroup "Data"
         , TQC.testProperty "foldlWithKey'" (mapFoldAgreement MUU.foldlWithKey' M.foldlWithKey)
         , TQC.testProperty "foldrWithKey'" (mapFoldAgreement MUU.foldrWithKey' M.foldrWithKey)
         , TQC.testProperty "foldMapWithKey'" (mapFoldMonoidAgreement MUU.foldMapWithKey' M.foldMapWithKey)
+        , TQC.testProperty "mapMaybe" mapMaybeProp
         ]
       ]
     ]
@@ -359,6 +360,12 @@ foldMapStrictSetProp :: QC.Property
 foldMapStrictSetProp = QC.property $ \(xs :: S.Set Word8) ->
   let xs' = SL.fromList (S.toList xs)
    in SL.foldMap' SG.Sum xs' === F.foldMap SG.Sum xs
+
+mapMaybeProp :: QC.Property
+mapMaybeProp = QC.property $ \(xs :: M.Map Word8 Word8) ->
+  let xs' = MUU.fromList (M.toList xs)
+      func x = if even x then Just (x * x) else Nothing
+   in MUU.toList (MUU.mapMaybe func xs') === M.toList (M.mapMaybe func xs)
 
 itraverseSetProp :: QC.Property
 itraverseSetProp = QC.property $ \(xs :: S.Set Int) ->
