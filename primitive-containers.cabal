@@ -29,7 +29,7 @@ library
       base >=4.9 && <5
     , primitive >= 0.6.4
     , primitive-sort >= 0.1 && < 0.2
-    , contiguous >= 0.2 && < 0.3
+    , contiguous >= 0.3 && < 0.4
     , hashable >= 1.2.5
     , deepseq >= 1.4
       -- move these five out when we kick out dependent maps 
