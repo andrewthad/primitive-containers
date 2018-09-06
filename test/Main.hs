@@ -85,6 +85,7 @@ main = defaultMain $ testGroup "Data"
       , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (SL.Set Integer)))
       , lawsToTest (QCC.isListLaws (Proxy :: Proxy (SL.Set Integer)))
       , TQC.testProperty "member" (memberProp @Integer E.fromList SL.member)
+      , TQC.testProperty "nonMember" (nonMemberProp E.fromList SL.member)
       , TQC.testProperty "foldr" (QCCL.foldrProp int32 SL.foldr)
       , TQC.testProperty "foldl'" (QCCL.foldlProp int16 SL.foldl')
       , TQC.testProperty "foldr'" (QCCL.foldrProp int32 SL.foldr')
@@ -398,6 +399,17 @@ memberProp :: forall a t. (Arbitrary a, Show a) => ([a] -> t a) -> (a -> t a -> 
 memberProp containerFromList containerMember = QC.property $ \(xs :: [a]) ->
   let c = containerFromList xs
    in all (\x -> containerMember x c) xs === True
+
+nonMemberProp :: forall t. ([Integer] -> t Integer) -> (Integer -> t Integer -> Bool) -> QC.Property
+nonMemberProp containerFromList containerMember = QC.property $ \(xs :: [Integer]) ->
+  let c = containerFromList xs
+      upper = case xs of
+        [] -> 42
+        _ : _ -> maximum xs
+      lower = case xs of
+        [] -> (-42)
+        _ : _ -> minimum xs
+   in (containerMember (succ upper) c, containerMember (pred lower) c) === (False,False)
 
 lookupProp :: forall k v t. (Arbitrary k, Show k, Ord k, Arbitrary v, Show v, Eq v) => ([(k,v)] -> t k v) -> (k -> t k v -> Maybe v) -> QC.Property
 lookupProp containerFromList containerLookup = QC.property $ \(xs :: [(k,v)]) ->
