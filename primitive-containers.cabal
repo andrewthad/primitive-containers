@@ -22,14 +22,20 @@ source-repository head
   type: git
   location: https://github.com/andrewthad/primitive-containers
 
+flag checked
+  description:
+    Check all array indexing. This makes most functions slower, but
+    it replaces segfaults with descriptive errors. This should
+    only be used for debugging.
+  default: False
+  manual: True
+
 library
   hs-source-dirs:
       src
   build-depends:
       base >=4.9 && <5
-    , primitive >= 0.6.4
     , primitive-sort >= 0.1 && < 0.2
-    , contiguous >= 0.3 && < 0.4
     , hashable >= 1.2.5
     , deepseq >= 1.4
       -- move these five out when we kick out dependent maps 
@@ -38,6 +44,14 @@ library
     , unordered-containers >= 0.2.8.0
     , vector >= 0.11 && < 0.13
     , text >= 1.2 && < 1.3
+  if flag(checked)
+    build-depends: 
+        contiguous-checked >= 0.3 && < 0.4
+      , primitive-checked >= 0.6.4.1
+  else
+    build-depends: 
+        contiguous >= 0.3 && < 0.4
+      , primitive >= 0.6.4
   exposed-modules:
     Data.Continuous.Set.Lifted
     Data.Diet.Map.Strict.Lifted.Lifted
