@@ -495,44 +495,46 @@ append (Set keysA) (Set keysB)
 
 -- The element type must have a Bounded instance for
 -- this to work.
-negate :: (Contiguous arr, Element arr a, Ord a, Enum a, Bounded a)
+negate :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a, Bounded a)
   => Set arr a
   -> Set arr a
 negate set@(Set arr)
   | sz == 0 = uncheckedSingleton minBound maxBound
-  | otherwise = runST $ do
-      let !(# lowest #) = I.index# arr 0
-          !(# highest #) = I.index# arr (sz * 2 - 1)
-          anyBeneath = lowest /= minBound
-          anyAbove = highest /= maxBound
-          newSz =
-            (bool 0 1 anyBeneath) +
-            (bool 0 1 anyAbove) +
-            (sz - 1)
-      marr <- I.new (newSz * 2)
-      startDstIx <- if anyBeneath
-        then do
-          I.write marr 0 minBound
-          I.write marr 1 (pred lowest)
-          return 1
-        else return 0
-      let go !ix !dstIx = if ix < sz - 1
-            then do
-              hi <- I.indexM arr (2 * ix + 1)
-              I.write marr (dstIx * 2) (succ hi)
-              lo <- I.indexM arr (2 * ix + 2)
-              I.write marr (dstIx * 2 + 1) (pred lo)
-              go (ix + 1) (dstIx + 1)
-            else return ()
-      go 0 startDstIx
-      if anyAbove
-        then do
-          I.write marr (newSz * 2 - 2) (succ highest)
-          I.write marr (newSz * 2 - 1) maxBound
-        else return ()
-      frozen <- I.unsafeFreeze marr
-      return (Set frozen)
+  | otherwise = runST action
   where
+  action :: forall s. ST s (Set arr a)
+  action = do
+    let !(# lowest #) = I.index# arr 0
+        !(# highest #) = I.index# arr (sz * 2 - 1)
+        anyBeneath = lowest /= minBound
+        anyAbove = highest /= maxBound
+        newSz =
+          (bool 0 1 anyBeneath) +
+          (bool 0 1 anyAbove) +
+          (sz - 1)
+    (marr :: Mutable arr s a) <- I.new (newSz * 2)
+    startDstIx <- if anyBeneath
+      then do
+        I.write marr 0 minBound
+        I.write marr 1 (pred lowest)
+        return 1
+      else return 0
+    let go !ix !dstIx = if ix < sz - 1
+          then do
+            hi <- I.indexM arr (2 * ix + 1)
+            I.write marr (dstIx * 2) (succ hi)
+            lo <- I.indexM arr (2 * ix + 2)
+            I.write marr (dstIx * 2 + 1) (pred lo)
+            go (ix + 1) (dstIx + 1)
+          else return ()
+    go 0 startDstIx
+    if anyAbove
+      then do
+        I.write marr (newSz * 2 - 2) (succ highest)
+        I.write marr (newSz * 2 - 1) maxBound
+      else return ()
+    frozen <- I.unsafeFreeze (marr :: Mutable arr s a)
+    return (Set frozen)
   sz = size set
   
 
