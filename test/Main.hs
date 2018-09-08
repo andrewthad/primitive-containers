@@ -36,7 +36,7 @@ import Data.Exists (WitnessedEquality(..),WitnessedOrdering(..),EqForall(..),Ord
 import Data.Exists (EqForeach(..),OrdForeach(..),EqForallPoly(..),OrdForallPoly(..),Sing)
 import Data.Exists (PrimForall(..),ToJSONKeyForall(..),ToJSONKeyFunctionForall(..))
 import Data.Exists (ToJSONForeach(..),FromJSONKeyExists(..),Exists(..))
-import Data.Exists (FromJSONForeach(..))
+import Data.Exists (FromJSONForeach(..),SemigroupForeach(..))
 import Control.Monad (forM)
 import Data.Semigroup (Semigroup)
 import Unsafe.Coerce (unsafeCoerce)
@@ -136,6 +136,8 @@ main = defaultMain $ testGroup "Data"
           [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
           , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
           , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+          , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+          , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
           ]
         ]
       , testGroup "Unboxed"
@@ -144,6 +146,8 @@ main = defaultMain $ testGroup "Data"
           , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           , lawsToTest (QCC.jsonLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
+          , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
+          , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           ]
         ]
       ]
@@ -641,7 +645,7 @@ deriving instance Show (SingUniverse u)
 type instance Sing = SingUniverse
 
 type family Interpret (u :: Universe) :: Type where
-  Interpret 'UniverseInt = Int
+  Interpret 'UniverseInt = Integer
   Interpret 'UniverseOrdering = Ordering
   Interpret 'UniverseBool = Bool
   Interpret 'UniverseChar = Char
@@ -666,6 +670,12 @@ instance ShowForeach Value where
   showsPrecForeach SingUniverseBool p (Value x) = showsPrec p x
   showsPrecForeach SingUniverseOrdering p (Value x) = showsPrec p x
   showsPrecForeach SingUniverseChar p (Value x) = showsPrec p x
+
+instance SemigroupForeach Value where
+  appendForeach SingUniverseInt (Value x) (Value y) = Value (x + y)
+  appendForeach SingUniverseBool (Value x) (Value y) = Value (x && y)
+  appendForeach SingUniverseOrdering (Value x) (Value y) = Value (x <> y)
+  appendForeach SingUniverseChar (Value x) (Value _) = Value x
 
 -- This type interpret the lowest two bits of the Word8
 -- as the Universe value. Doing this is unsafe, but if the
