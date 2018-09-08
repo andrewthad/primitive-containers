@@ -59,6 +59,7 @@ import qualified Test.QuickCheck.Classes.IsList as QCCL
 import qualified Data.Set.Unboxed as SU
 import qualified Data.Set.Lifted as SL
 import qualified Data.Set.Unlifted as SUL
+import qualified Data.Map.Unboxed.Lifted as MUL
 import qualified Data.Map.Unboxed.Unboxed as MUU
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted as DMUL
 import qualified Data.Diet.Map.Strict.Lifted.Lifted as DMLL
@@ -117,6 +118,14 @@ main = defaultMain $ testGroup "Data"
         , TQC.testProperty "foldrWithKey'" (mapFoldAgreement MUU.foldrWithKey' M.foldrWithKey)
         , TQC.testProperty "foldMapWithKey'" (mapFoldMonoidAgreement MUU.foldMapWithKey' M.foldMapWithKey)
         , TQC.testProperty "mapMaybe" mapMaybeProp
+        ]
+      , testGroup "Lifted"
+        [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
+        , lawsToTest (QCC.ordLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
+        , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
+        , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
+        , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
+        , TQC.testProperty "lookup-empty" lookupEmptyUnboxedLiftedMapProp
         ]
       ]
     ]
@@ -417,6 +426,10 @@ lookupProp containerFromList containerLookup = QC.property $ \(xs :: [(k,v)]) ->
       c = containerFromList xs
    in all (\(x,_) -> containerLookup x c == M.lookup x ys) xs === True
 
+lookupEmptyUnboxedLiftedMapProp :: QC.Property
+lookupEmptyUnboxedLiftedMapProp = QC.property $ \(x :: Word16) ->
+  MUL.lookup x (MUL.empty :: MUL.Map Word16 Integer) === Nothing
+
 dietMemberProp :: forall a t. (Arbitrary a, Show a, Ord a, Arbitrary a, Show (t a)) => ([(a,a)] -> t a) -> (a -> t a -> Bool) -> QC.Property
 dietMemberProp containerFromList containerLookup = QC.property $ \(xs :: [a]) ->
   let c = containerFromList (map (\a -> (a,a)) xs)
@@ -501,6 +514,9 @@ instance (Arbitrary a, Ord a) => Arbitrary (SL.Set a) where
   arbitrary = fmap E.fromList QC.arbitrary
 
 instance (Arbitrary k, Prim k, Ord k, Arbitrary v, Prim v) => Arbitrary (MUU.Map k v) where
+  arbitrary = fmap E.fromList QC.arbitrary
+
+instance (Arbitrary k, Prim k, Ord k, Arbitrary v) => Arbitrary (MUL.Map k v) where
   arbitrary = fmap E.fromList QC.arbitrary
 
 instance (Arbitrary k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v) => Arbitrary (DMLL.Map k v) where
