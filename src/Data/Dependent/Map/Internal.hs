@@ -52,6 +52,7 @@ import Data.Primitive.Sort (sortUniqueTaggedMutable)
 import Data.Kind (Type)
 import Data.Aeson (ToJSON,FromJSON)
 import Data.Text (Text)
+import qualified Data.List as L
 import qualified Data.Vector as V
 import qualified Data.Exists as EX
 import qualified Data.Aeson as AE
@@ -156,19 +157,38 @@ lookup k (Map m) = id
       Just v -> Just (unwrapValue (Proxy :: Proxy v) (Proxy :: Proxy a) v)
 
 appendWith :: forall u karr varr (k :: u -> Type) (v :: u -> Type).
-     (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k, ToSing k)
+     (Contiguous karr, ApplyUniversally k (Element karr), Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k, ToSing k)
   => (forall (a :: u). Sing a -> v a -> v a -> v a)
-  -- => (forall (a :: u). Any -> v a -> v a -> v a)
   -> Map karr varr k v
   -> Map karr varr k v
   -> Map karr varr k v
-appendWith f (Map m1) (Map m2) = id
-  $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
-  $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
-  $ Map (M.appendWithKey (\(C.Apply k) v1 v2 -> f (EX.toSing k) v1 v2) m1 m2)
+appendWith f xs ys = fromList (nubUnionWith f (toList xs) (toList ys))
+-- For some reason, this more natural implementation causes segfaults
+-- appendWith f (Map m1) (Map m2) = id
+--   $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
+--   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
+--   $ Map (M.appendWithKey (\(C.Apply k) v1 v2 -> f (EX.toSing k) v1 v2) m1 m2)
+
+nubUnionWith :: forall u (k :: u -> Type) (v :: u -> Type). (EqForallPoly k, ToSing k)
+  => (forall (a :: u). Sing a -> v a -> v a -> v a)
+  -> [DependentPair k v]
+  -> [DependentPair k v]
+  -> [DependentPair k v]
+nubUnionWith f = go [] where
+  go acc [] ys = acc ++ ys
+  go acc (x@(DependentPair kx vx) : xs) ys = case findPair kx ys of
+    Nothing -> go (x : acc) xs ys
+    Just (ys',vy) -> go (DependentPair kx (f (EX.toSing kx) vx vy) : acc) xs ys'
+
+findPair :: EqForallPoly k => k a -> [DependentPair k v] -> Maybe ([DependentPair k v], v a)
+findPair k = go [] where
+  go _ [] = Nothing
+  go finger (x@(DependentPair kx vx) : xs) = case EX.eqForallPoly k kx of
+    EX.WitnessedEqualityUnequal -> go (x : finger) xs
+    EX.WitnessedEqualityEqual -> Just (L.reverse finger ++ xs, vx)
 
 append :: forall karr varr k v.
-     (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k, SemigroupForeach v, ToSing k)
+     (Contiguous karr, ApplyUniversally k (Element karr), Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k, SemigroupForeach v, ToSing k)
   => Map karr varr k v
   -> Map karr varr k v
   -> Map karr varr k v
