@@ -21,3 +21,5 @@ cabal.project.local~
 .HTF/
 .ghc.environment.*
 .stack-work*
+dump.txt
+dump2.txt

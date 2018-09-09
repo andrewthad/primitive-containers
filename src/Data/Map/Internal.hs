@@ -32,7 +32,7 @@ module Data.Map.Internal
     -- * Functions
   , append
   , appendWith
-  , appendKeyWith
+  , appendWithKey
   , appendRightBiased
   , intersectionWith
   , lookup
@@ -206,7 +206,7 @@ fromAscListWith combine !n !k0 !v0 xs0 = runST $ do
 map :: (Contiguous varr, Element varr v, Element varr w) => (v -> w) -> Map karr varr k v -> Map karr varr k w
 map f (Map k v) = Map k (I.map f v)
 
--- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+-- | /O(n)/ Map over the elements with access to their corresponding keys.
 mapWithKey :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
   => (k -> v -> w)
   -> Map karr varr k v
@@ -328,9 +328,9 @@ concatWith combine = C.concatSized size empty (appendWith combine)
 appendRightBiased :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendRightBiased = appendWith const
 
-appendKeyWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+appendWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
   => (k -> v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
-appendKeyWith combine (Map ksA vsA) (Map ksB vsB) =
+appendWithKey combine (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith combine ksA vsA ksB vsB of
     (k,v) -> Map k v
   

@@ -13,6 +13,7 @@ module Data.Map.Lifted.Lifted
   , map
   , mapMaybe
   , mapMaybeWithKey
+  , appendWithKey
   , union
     -- * Folds
   , foldlWithKey'
@@ -24,6 +25,7 @@ module Data.Map.Lifted.Lifted
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
     -- * List Conversion
+  , toList
   , fromList
   , fromListAppend
   , fromListN
@@ -82,6 +84,10 @@ lookup a (Map s) = I.lookup a s
 -- | /O(1)/ Create a map with a single element.
 singleton :: k -> v -> Map k v
 singleton k v = Map (I.singleton k v)
+
+-- | /O(n)/ A list of key-value pairs in ascending order.
+toList :: Ord k => Map k v -> [(k,v)]
+toList (Map m) = I.toList m
 
 -- | /O(n*log n)/ Create a map from a list of key-value pairs.
 -- If the list contains more than one value for the same key,
@@ -151,6 +157,13 @@ mapMaybeWithKey ::
   -> Map k v
   -> Map k w
 mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
+
+appendWithKey :: Ord k
+  => (k -> v -> v -> v)
+  -> Map k v
+  -> Map k v
+  -> Map k v
+appendWithKey f (Map m) (Map n) = Map (I.appendWithKey f m n)
 
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.

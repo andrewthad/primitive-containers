@@ -13,9 +13,11 @@ module Data.Map.Unboxed.Lifted
   , map
   , mapMaybe
   , mapMaybeWithKey
+  , mapWithKey
   , keys
   , intersectionWith
   , restrict
+  , appendWithKey
     -- * Folds
   , foldrWithKey
   , foldlWithKey'
@@ -94,11 +96,11 @@ empty :: Map k v
 empty = Map I.empty
 
 -- | /O(1)/ Create a map with a single element.
-singleton :: (Prim k) => k -> v -> Map k v
+singleton :: Prim k => k -> v -> Map k v
 singleton k v = Map (I.singleton k v)
 
 -- | /O(n)/ A list of key-value pairs in ascending order.
-toList :: (Prim k, Ord k, Prim v) => Map k v -> [(k,v)]
+toList :: (Prim k, Ord k) => Map k v -> [(k,v)]
 toList (Map m) = I.toList m
 
 -- | /O(n*log n)/ Create a map from a list of key-value pairs.
@@ -160,6 +162,20 @@ mapMaybeWithKey :: Prim k
   -> Map k v
   -> Map k w
 mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
+
+-- | /O(n)/ Map over the elements with access to their corresponding keys.
+mapWithKey :: Prim k
+  => (k -> v -> w)
+  -> Map k v
+  -> Map k w
+mapWithKey f (Map m) = Map (I.mapWithKey f m)
+
+appendWithKey :: (Prim k, Ord k)
+  => (k -> v -> v -> v)
+  -> Map k v
+  -> Map k v
+  -> Map k v
+appendWithKey f (Map m) (Map n) = Map (I.appendWithKey f m n)
 
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.

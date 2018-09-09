@@ -59,6 +59,7 @@ import qualified Test.QuickCheck.Classes.IsList as QCCL
 import qualified Data.Set.Unboxed as SU
 import qualified Data.Set.Lifted as SL
 import qualified Data.Set.Unlifted as SUL
+import qualified Data.Map.Lifted.Lifted as MLL
 import qualified Data.Map.Unboxed.Lifted as MUL
 import qualified Data.Map.Unboxed.Unboxed as MUU
 import qualified Data.Diet.Map.Strict.Unboxed.Lifted as DMUL
@@ -126,6 +127,18 @@ main = defaultMain $ testGroup "Data"
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
         , TQC.testProperty "lookup-empty" lookupEmptyUnboxedLiftedMapProp
+        , TQC.testProperty "mapWithKey" mapWithKeyProp
+        , TQC.testProperty "appendWithKey" appendWithKeyUnboxedLiftedProp
+        ]
+      ]
+    , testGroup "Lifted"
+      [ testGroup "Lifted"
+        [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
+        , lawsToTest (QCC.ordLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
+        , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
+        , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
+        , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
+        , TQC.testProperty "appendWithKey" appendWithKeyLiftedLiftedProp
         ]
       ]
     ]
@@ -381,6 +394,26 @@ mapMaybeProp = QC.property $ \(xs :: M.Map Word8 Word8) ->
       func x = if even x then Just (x * x) else Nothing
    in MUU.toList (MUU.mapMaybe func xs') === M.toList (M.mapMaybe func xs)
 
+mapWithKeyProp :: QC.Property
+mapWithKeyProp = QC.property $ \(xs :: M.Map Word8 Word8) ->
+  let xs' = MUL.fromList (M.toList xs)
+      func x y = if even x then y * x else x + 1
+   in MUL.toList (MUL.mapWithKey func xs') === M.toList (M.mapWithKey func xs)
+
+appendWithKeyUnboxedLiftedProp :: QC.Property
+appendWithKeyUnboxedLiftedProp = QC.property $ \(xs :: M.Map Word8 Word8) ys ->
+  let xs' = MUL.fromList (M.toList xs)
+      ys' = MUL.fromList (M.toList ys) 
+      func k x y = k + 2 * x + 3 * y
+   in MUL.toList (MUL.appendWithKey func xs' ys') === M.toList (M.unionWithKey func xs ys)
+
+appendWithKeyLiftedLiftedProp :: QC.Property
+appendWithKeyLiftedLiftedProp = QC.property $ \(xs :: M.Map Word8 Word8) ys ->
+  let xs' = MLL.fromList (M.toList xs)
+      ys' = MLL.fromList (M.toList ys) 
+      func k x y = k + 2 * x + 3 * y
+   in MLL.toList (MLL.appendWithKey func xs' ys') === M.toList (M.unionWithKey func xs ys)
+
 itraverseSetProp :: QC.Property
 itraverseSetProp = QC.property $ \(xs :: S.Set Int) ->
   let xs' = SL.fromList (S.toList xs)
@@ -521,6 +554,9 @@ instance (Arbitrary k, Prim k, Ord k, Arbitrary v, Prim v) => Arbitrary (MUU.Map
   arbitrary = fmap E.fromList QC.arbitrary
 
 instance (Arbitrary k, Prim k, Ord k, Arbitrary v) => Arbitrary (MUL.Map k v) where
+  arbitrary = fmap E.fromList QC.arbitrary
+
+instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (MLL.Map k v) where
   arbitrary = fmap E.fromList QC.arbitrary
 
 instance (Arbitrary k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v) => Arbitrary (DMLL.Map k v) where

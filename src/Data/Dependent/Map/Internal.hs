@@ -5,6 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeInType #-}
 
 module Data.Dependent.Map.Internal
   ( Map(..)
@@ -154,23 +155,24 @@ lookup k (Map m) = id
       Nothing -> Nothing
       Just v -> Just (unwrapValue (Proxy :: Proxy v) (Proxy :: Proxy a) v)
 
-appendWith :: forall karr varr k v.
+appendWith :: forall u karr varr (k :: u -> Type) (v :: u -> Type).
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k, ToSing k)
-  => (forall a. Sing a -> v a -> v a -> v a)
+  => (forall (a :: u). Sing a -> v a -> v a -> v a)
+  -- => (forall (a :: u). Any -> v a -> v a -> v a)
   -> Map karr varr k v
   -> Map karr varr k v
   -> Map karr varr k v
 appendWith f (Map m1) (Map m2) = id
   $ C.universally (Proxy :: Proxy k) (Proxy :: Proxy (Element karr)) (Proxy :: Proxy Any)
   $ C.applyUniversallyLifted (Proxy :: Proxy v) (Proxy :: Proxy (Element varr)) (Proxy :: Proxy Any)
-  $ Map (M.appendKeyWith (\(C.Apply k) v1 v2 -> f (EX.toSing k) v1 v2) m1 m2)
+  $ Map (M.appendWithKey (\(C.Apply k) v1 v2 -> f (EX.toSing k) v1 v2) m1 m2)
 
 append :: forall karr varr k v.
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k, SemigroupForeach v, ToSing k)
   => Map karr varr k v
   -> Map karr varr k v
   -> Map karr varr k v
-append = appendWith EX.appendForeach
+append = appendWith (EX.appendForeach :: (forall a. Sing a -> v a -> v a -> v a))
 
 appendRightBiased :: forall karr varr k v.
      (Contiguous karr, Universally k (Element karr), Contiguous varr, ApplyUniversally v (Element varr), OrdForallPoly k)
