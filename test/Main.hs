@@ -144,16 +144,16 @@ main = defaultMain $ testGroup "Data"
     ]
   , testGroup "Dependent"
     [ testGroup "Map"
-      [ testGroup "Lifted"
-        [ testGroup "Lifted"
-          [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
-          , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
-          , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
-          , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
-          , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
-          ]
-        ]
-      , testGroup "Unboxed"
+      [ -- testGroup "Lifted"
+        -- [ testGroup "Lifted"
+        --   [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+        --   , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+        --   , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+        --   , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+        --   , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (DPMLL.Map Key Value)))
+        --   ]
+        -- ]
+        testGroup "Unboxed"
         [ testGroup "Lifted"
           [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
           , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DPMUL.Map UnboxedKey Value)))
