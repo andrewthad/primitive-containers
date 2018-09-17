@@ -14,6 +14,7 @@ module Data.Set.NonEmpty.Unlifted
   , toArray
   , toList
   , fromNonEmpty
+  , toSet
   , fromSet
     -- * Folds
   , foldr
@@ -74,12 +75,17 @@ fromNonEmpty :: (PrimUnlifted a, Ord a) => NonEmpty a -> Set a
 fromNonEmpty = Set . I.fromList . NE.toList
 
 -- | /O(1)/ Convert a set to a non-empty set. This returns @Nothing@ if
--- the set is empty. The resulting non-empty set shares the share internal
+-- the set is empty. The resulting non-empty set shares internal
 -- represention as the argument.
 fromSet :: SI.Set a -> Maybe (Set a)
 fromSet s@(SI.Set x) = if S.null s
   then Nothing
   else Just (Set x)
+
+-- | /O(0)/ Convert a non-empty set to a set. The resulting set shares
+-- the internal representation with the argument.
+toSet :: SI.Set a -> Set a
+toSet = E.coerce
 
 -- | Test for membership in the set.
 member :: (PrimUnlifted a, Ord a) => a -> Set a -> Bool

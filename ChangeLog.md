@@ -11,4 +11,5 @@ and this project adheres to the [Haskell Package Versioning Policy](https://pvp.
   difference, fromList), and functions that would be constant are removed (null).
   There is no `Monoid` instance and no `IsList` instance.
 - fromSet function for non-empty unlifted sets
+- toSet function for non-empty unlifted sets
 
