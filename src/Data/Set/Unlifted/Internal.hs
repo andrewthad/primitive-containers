@@ -16,7 +16,6 @@ import Data.Hashable (Hashable)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..),UnliftedArray)
 import Data.Primitive (Array)
 import Data.Semigroup (Semigroup)
-import Text.Show (showListWith)
 
 import qualified Data.Foldable as F
 import qualified Data.Hashable as H

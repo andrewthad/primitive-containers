@@ -69,6 +69,7 @@ library
     Data.Set.Lifted
     Data.Set.Unboxed
     Data.Set.Unlifted
+    Data.Set.NonEmpty.Unlifted
     Data.Map.Subset.Strict.Lifted
     Data.Map.Subset.Strict.Unlifted
     Data.Map.Subset.Lazy.Lifted
