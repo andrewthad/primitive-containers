@@ -14,6 +14,7 @@ module Data.Set.NonEmpty.Unlifted
   , toArray
   , toList
   , fromNonEmpty
+  , fromSet
     -- * Folds
   , foldr
   , foldMap
@@ -38,6 +39,8 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Semigroup as SG
 import qualified Data.Set.Internal as I
 import qualified GHC.Exts as E
+import qualified Data.Set.Unlifted as S
+import qualified Data.Set.Unlifted.Internal as SI
 
 newtype Set a = Set (I.Set UnliftedArray a)
 
@@ -69,6 +72,14 @@ toList (Set s) = I.toList s
 -- | /O(n*log n)/ Convert a list to a set.
 fromNonEmpty :: (PrimUnlifted a, Ord a) => NonEmpty a -> Set a
 fromNonEmpty = Set . I.fromList . NE.toList
+
+-- | /O(1)/ Convert a set to a non-empty set. This returns @Nothing@ if
+-- the set is empty. The resulting non-empty set shares the share internal
+-- represention as the argument.
+fromSet :: SI.Set a -> Maybe (Set a)
+fromSet s@(SI.Set x) = if S.null s
+  then Nothing
+  else Just (Set x)
 
 -- | Test for membership in the set.
 member :: (PrimUnlifted a, Ord a) => a -> Set a -> Bool

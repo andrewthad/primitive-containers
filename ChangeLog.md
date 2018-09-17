@@ -10,4 +10,5 @@ and this project adheres to the [Haskell Package Versioning Policy](https://pvp.
   However, functions that would be partial are removed (intersection,
   difference, fromList), and functions that would be constant are removed (null).
   There is no `Monoid` instance and no `IsList` instance.
+- fromSet function for non-empty unlifted sets
 
