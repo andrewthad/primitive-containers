@@ -84,7 +84,7 @@ fromSet s@(SI.Set x) = if S.null s
 
 -- | /O(0)/ Convert a non-empty set to a set. The resulting set shares
 -- the internal representation with the argument.
-toSet :: SI.Set a -> Set a
+toSet :: Set a -> SI.Set a
 toSet = E.coerce
 
 -- | Test for membership in the set.
