@@ -11,6 +11,7 @@ import qualified GHC.Exts as E
 import qualified Data.Set.Unboxed as DSU
 import qualified Data.Set.Lifted as DSL
 import qualified Data.Map.Unboxed.Unboxed as DMUU
+import qualified Data.Map.Unboxed.Lifted as DMUL
 import qualified Data.Map.Lifted.Lifted as DMLL
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
@@ -21,6 +22,7 @@ main = defaultMain
   [ bgroup "Map"
     [ bgroup "lookup" 
       [ bench "primitive-unboxed-unboxed" $ whnf lookupAllUnboxed bigUnboxedMap
+      , bench "primitive-unboxed-lifted" $ whnf lookupAllUnboxedLifted bigUnboxedLiftedMap
       , bench "containers-map" $ whnf lookupAllContainers bigContainersMap
       , bench "containers-intmap" $ whnf lookupAllIntContainers bigContainersIntMap
       ]
@@ -84,6 +86,9 @@ bigLiftedSet = E.fromList (map (\x -> x `mod` (bigNumber * 2)) (take bigNumber (
 bigUnboxedMap :: DMUU.Map Int Int
 bigUnboxedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
 
+bigUnboxedLiftedMap :: DMUL.Map Int Int
+bigUnboxedLiftedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
+
 bigLiftedMap :: DMLL.Map Int Int
 bigLiftedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
 
@@ -97,6 +102,12 @@ lookupAllUnboxed :: DMUU.Map Int Int -> Int
 lookupAllUnboxed m = go 0 0 where
   go !acc !n = if n < bigNumber
     then go (acc + fromMaybe 0 (DMUU.lookup n m)) (n + 1)
+    else acc
+
+lookupAllUnboxedLifted :: DMUL.Map Int Int -> Int
+lookupAllUnboxedLifted m = go 0 0 where
+  go !acc !n = if n < bigNumber
+    then go (acc + fromMaybe 0 (DMUL.lookup n m)) (n + 1)
     else acc
 
 lookupAllSetUnboxed :: DSU.Set Int -> Int
