@@ -1,0 +1,198 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
+
+module Data.Map.Interval.DBTS.Internal
+  ( Map
+  , pure
+  , singleton
+  , lookup
+  , union
+  , unionWith
+  , equals
+  ) where
+
+import Prelude hiding (pure,lookup)
+
+import Control.Monad.ST (ST,runST)
+import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
+import qualified Data.Primitive.Contiguous as I
+import qualified Prelude as P
+
+-- | The key array is the same length as the value array. Every key
+--   is the upper bound of a range. The keys array always has a length
+--   of at least one. The last element is always maxBound. The lowest bound
+--   is assumed to be minBound. For example, the interval map of Int16:
+--
+--     [-inf,5],[6,17],[18,20],[21,+inf]
+--
+--   Would be represented by the keys:
+--   
+--     5,17,20,65536
+data Map karr varr k v = Map !(karr k) !(varr v)
+
+equals :: (Contiguous karr, Element karr k, Eq k, Contiguous varr, Element varr v, Eq v) => Map karr varr k v -> Map karr varr k v -> Bool
+equals (Map k1 v1) (Map k2 v2) = I.equals k1 k2 && I.equals v1 v2
+
+pure :: (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k) => v -> Map karr varr k v
+pure v = Map
+  (runST $ do
+     !(arr :: Mutable karr s k) <- I.replicateM 1 maxBound
+     I.unsafeFreeze arr
+  )
+  (runST $ do
+     !(arr :: Mutable varr s v) <- I.replicateM 1 v
+     I.unsafeFreeze arr
+  )
+
+singleton :: forall karr varr k v. (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k, Enum k, Ord k)
+  => v -- value outside of the interval
+  -> k -- lower bound
+  -> k -- upper bound
+  -> v -- value inside the interval
+  -> Map karr varr k v
+singleton def lo hi v = if lo <= hi
+  then if lo > minBound
+    then if hi < maxBound
+      then Map
+        (runST $ do
+           !(arr :: Mutable karr s k) <- I.new 3
+           I.write arr 0 (pred lo)
+           I.write arr 1 hi
+           I.write arr 2 maxBound
+           I.unsafeFreeze arr
+        )
+        (runST $ do
+           !(arr :: Mutable varr s v) <- I.new 3
+           I.write arr 0 def
+           I.write arr 1 v
+           I.write arr 2 def
+           I.unsafeFreeze arr
+        )
+      else Map
+        (runST $ do
+           !(arr :: Mutable karr s k) <- I.new 2
+           I.write arr 0 (pred lo)
+           I.write arr 1 maxBound
+           I.unsafeFreeze arr
+        )
+        (runST $ do
+           !(arr :: Mutable varr s v) <- I.new 2
+           I.write arr 0 def
+           I.write arr 1 v
+           I.unsafeFreeze arr
+        )
+    else if hi < maxBound
+      then Map
+        (runST $ do
+           !(arr :: Mutable karr s k) <- I.new 2
+           I.write arr 0 hi
+           I.write arr 1 maxBound
+           I.unsafeFreeze arr
+        )
+        (runST $ do
+           !(arr :: Mutable varr s v) <- I.new 2
+           I.write arr 0 v
+           I.write arr 1 def
+           I.unsafeFreeze arr
+        )
+      else pure v
+  else pure def
+
+lookup :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => k -> Map karr varr k v -> v
+lookup a (Map keys vals) = go 0 (I.size vals - 1) where
+  go :: Int -> Int -> v
+  go !start !end = if end == start
+    then
+      let !(# v #) = I.index# vals start
+       in v
+    else
+      let !mid = div (end + start) 2
+          !valHi = I.index keys mid
+       in case P.compare a valHi of
+            LT -> go start mid
+            EQ -> case I.index# vals mid of
+              (# v #) -> v
+            GT -> go (mid + 1) end
+{-# INLINEABLE lookup #-}
+
+union :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Eq v, Semigroup v)
+  => Map karr varr k v
+  -> Map karr varr k v
+  -> Map karr varr k v
+union = unionWith (<>)
+
+unionWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Eq v)
+  => (v -> v -> v)
+  -> Map karr varr k v
+  -> Map karr varr k v
+  -> Map karr varr k v
+unionWith combine (Map keysA valsA) (Map keysB valsB) = runST action where
+  action :: forall s. ST s (Map karr varr k v)
+  action = do
+    let szA = I.size keysA
+        szB = I.size keysB
+        szMax = szA + szB
+    keysDst <- I.new szMax
+    valsDst <- I.new szMax
+    -- For total maps, we don't have to worry about one map running out
+    -- before the others.
+    let go :: Int -> Int -> Int -> v -> ST s Int
+        go ixA ixB ixDst prevVal = if ixA < szA && ixB < szB
+          then do
+            keyB <- I.indexM keysA ixA
+            keyA <- I.indexM keysB ixB
+            valA <- I.indexM valsA ixA
+            valB <- I.indexM valsB ixB
+            let v = combine valA valB
+            case compare keyA keyB of
+              EQ -> if v == prevVal
+                then do
+                  I.write keysDst ixDst keyA
+                  I.write valsDst ixDst v
+                  go (ixA + 1) (ixB + 1) (ixDst + 1) v
+                else do
+                  I.write keysDst (ixDst - 1) keyA
+                  go (ixA + 1) (ixB + 1) ixDst v
+              LT -> if v == prevVal
+                then do
+                  I.write keysDst ixDst keyA
+                  I.write valsDst ixDst v
+                  go (ixA + 1) ixB (ixDst + 1) v
+                else do
+                  I.write keysDst (ixDst - 1) keyA
+                  go (ixA + 1) ixB ixDst v
+              GT -> if v == prevVal
+                then do
+                  I.write keysDst ixDst keyB
+                  I.write valsDst ixDst v
+                  go ixA (ixB + 1) (ixDst + 1) v
+                else do
+                  I.write keysDst (ixDst - 1) keyB
+                  go ixA (ixB + 1) ixDst v
+          else return ixDst
+    keyB <- I.indexM keysA 0
+    keyA <- I.indexM keysB 0
+    valA <- I.indexM valsA 0
+    valB <- I.indexM valsB 0
+    let v = combine valA valB
+    dstIx <- case compare keyA keyB of
+      EQ -> do
+        I.write keysDst 0 keyA
+        I.write valsDst 0 v
+        go 1 1 1 v
+      LT -> do
+        I.write keysDst 0 keyA
+        I.write valsDst 0 v
+        go 1 0 1 v
+      GT -> do
+        I.write keysDst 0 keyB
+        I.write valsDst 0 v
+        go 0 1 1 v
+    keys <- I.resize keysDst dstIx >>= I.unsafeFreeze
+    vals <- I.resize valsDst dstIx >>= I.unsafeFreeze
+    return (Map keys vals)
+  
+
