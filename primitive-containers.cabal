@@ -70,6 +70,7 @@ library
     Data.Set.Unboxed
     Data.Set.Unlifted
     Data.Set.NonEmpty.Unlifted
+    Data.Map.Interval
     Data.Map.Subset.Strict.Lifted
     Data.Map.Subset.Strict.Unlifted
     Data.Map.Subset.Lazy.Lifted
@@ -92,6 +93,7 @@ library
     Data.Set.Lifted.Internal
     Data.Set.Unboxed.Internal
     Data.Set.Unlifted.Internal
+    Data.Map.Interval.DBTS.Internal
   ghc-options: -O2 -Wall
   default-language: Haskell2010
 
