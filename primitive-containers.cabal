@@ -15,8 +15,8 @@ license-file: LICENSE
 build-type: Simple
 
 extra-source-files:
-    ChangeLog.md
-    README.md
+  ChangeLog.md
+  README.md
 
 source-repository head
   type: git
@@ -80,6 +80,7 @@ library
     Data.Dependent.Map.Lifted.Lifted
     Data.Dependent.Map.Unlifted.Lifted
     Data.Dependent.Map.Unboxed.Lifted
+    Data.Map.Interval.DBTS.Lifted.Lifted
   other-modules:
     Data.Concatenation
     Data.Diet.Map.Strict.Internal
@@ -110,7 +111,7 @@ test-suite test
     , primitive
     , primitive-containers
     , quantification >= 0.4
-    , quickcheck-classes >= 0.4.12
+    , quickcheck-classes >= 0.5
     , tasty
     , tasty-hunit
     , tasty-quickcheck

@@ -50,7 +50,7 @@ data Map karr varr k v = Map !(karr k) !(varr v)
 empty :: (Contiguous karr, Contiguous varr) => Map karr varr k v
 empty = Map I.empty I.empty
 
--- Note: this is only correct when the function is an equality morphism. 
+-- Note: this is only correct when the function is a bijection.
 map :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w) => (v -> w) -> Map karr varr k v -> Map karr varr k w
 map f (Map k v) = Map k (I.map f v)
 

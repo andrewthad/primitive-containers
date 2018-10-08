@@ -8,16 +8,24 @@ module Data.Map.Interval.DBTS.Internal
   ( Map
   , pure
   , singleton
+  , empty
   , lookup
   , union
   , unionWith
   , equals
+  , map
+  , fromList
+  , foldrWithKey
+  , toList
+  , showsPrec
+  , concat
   ) where
 
-import Prelude hiding (pure,lookup)
+import Prelude hiding (pure,lookup,compare,map,showsPrec,concat)
 
 import Control.Monad.ST (ST,runST)
 import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
+import qualified Data.Concatenation as C
 import qualified Data.Primitive.Contiguous as I
 import qualified Prelude as P
 
@@ -36,6 +44,18 @@ data Map karr varr k v = Map !(karr k) !(varr v)
 equals :: (Contiguous karr, Element karr k, Eq k, Contiguous varr, Element varr v, Eq v) => Map karr varr k v -> Map karr varr k v -> Bool
 equals (Map k1 v1) (Map k2 v2) = I.equals k1 k2 && I.equals v1 v2
 
+size :: (Contiguous varr, Element varr v)
+  => Map karr varr k v
+  -> Int
+size (Map _ v) = I.size v
+
+-- compare :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Ord v) => Map karr varr k v -> Map karr varr k v -> Bool
+-- compare (Map k1 v1) (Map k2 v2) = mappend (I.compare k1 k2) (I.compare v1 v2)
+
+-- Note: this is only correct when the function is a bijection.
+map :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w) => (v -> w) -> Map karr varr k v -> Map karr varr k w
+map f (Map k v) = Map k (I.map f v)
+
 pure :: (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k) => v -> Map karr varr k v
 pure v = Map
   (runST $ do
@@ -47,13 +67,17 @@ pure v = Map
      I.unsafeFreeze arr
   )
 
-singleton :: forall karr varr k v. (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k, Enum k, Ord k)
+-- This is not actually empty, but it is the monoidal identity.
+empty :: (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k, Monoid v) => Map karr varr k v
+empty = pure mempty
+
+singleton :: forall karr varr k v. (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k, Enum k, Ord k, Eq v)
   => v -- value outside of the interval
   -> k -- lower bound
   -> k -- upper bound
   -> v -- value inside the interval
   -> Map karr varr k v
-singleton def lo hi v = if lo <= hi
+singleton def lo hi v = if lo <= hi && def /= v
   then if lo > minBound
     then if hi < maxBound
       then Map
@@ -138,47 +162,57 @@ unionWith combine (Map keysA valsA) (Map keysB valsB) = runST action where
     keysDst <- I.new szMax
     valsDst <- I.new szMax
     -- For total maps, we don't have to worry about one map running out
-    -- before the others.
+    -- before the other. Also, this function has a precondition that
+    -- all three indices are greater than zero.
     let go :: Int -> Int -> Int -> v -> ST s Int
-        go ixA ixB ixDst prevVal = if ixA < szA && ixB < szB
+        go !ixA !ixB !ixDst prevVal = if ixA < szA && ixB < szB
           then do
-            keyB <- I.indexM keysA ixA
-            keyA <- I.indexM keysB ixB
-            valA <- I.indexM valsA ixA
-            valB <- I.indexM valsB ixB
-            let v = combine valA valB
-            case compare keyA keyB of
-              EQ -> if v == prevVal
-                then do
-                  I.write keysDst ixDst keyA
-                  I.write valsDst ixDst v
-                  go (ixA + 1) (ixB + 1) (ixDst + 1) v
-                else do
-                  I.write keysDst (ixDst - 1) keyA
-                  go (ixA + 1) (ixB + 1) ixDst v
-              LT -> if v == prevVal
-                then do
-                  I.write keysDst ixDst keyA
-                  I.write valsDst ixDst v
-                  go (ixA + 1) ixB (ixDst + 1) v
-                else do
-                  I.write keysDst (ixDst - 1) keyA
-                  go (ixA + 1) ixB ixDst v
-              GT -> if v == prevVal
-                then do
-                  I.write keysDst ixDst keyB
-                  I.write valsDst ixDst v
-                  go ixA (ixB + 1) (ixDst + 1) v
-                else do
-                  I.write keysDst (ixDst - 1) keyB
-                  go ixA (ixB + 1) ixDst v
+            keyA <- I.indexM keysA ixA
+            keyB <- I.indexM keysB ixB
+            case P.compare keyA keyB of
+              EQ -> do
+                valA <- I.indexM valsA ixA
+                valB <- I.indexM valsB ixB
+                let !v = combine valA valB
+                if v == prevVal
+                  then do
+                    I.write keysDst (ixDst - 1) keyA
+                    go (ixA + 1) (ixB + 1) ixDst v
+                  else do
+                    I.write keysDst ixDst keyA
+                    I.write valsDst ixDst v
+                    go (ixA + 1) (ixB + 1) (ixDst + 1) v
+              LT -> do
+                valA <- I.indexM valsA ixA
+                valB <- I.indexM valsB ixB
+                let !v = combine valA valB
+                if v == prevVal
+                  then do
+                    I.write keysDst (ixDst - 1) keyA
+                    go (ixA + 1) ixB ixDst v
+                  else do
+                    I.write keysDst ixDst keyA
+                    I.write valsDst ixDst v
+                    go (ixA + 1) ixB (ixDst + 1) v
+              GT -> do
+                valA <- I.indexM valsA ixA
+                valB <- I.indexM valsB ixB
+                let !v = combine valA valB
+                if v == prevVal
+                  then do
+                    I.write keysDst (ixDst - 1) keyB
+                    go ixA (ixB + 1) ixDst v
+                  else do
+                    I.write keysDst ixDst keyB
+                    I.write valsDst ixDst v
+                    go ixA (ixB + 1) (ixDst + 1) v
           else return ixDst
-    keyB <- I.indexM keysA 0
-    keyA <- I.indexM keysB 0
+    keyA <- I.indexM keysA 0
+    keyB <- I.indexM keysB 0
     valA <- I.indexM valsA 0
     valB <- I.indexM valsB 0
     let v = combine valA valB
-    dstIx <- case compare keyA keyB of
+    dstIx <- case P.compare keyA keyB of
       EQ -> do
         I.write keysDst 0 keyA
         I.write valsDst 0 v
@@ -194,5 +228,52 @@ unionWith combine (Map keysA valsA) (Map keysB valsB) = runST action where
     keys <- I.resize keysDst dstIx >>= I.unsafeFreeze
     vals <- I.resize valsDst dstIx >>= I.unsafeFreeze
     return (Map keys vals)
-  
+
+showsPrec :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Bounded k, Enum k, Show k, Show v)
+  => Int -> Map karr varr k v -> ShowS
+showsPrec p m = showParen (p > 10)
+  $ showString "fromList "
+  . shows (toList m)
+
+foldrWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Bounded k, Enum k)
+  => (k -> k -> v -> b -> b)
+  -> b
+  -> Map karr varr k v
+  -> b
+foldrWithKey f z (Map keys vals) =
+  let !sz = I.size vals
+      -- we must be lazy in the second argument
+      go !i lo
+        | i == sz = z
+        | otherwise =
+            let !hi = I.index keys i
+                !(# v #) = I.index# vals i
+             in f lo hi v (go (i + 1) (succ hi))
+   in go 0 minBound
+
+toList :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Bounded k, Enum k)
+  => Map karr varr k v
+  -> [(k,k,v)]
+toList = foldrWithKey (\lo hi v xs -> (lo,hi,v) : xs) []
+
+fromList :: (Contiguous karr, Element karr k, Bounded k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v)
+  => v -- value outside of the ranges
+  -> [(k,k,v)]
+  -> Map karr varr k v
+fromList def xs = concatWith
+  def
+  (\x y -> if x == def then y else x)
+  (P.map (\(lo,hi,v) -> singleton def lo hi v) xs)
+
+concatWith :: forall karr varr k v. (Contiguous karr, Bounded k, Element karr k, Ord k, Contiguous varr, Element varr v, Eq v)
+  => v -- value used if the list is empty
+  -> (v -> v -> v)
+  -> [Map karr varr k v]
+  -> Map karr varr k v
+concatWith def combine = C.concatSized size (pure def) (unionWith combine)
+
+concat :: (Contiguous karr, Bounded k, Element karr k, Ord k, Contiguous varr, Element varr v, Eq v, Monoid v)
+  => [Map karr varr k v]
+  -> Map karr varr k v
+concat = concatWith mempty mappend
 

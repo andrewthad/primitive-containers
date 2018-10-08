@@ -43,8 +43,7 @@ import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
 
--- | A map from keys @k@ to values @v@. The key type and the value
---   type must both have 'Prim' instances.
+-- | A map from keys @k@ to values @v@.
 newtype Map k v = Map (I.Map Array Array k v)
 
 instance Functor (Map k) where

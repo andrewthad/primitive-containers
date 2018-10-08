@@ -18,31 +18,32 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 import Data.Primitive
-import Data.Primitive.UnliftedArray (PrimUnlifted)
 import Data.Word
-import Data.Proxy (Proxy(..))
 import Data.Int
-import Data.Functor.Const (Const(..))
-import Data.Kind (Type)
 
-import Test.Tasty (defaultMain,testGroup,TestTree)
-import Test.Tasty.HUnit (testCase,(@?=))
-import Test.QuickCheck (Arbitrary,Gen,(===),(==>))
-import Test.HUnit.Base (assertEqual)
+import Control.Applicative (liftA2)
+import Control.Monad (forM)
 import Data.Bool (bool)
-import Data.List.NonEmpty (NonEmpty((:|)))
-import Data.Exists (ToSing(..),DependentPair(..),ShowForall(..),ShowForeach(..))
-import Data.Exists (WitnessedEquality(..),WitnessedOrdering(..),EqForall(..),OrdForall(..))
+import Data.Continuous.Set.Lifted (Inclusivity(..))
+import Data.Dependent.Map.Class (Universally(..),ApplyUniversally(..))
 import Data.Exists (EqForeach(..),OrdForeach(..),EqForallPoly(..),OrdForallPoly(..),Sing)
+import Data.Exists (FromJSONForeach(..),SemigroupForeach(..))
 import Data.Exists (PrimForall(..),ToJSONKeyForall(..),ToJSONKeyFunctionForall(..))
 import Data.Exists (ToJSONForeach(..),FromJSONKeyExists(..),Exists(..))
-import Data.Exists (FromJSONForeach(..),SemigroupForeach(..))
-import Control.Monad (forM)
+import Data.Exists (ToSing(..),DependentPair(..),ShowForall(..),ShowForeach(..))
+import Data.Exists (WitnessedEquality(..),WitnessedOrdering(..),EqForall(..),OrdForall(..))
+import Data.Functor.Const (Const(..))
+import Data.Kind (Type)
+import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.Primitive.UnliftedArray (PrimUnlifted)
+import Data.Proxy (Proxy(..))
 import Data.Semigroup (Semigroup)
-import Unsafe.Coerce (unsafeCoerce)
-import Data.Dependent.Map.Class (Universally(..),ApplyUniversally(..))
+import Test.HUnit.Base (assertEqual)
+import Test.QuickCheck (Arbitrary,Gen,(===),(==>))
+import Test.Tasty (defaultMain,testGroup,TestTree)
+import Test.Tasty.HUnit (testCase,(@?=))
 import Text.Read (readMaybe)
-import Data.Continuous.Set.Lifted (Inclusivity(..))
+import Unsafe.Coerce (unsafeCoerce)
 import qualified Data.Aeson as AE
 import qualified Data.Aeson.Encoding as AEE
 import qualified Data.Text as T
@@ -70,6 +71,7 @@ import qualified Data.Diet.Unbounded.Set.Lifted as DUSL
 import qualified Data.Dependent.Map.Lifted.Lifted as DPMLL
 import qualified Data.Dependent.Map.Unboxed.Lifted as DPMUL
 import qualified Data.Map.Subset.Strict.Lifted as MSL
+import qualified Data.Map.Interval.DBTS.Lifted.Lifted as MIDBTS
 
 main :: IO ()
 main = defaultMain $ testGroup "Data"
@@ -139,6 +141,32 @@ main = defaultMain $ testGroup "Data"
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
         , TQC.testProperty "appendWithKey" appendWithKeyLiftedLiftedProp
+        ]
+      ]
+    , testGroup "Interval"
+      [ testGroup "DBTS"
+        [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MIDBTS.Map Word8 Integer)))
+        , lawsToTest (QCC.specialSemigroupLaws (Proxy :: Proxy (MIDBTS.Map Word8 (S.Set Integer))) [QCC.idempotent, QCC.commutative])
+        , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MIDBTS.Map Word8 Integer)))
+        , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MIDBTS.Map Word8 Integer)))
+        , TQC.testProperty "lookup" dbtsIntervalMapLookupProp
+        , testGroup "Unit"
+          [ testCase "A" $ do
+              let s = MIDBTS.singleton 102 (1 :: Word8) (2 :: Word8) (101 :: Integer)
+              show s @?= "fromList [(0,0,102),(1,2,101),(3,255,102)]"
+          , testCase "B" $ do
+              let s = MIDBTS.singleton 102 (2 :: Word8) (2 :: Word8) (101 :: Integer)
+              show s @?= "fromList [(0,1,102),(2,2,101),(3,255,102)]"
+          , testCase "C" $ do
+              let s = MIDBTS.singleton 102 (0 :: Word8) (0 :: Word8) (101 :: Integer)
+              show s @?= "fromList [(0,0,101),(1,255,102)]"
+          , testCase "D" $ do
+              let s = MIDBTS.fromList 102 [(1 :: Word8, 2 :: Word8, 100 :: Integer),(5,7,101)]
+              show s @?= "fromList [(0,0,102),(1,2,100),(3,4,102),(5,7,101),(8,255,102)]"
+          , testCase "E" $ do
+              let s = MIDBTS.fromList 102 [(5,7,101),(1 :: Word8, 2 :: Word8, 100 :: Integer)]
+              show s @?= "fromList [(0,0,102),(1,2,100),(3,4,102),(5,7,101),(8,255,102)]"
+          ]
         ]
       ]
     ]
@@ -478,6 +506,12 @@ dietLookupPropA containerFromList containerLookup = QC.property $ \(xs :: [(k,v)
       c = containerFromList (map (\(k,v) -> (k,k,v)) xs)
    in QC.counterexample ("original list: " ++ show xs ++ "; diet map: " ++ show c) (all (\(x,_) -> containerLookup x c == M.lookup x ys) xs === True)
 
+dbtsIntervalMapLookupProp :: QC.Property
+dbtsIntervalMapLookupProp = QC.property $ \(xs :: [(Word8,Word8,Integer)]) (k :: Word8) ->
+  let ys = MIDBTS.fromList Nothing (fmap (\(lo,hi,r) -> (lo,hi,Just r)) xs)
+      expected = fmap (\(_,_,r) -> r) (F.find (\(lo,hi,_) -> lo <= k && k <= hi) xs)
+   in expected === MIDBTS.lookup k ys
+
 dietDoubletonProp :: QC.Property
 dietDoubletonProp = QC.property $ \(loA :: Word8) (hiA :: Word8) (valA :: Int) (loB :: Word8) (hiB :: Word8) (valB :: Int) ->
   (hiA >= loA && hiB >= loB)
@@ -562,6 +596,9 @@ instance (Arbitrary k, Ord k, Arbitrary v) => Arbitrary (MLL.Map k v) where
 instance (Arbitrary k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v) => Arbitrary (DMLL.Map k v) where
   arbitrary = DMLL.fromListAppend <$> QC.vectorOf 10 arbitraryOrderedPairValue
   shrink x = map E.fromList (QC.shrink (E.toList x))
+
+instance (Ord k, Enum k, Eq v, Bounded k, Arbitrary k, Arbitrary v) => Arbitrary (MIDBTS.Map k v) where
+  arbitrary = liftA2 MIDBTS.fromList QC.arbitrary (QC.vectorOf 10 arbitraryOrderedPairValue)
     
 instance (Arbitrary k, Ord k, Arbitrary v, Eq v, Semigroup v) => Arbitrary (MSL.Map k v) where
   arbitrary = do

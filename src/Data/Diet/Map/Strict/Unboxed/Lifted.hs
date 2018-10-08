@@ -9,7 +9,7 @@ module Data.Diet.Map.Strict.Unboxed.Lifted
   , empty
   , singleton
   , lookup
-  , mapEqualityMorphism
+  , mapBijection
   , fromSet
     -- * List Conversion
   , fromList
@@ -86,18 +86,18 @@ fromListAppendN :: (Ord k, Enum k, Prim k, Semigroup v, Eq v)
   -> Map k v
 fromListAppendN n = Map . I.fromListAppendN n
 
--- | Map an equality morphism over the values in a diet map. An equality
--- morphism @f@ must satisfy the law:
+-- | Map an equality morphism over the values in a diet map. An bijection
+-- @f@ must satisfy the law:
 --
 -- > ∀ x y. x == y ↔ f x == f y
 --
 -- Since this does not actually use the 'Eq' constraint on the new value
 -- type, it is lazy in the values.
-mapEqualityMorphism :: (Prim k, Ord k)
-  => (v -> w) -- ^ equality morphism
+mapBijection :: (Prim k, Ord k)
+  => (v -> w) -- ^ bijection
   -> Map k v
   -> Map k w
-mapEqualityMorphism f (Map m) = Map (I.map f m)
+mapBijection f (Map m) = Map (I.map f m)
 
 -- | Convert a diet set to a diet map, constructing each value
 -- from the low and high key in its corresponding range.
