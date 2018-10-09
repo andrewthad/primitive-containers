@@ -32,13 +32,13 @@ import qualified Prelude as P
 -- | The key array is the same length as the value array. Every key
 --   is the upper bound of a range. The keys array always has a length
 --   of at least one. The last element is always maxBound. The lowest bound
---   is assumed to be minBound. For example, the interval map of Int16:
+--   is assumed to be minBound. For example, the interval map of @Int16@:
 --
---     [-inf,5],[6,17],[18,20],[21,+inf]
+--   > [-inf,5],[6,17],[18,20],[21,+inf]
 --
 --   Would be represented by the keys:
 --   
---     5,17,20,65536
+--   > 5,17,20,65536
 data Map karr varr k v = Map !(karr k) !(varr v)
 
 equals :: (Contiguous karr, Element karr k, Eq k, Contiguous varr, Element varr v, Eq v) => Map karr varr k v -> Map karr varr k v -> Bool

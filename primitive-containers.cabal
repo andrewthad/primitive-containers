@@ -80,7 +80,7 @@ library
     Data.Dependent.Map.Lifted.Lifted
     Data.Dependent.Map.Unlifted.Lifted
     Data.Dependent.Map.Unboxed.Lifted
-    Data.Map.Interval.DBTS.Lifted.Lifted
+    Data.Map.Interval.DBTSLL
   other-modules:
     Data.Concatenation
     Data.Diet.Map.Strict.Internal

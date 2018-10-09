@@ -71,7 +71,7 @@ import qualified Data.Diet.Unbounded.Set.Lifted as DUSL
 import qualified Data.Dependent.Map.Lifted.Lifted as DPMLL
 import qualified Data.Dependent.Map.Unboxed.Lifted as DPMUL
 import qualified Data.Map.Subset.Strict.Lifted as MSL
-import qualified Data.Map.Interval.DBTS.Lifted.Lifted as MIDBTS
+import qualified Data.Map.Interval.DBTSLL as MIDBTS
 
 main :: IO ()
 main = defaultMain $ testGroup "Data"
@@ -79,6 +79,7 @@ main = defaultMain $ testGroup "Data"
     [ testGroup "Unboxed"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SU.Set Int16)))
       , lawsToTest (QCC.ordLaws (Proxy :: Proxy (SU.Set Int16)))
+      , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (SU.Set Int16)))
       , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (SU.Set Int16)))
       , lawsToTest (QCC.isListLaws (Proxy :: Proxy (SU.Set Int16)))
       , TQC.testProperty "member" (memberProp @Int16 E.fromList SU.member)
@@ -86,6 +87,7 @@ main = defaultMain $ testGroup "Data"
     , testGroup "Lifted"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SL.Set Integer)))
       , lawsToTest (QCC.ordLaws (Proxy :: Proxy (SL.Set Integer)))
+      , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (SL.Set Integer)))
       , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (SL.Set Integer)))
       , lawsToTest (QCC.isListLaws (Proxy :: Proxy (SL.Set Integer)))
       , TQC.testProperty "member" (memberProp @Integer E.fromList SL.member)
@@ -103,6 +105,7 @@ main = defaultMain $ testGroup "Data"
     , testGroup "Unlifted"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
       , lawsToTest (QCC.ordLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
+      , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
       , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
       , lawsToTest (QCC.isListLaws (Proxy :: Proxy (SUL.Set (PrimArray Int16))))
       , TQC.testProperty "member" (memberProp @(PrimArray Int16) E.fromList SUL.member)
@@ -114,6 +117,7 @@ main = defaultMain $ testGroup "Data"
         [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MUU.Map Word32 Int)))
         , lawsToTest (QCC.ordLaws (Proxy :: Proxy (MUU.Map Word32 Int)))
         , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (MUU.Map Word32 Word)))
+        , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (MUU.Map Word32 Int)))
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MUU.Map Word32 Int)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MUU.Map Word32 Int)))
         , TQC.testProperty "lookup" (lookupProp @Word32 @Int E.fromList MUU.lookup)
@@ -126,6 +130,7 @@ main = defaultMain $ testGroup "Data"
         [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
         , lawsToTest (QCC.ordLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
         , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
+        , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MUL.Map Word32 Integer)))
         , TQC.testProperty "lookup-empty" lookupEmptyUnboxedLiftedMapProp
@@ -138,6 +143,7 @@ main = defaultMain $ testGroup "Data"
         [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
         , lawsToTest (QCC.ordLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
         , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
+        , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MLL.Map Integer Integer)))
         , TQC.testProperty "appendWithKey" appendWithKeyLiftedLiftedProp
@@ -146,7 +152,9 @@ main = defaultMain $ testGroup "Data"
     , testGroup "Interval"
       [ testGroup "DBTS"
         [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MIDBTS.Map Word8 Integer)))
-        , lawsToTest (QCC.specialSemigroupLaws (Proxy :: Proxy (MIDBTS.Map Word8 (S.Set Integer))) [QCC.idempotent, QCC.commutative])
+        , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (MIDBTS.Map Word8 (S.Set Integer))))
+        , lawsToTest (QCC.commutativeSemigroupLaws (Proxy :: Proxy (MIDBTS.Map Word8 (S.Set Integer))))
+        , lawsToTest (QCC.idempotentSemigroupLaws (Proxy :: Proxy (MIDBTS.Map Word8 (S.Set Integer))))
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MIDBTS.Map Word8 Integer)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (MIDBTS.Map Word8 Integer)))
         , TQC.testProperty "lookup" dbtsIntervalMapLookupProp
@@ -227,6 +235,7 @@ main = defaultMain $ testGroup "Data"
       [ testGroup "Set"
         [ testGroup "Lifted"
           [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DUSL.Set Word8)))
+          , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (DUSL.Set Word8)))
           , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DUSL.Set Word8)))
           ]
         ]
@@ -235,6 +244,7 @@ main = defaultMain $ testGroup "Data"
       [ testGroup "Lifted"
         [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (DSL.Set Word16)))
         , lawsToTest (QCC.ordLaws (Proxy :: Proxy (DSL.Set Word16)))
+        , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (DSL.Set Word16)))
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSL.Set Word16)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Word16)))
         , TQC.testProperty "member" (dietMemberProp @Word8 E.fromList DSL.member)
@@ -259,6 +269,7 @@ main = defaultMain $ testGroup "Data"
         [ testGroup "Lifted"
           [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (MSL.Map Integer (SG.Sum Integer))))
           , lawsToTest (QCC.semigroupLaws (Proxy :: Proxy (MSL.Map Integer (SG.First Integer))))
+          , lawsToTest (QCC.monoidLaws (Proxy :: Proxy (MSL.Map Integer (SG.Sum Integer))))
           , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (MSL.Map Integer (SG.Sum Integer))))
           , TQC.testProperty "lookup" subsetMapLookupProp
           ]

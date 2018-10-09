@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UnboxedTuples #-}
 
-module Data.Map.Interval.DBTS.Lifted.Lifted
+module Data.Map.Interval.DBTSLL
   ( Map
   , pure
   , singleton
@@ -71,4 +71,5 @@ fromList :: (Bounded k, Ord k, Enum k, Eq v)
   -> [(k,k,v)] -- ^ low-high inclusive ranges with their corresponding values
   -> Map k v
 fromList def xs = Map (I.fromList def xs)
+
 

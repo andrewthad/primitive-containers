@@ -38,7 +38,7 @@ Here are the different design choices that we face:
   instance. The internal representation of total maps is also more
   efficient than that of partial maps since we only need to store the
   upper bound of each interval.
-* Strict (S) vs Lazy (L): The names here a little here are a little
+* Coalesce (S) vs Detach (H): The names here a little here are a little
   misleading. The strict variant uses on an `Eq` instance for values
   to coallesce adjacent ranges. For example, with discrete integers,
   the interval-value pairs ([4,6],12) and ([7,9],12) can be coallesced
