@@ -14,16 +14,23 @@ module Data.Map.Interval.DBTS.Internal
   , unionWith
   , equals
   , map
+  , mapBijection
+  , traverseP
+  , traverse
   , fromList
   , foldrWithKey
+  , foldl'
+  , foldMap
   , toList
   , showsPrec
   , concat
   ) where
 
-import Prelude hiding (pure,lookup,compare,map,showsPrec,concat)
+import Prelude hiding (pure,lookup,compare,map,showsPrec,concat,traverse,foldMap)
 
 import Control.Monad.ST (ST,runST)
+import Control.Monad.Primitive (PrimMonad)
+import Data.Primitive (PrimArray)
 import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
 import qualified Data.Concatenation as C
 import qualified Data.Primitive.Contiguous as I
@@ -53,8 +60,64 @@ size (Map _ v) = I.size v
 -- compare (Map k1 v1) (Map k2 v2) = mappend (I.compare k1 k2) (I.compare v1 v2)
 
 -- Note: this is only correct when the function is a bijection.
-map :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w) => (v -> w) -> Map karr varr k v -> Map karr varr k w
-map f (Map k v) = Map k (I.map f v)
+mapBijection :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+  => (v -> w) -> Map karr varr k v -> Map karr varr k w
+mapBijection f (Map k v) = Map k (I.map f v)
+
+-- The function does not need to be a bijection. It may cause adjacent
+-- keys to collapse if their values become the same.
+map :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w, Eq w)
+  => (v -> w)
+  -> Map karr varr k v
+  -> Map karr varr k w
+map f (Map keys vals) = runST action where
+  !sz = I.size vals
+  action :: forall s. ST s (Map karr varr k w)
+  action = do
+    m <- I.new sz
+    let go :: Int -> Int -> w -> [Int] -> Int -> ST s (Int,[Int],Int)
+        go !ixSrc !ixDst !prevVal !dropped !droppedCount = if ixSrc < sz
+          then do
+            oldVal <- I.indexM vals ixSrc
+            let val = f oldVal
+            if val == prevVal
+              then go (ixSrc + 1) ixDst val ((ixSrc - 1) : dropped) (droppedCount + 1)
+              else do
+                I.write m ixDst val
+                go (ixSrc + 1) (ixDst + 1) val dropped droppedCount
+          else return (ixDst,dropped,droppedCount)
+    v0 <- I.indexM vals 0
+    let !w0 = f v0
+    I.write m 0 w0
+    (len,dropped,droppedCount) <- go 1 1 w0 [] 0
+    vals' <- I.resize m len >>= I.unsafeFreeze
+    case droppedCount of
+      0 -> return (Map keys vals')
+      _ -> do
+        n <- I.new len
+        let !(d :: PrimArray Int) = I.unsafeFromListReverseN (droppedCount + 1) (maxBound : dropped)
+        let run :: Int -> Int -> Int -> ST s ()
+            run !ixKey !ixDst !ixDrop = if ixKey < sz
+              then if I.index d ixDrop == ixKey
+                then run (ixKey + 1) ixDst (ixDrop + 1)
+                else do
+                  I.write n ixDst =<< I.indexM keys ixKey
+                  run (ixKey + 1) (ixDst + 1) ixDrop
+              else return ()
+        run 0 0 0
+        keys' <- I.unsafeFreeze n
+        return (Map keys' vals')
+        
+
+-- Note: this is only correct when the function is a bijection.
+traverseP :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w, PrimMonad m)
+  => (v -> m w) -> Map karr varr k v -> m (Map karr varr k w)
+traverseP f (Map k v) = fmap (Map k) (I.traverseP f v)
+
+-- Note: this is only correct when the function is a bijection.
+traverse :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w, Applicative m)
+  => (v -> m w) -> Map karr varr k v -> m (Map karr varr k w)
+traverse f (Map k v) = fmap (Map k) (I.traverse f v)
 
 pure :: (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k) => v -> Map karr varr k v
 pure v = Map
@@ -250,6 +313,19 @@ foldrWithKey f z (Map keys vals) =
                 !(# v #) = I.index# vals i
              in f lo hi v (go (i + 1) (succ hi))
    in go 0 minBound
+
+foldl' :: (Contiguous varr, Element varr v)
+  => (b -> v -> b)
+  -> b
+  -> Map karr varr k v
+  -> b
+foldl' f b0 (Map _ vals) = I.foldl' f b0 vals
+
+foldMap :: (Contiguous varr, Element varr v, Monoid m)
+  => (v -> m)
+  -> Map karr varr k v
+  -> m
+foldMap f (Map _ vals) = I.foldMap f vals
 
 toList :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Bounded k, Enum k)
   => Map karr varr k v

@@ -12,6 +12,8 @@ module Data.Set.Internal
   , empty
   , null
   , singleton
+  , doubleton
+  , tripleton
   , difference
   , intersection
   , append
@@ -36,9 +38,10 @@ module Data.Set.Internal
     -- * Traversals
   , traverse_
   , itraverse_
+  , map
   ) where
 
-import Prelude hiding (compare,showsPrec,concat,foldr,foldMap,null)
+import Prelude hiding (compare,showsPrec,concat,foldr,foldMap,null,map)
 
 import Control.Monad.ST (ST,runST)
 import Data.Hashable (Hashable)
@@ -68,6 +71,10 @@ equals (Set x) (Set y) = A.equals x y
 
 compare :: (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Ordering
 compare (Set x) (Set y) = compareArr x y
+
+-- Only correct if the function is a monotone.
+map :: (Contiguous arr, Element arr a, Element arr b) => (a -> b) -> Set arr a -> Set arr b
+map f (Set x) = Set (A.map f x)
 
 fromListN :: (Contiguous arr, Element arr a, Ord a) => Int -> [a] -> Set arr a
 fromListN n xs = -- fromList xs
@@ -214,11 +221,38 @@ compareArr arrA arrB = go 0 where
       else EQ
 
 singleton :: (Contiguous arr, Element arr a) => a -> Set arr a
-singleton a = Set $ runST $ do
-  arr <- A.new 1
-  A.write arr 0 a
-  A.unsafeFreeze arr
+singleton a = Set (A.singleton a)
 
+doubleton :: (Contiguous arr, Element arr a, Ord a) => a -> a -> Set arr a
+doubleton a b = case P.compare a b of
+  LT -> Set (A.doubleton a b)
+  GT -> Set (A.doubleton b a)
+  EQ -> Set (A.singleton a)
+
+tripleton :: (Contiguous arr, Element arr a, Ord a) => a -> a -> a -> Set arr a
+tripleton a b c = case P.compare a b of
+  LT -> case P.compare b c of
+    LT -> Set (A.tripleton a b c)
+    EQ -> doubleton a b
+    GT -> case P.compare a c of
+      LT -> Set (A.tripleton a c b)
+      EQ -> doubleton a b
+      GT -> Set (A.tripleton c a b)
+  GT -> case P.compare b c of
+    LT -> case P.compare a c of
+      LT -> Set (A.tripleton b a c)
+      EQ -> doubleton b a
+      GT -> Set (A.tripleton b c a)
+    EQ -> doubleton b a
+    GT -> Set (A.tripleton c b a)
+  EQ -> doubleton b c
+
+-- The shortcuts help when:
+-- 
+-- * One of the arrays is empty. In this situation, we can just return
+--   the other array instead of reconstructing it.
+-- * All elements in one array are smaller than all elements in the
+--   other. In this case, we can append the arrays, which uses memcpy.
 unionArr :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => arr a -- array x
   -> arr a -- array y
@@ -226,6 +260,7 @@ unionArr :: forall arr a. (Contiguous arr, Element arr a, Ord a)
 unionArr arrA arrB
   | szA < 1 = arrB
   | szB < 1 = arrA
+  | A.index arrA (szA - 1) < A.index arrB 0 = A.append arrA arrB
   | otherwise = runST $ do
       !(arrDst :: Mutable arr s a)  <- A.new (szA + szB)
       let go !ixA !ixB !ixDst = if ixA < szA

@@ -61,6 +61,7 @@ library
     Data.Diet.Set.Unboxed
     Data.Diet.Unbounded.Set.Lifted
     Data.Map.Lifted.Lifted
+    Data.Map.Lifted.Unlifted
     Data.Map.Unboxed.Lifted
     Data.Map.Unboxed.Unboxed
     Data.Map.Unboxed.Unlifted

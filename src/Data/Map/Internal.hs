@@ -42,6 +42,7 @@ module Data.Map.Internal
   , toList
   , concat
   , size
+  , sizeKeys
   , keys
   , elems
   , restrict
@@ -453,6 +454,10 @@ lookup a (Map arr vals) = go 0 (I.size vals - 1) where
 
 size :: (Contiguous varr, Element varr v) => Map karr varr k v -> Int
 size (Map _ arr) = I.size arr
+
+-- This may have less constraints than size
+sizeKeys :: (Contiguous karr, Element karr k) => Map karr varr k v -> Int
+sizeKeys (Map arr _) = I.size arr
 
 -- | Sort and deduplicate the key array, preserving the last value associated
 -- with each key. The argument arrays may not be reused after being passed

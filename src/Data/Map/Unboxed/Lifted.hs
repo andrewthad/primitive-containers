@@ -35,6 +35,7 @@ module Data.Map.Unboxed.Lifted
   , fromListAppend
   , fromListN
   , fromListAppendN
+  , fromSet
   , elems
     -- * Array Conversion
   , unsafeFreezeZip
@@ -136,6 +137,15 @@ fromListAppendN :: (Prim k, Ord k, Semigroup v)
   -> [(k,v)] -- ^ key-value pairs
   -> Map k v
 fromListAppendN n = Map . I.fromListAppendN n
+
+-- | /O(n)/ Build a map from a set. This function is uses the underlying
+-- array that backs the set as the array for the keys. It constructs the
+-- values by applying the given function to each key.
+fromSet :: Prim k
+  => (k -> v)
+  -> Set k
+  -> Map k v
+fromSet f (Set s) = Map (I.fromSet f s)
 
 -- | /O(1)/ The number of elements in the map.
 size :: Map k v -> Int

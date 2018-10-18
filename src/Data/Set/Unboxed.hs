@@ -9,6 +9,8 @@ module Data.Set.Unboxed
   ( S.Set
   , empty
   , singleton
+  , doubleton
+  , tripleton
   , null
   , member
   , size
@@ -27,6 +29,7 @@ module Data.Set.Unboxed
     -- * Traversals
   , traverse_
   , itraverse_
+  , mapMonotonic
   ) where
 
 import Prelude hiding (foldr,foldMap,null)
@@ -70,6 +73,14 @@ null (Set s) = I.null s
 -- | Construct a set with a single element.
 singleton :: Prim a => a -> Set a
 singleton = Set . I.singleton
+
+-- | Construct a set with two elements.
+doubleton :: (Prim a, Ord a) => a -> a -> Set a
+doubleton a b = Set (I.doubleton a b)
+
+-- | Construct a set with two elements.
+tripleton :: (Prim a, Ord a) => a -> a -> a -> Set a
+tripleton a b c = Set (I.tripleton a b c)
 
 -- | The number of elements in the set.
 size :: Prim a => Set a -> Int
@@ -127,4 +138,13 @@ itraverse_ :: (Applicative m, Prim a)
   -> m ()
 itraverse_ f (Set arr) = I.itraverse_ f arr
 {-# INLINEABLE itraverse_ #-}
+
+-- | Map over the elements of a set. The provided function must be
+-- monotonic.
+mapMonotonic :: (Prim a, Prim b)
+  => (a -> b)
+  -> Set a
+  -> Set b
+mapMonotonic f (Set arr) = Set (I.map f arr)
+{-# INLINEABLE mapMonotonic #-}
 

@@ -11,12 +11,20 @@ module Data.Map.Interval.DBTSLL
   , singleton
   , lookup
   , fromList
+  , traverseBijectionP
+  , traverseBijection
+  , map
+  , mapBijection
+  , foldl'
+  , foldMap
+  , unionWith
   ) where
 
-import Prelude hiding (lookup,map,pure)
+import Prelude hiding (lookup,map,pure,foldMap)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Array (Array)
+import Control.Monad.Primitive (PrimMonad)
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Interval.DBTS.Internal as I
 import qualified GHC.Exts as E
@@ -35,7 +43,7 @@ instance (Ord k, Semigroup v, Eq v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.union x y)
 
 -- The redundant constraint is needed for GHC < 8.4
-instance (Ord k, Bounded k, Enum k, Semigroup v, Monoid v, Eq v) => Monoid (Map k v) where
+instance (Ord k, Bounded k, Semigroup v, Monoid v, Eq v) => Monoid (Map k v) where
   mappend = (SG.<>) 
   mempty = Map I.empty
   mconcat = Map . I.concat . E.coerce
@@ -72,4 +80,41 @@ fromList :: (Bounded k, Ord k, Enum k, Eq v)
   -> Map k v
 fromList def xs = Map (I.fromList def xs)
 
+-- | This only provides a correct result when the effectful mapping
+--   is a bijection.
+traverseBijectionP :: PrimMonad m
+  => (v -> m w) -> Map k v -> m (Map k w)
+traverseBijectionP f (Map m) = fmap Map (I.traverseP f m)
+
+-- | This only provides a correct result when the effectful mapping
+--   is a bijection.
+traverseBijection :: Applicative m
+  => (v -> m w) -> Map k v -> m (Map k w)
+traverseBijection f (Map m) = fmap Map (I.traverse f m)
+
+mapBijection :: (v -> w) -> Map k v -> Map k w
+mapBijection f (Map m) = Map (I.mapBijection f m)
+
+map :: Eq w => (v -> w) -> Map k v -> Map k w
+map f (Map m) = Map (I.map f m)
+
+foldl' :: 
+     (b -> v -> b)
+  -> b
+  -> Map k v
+  -> b
+foldl' f b0 (Map m) = I.foldl' f b0 m
+
+foldMap :: (Monoid m)
+  => (v -> m)
+  -> Map k v
+  -> m
+foldMap f (Map m) = I.foldMap f m
+
+unionWith :: (Ord k, Eq v)
+  => (v -> v -> v)
+  -> Map k v
+  -> Map k v
+  -> Map k v
+unionWith f (Map a) (Map b) = Map (I.unionWith f a b)
 

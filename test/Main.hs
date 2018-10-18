@@ -83,6 +83,7 @@ main = defaultMain $ testGroup "Data"
       , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (SU.Set Int16)))
       , lawsToTest (QCC.isListLaws (Proxy :: Proxy (SU.Set Int16)))
       , TQC.testProperty "member" (memberProp @Int16 E.fromList SU.member)
+      , TQC.testProperty "tripleton" setTripletonProp
       ]
     , testGroup "Lifted"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SL.Set Integer)))
@@ -484,6 +485,10 @@ memberProp :: forall a t. (Arbitrary a, Show a) => ([a] -> t a) -> (a -> t a -> 
 memberProp containerFromList containerMember = QC.property $ \(xs :: [a]) ->
   let c = containerFromList xs
    in all (\x -> containerMember x c) xs === True
+
+setTripletonProp :: QC.Property
+setTripletonProp = QC.property $ \(a :: Int16) (b :: Int16) (c :: Int16) ->
+  SU.tripleton a b c === SU.fromList [a,b,c]
 
 nonMemberProp :: forall t. ([Integer] -> t Integer) -> (Integer -> t Integer -> Bool) -> QC.Property
 nonMemberProp containerFromList containerMember = QC.property $ \(xs :: [Integer]) ->
