@@ -19,6 +19,7 @@ module Data.Map.Interval.DBTS.Internal
   , traverse
   , fromList
   , foldrWithKey
+  , foldlWithKeyM'
   , foldl'
   , foldMap
   , toList
@@ -313,6 +314,23 @@ foldrWithKey f z (Map keys vals) =
                 !(# v #) = I.index# vals i
              in f lo hi v (go (i + 1) (succ hi))
    in go 0 minBound
+
+foldlWithKeyM' :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Bounded k, Enum k, Monad m)
+  => (b -> k -> k -> v -> m b)
+  -> b
+  -> Map karr varr k v
+  -> m b
+foldlWithKeyM' f z (Map keys vals) =
+  let !sz = I.size vals
+      -- we must be lazy in the third argument
+      go !i !acc lo
+        | i == sz = return acc
+        | otherwise = do
+            let !hi = I.index keys i
+                !(# v #) = I.index# vals i
+            acc' <- f acc lo hi v
+            go (i + 1) acc' (succ hi)
+   in go 0 z minBound
 
 foldl' :: (Contiguous varr, Element varr v)
   => (b -> v -> b)

@@ -46,11 +46,11 @@ library
     , text >= 1.2 && < 1.3
   if flag(checked)
     build-depends: 
-        contiguous-checked >= 0.3 && < 0.4
+        contiguous-checked >= 0.3.1 && < 0.4
       , primitive-checked >= 0.6.4.1
   else
     build-depends: 
-        contiguous >= 0.3 && < 0.4
+        contiguous >= 0.3.1 && < 0.4
       , primitive >= 0.6.4
   exposed-modules:
     Data.Continuous.Set.Lifted

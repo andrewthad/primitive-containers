@@ -18,6 +18,8 @@ module Data.Map.Interval.DBTSLL
   , foldl'
   , foldMap
   , unionWith
+  , foldrWithKey
+  , foldlWithKeyM'
   ) where
 
 import Prelude hiding (lookup,map,pure,foldMap)
@@ -118,3 +120,16 @@ unionWith :: (Ord k, Eq v)
   -> Map k v
 unionWith f (Map a) (Map b) = Map (I.unionWith f a b)
 
+foldrWithKey :: (Bounded k, Enum k)
+  => (k -> k -> v -> b -> b)
+  -> b
+  -> Map k v
+  -> b
+foldrWithKey f z (Map m) = I.foldrWithKey f z m
+
+foldlWithKeyM' :: (Bounded k, Enum k, Monad m)
+  => (b -> k -> k -> v -> m b)
+  -> b
+  -> Map k v
+  -> m b
+foldlWithKeyM' f z (Map m) = I.foldlWithKeyM' f z m
