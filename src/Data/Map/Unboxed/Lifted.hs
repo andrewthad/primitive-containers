@@ -16,6 +16,7 @@ module Data.Map.Unboxed.Lifted
   , mapWithKey
   , keys
   , intersectionWith
+  , intersectionsWith
   , restrict
   , appendWithKey
     -- * Folds
@@ -45,14 +46,16 @@ import Prelude hiding (lookup,map)
 
 import Control.DeepSeq (NFData)
 import Control.Monad.ST (ST)
-import Data.Semigroup (Semigroup)
-import Data.Primitive.Types (Prim)
+import Data.List.NonEmpty (NonEmpty)
 import Data.Primitive (PrimArray,Array,MutablePrimArray,MutableArray)
+import Data.Primitive.Types (Prim)
+import Data.Semigroup (Semigroup)
 import Data.Set.Unboxed.Internal (Set(..))
+
 import qualified Control.DeepSeq
-import qualified GHC.Exts as E
-import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
+import qualified Data.Semigroup as SG
+import qualified GHC.Exts as E
 
 -- | A map from keys @k@ to values @v@. The key type must have a
 --   'Prim' instance and the value type is unconstrained.
@@ -293,6 +296,15 @@ intersectionWith :: (Prim k, Ord k)
   -> Map k b
   -> Map k c
 intersectionWith f (Map a) (Map b) = Map (I.intersectionWith f a b)
+
+-- | Take the intersection of all of the maps, combining elements at
+-- equal keys with the provided function. Since intersection of maps lacks an
+-- identity, this is provided with a non-empty list.
+intersectionsWith :: (Prim k, Ord k)
+  => (v -> v -> v)
+  -> NonEmpty (Map k v)
+  -> Map k v
+intersectionsWith f xs = Map (I.intersectionsWith f (E.coerce xs))
 
 restrict :: (Prim k, Ord k)
   => Map k v

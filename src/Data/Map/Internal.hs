@@ -35,6 +35,7 @@ module Data.Map.Internal
   , appendWithKey
   , appendRightBiased
   , intersectionWith
+  , intersectionsWith
   , lookup
   , showsPrec
   , equals
@@ -67,6 +68,7 @@ import Data.Semigroup (Semigroup)
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
 import Data.Primitive.Sort (sortUniqueTaggedMutable)
 import Data.Set.Internal (Set(..))
+import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List as L
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
@@ -325,6 +327,12 @@ concatWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Con
   -> [Map karr varr k v]
   -> Map karr varr k v
 concatWith combine = C.concatSized size empty (appendWith combine)
+
+intersectionsWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+  => (v -> v -> v)
+  -> NonEmpty (Map karr varr k v)
+  -> Map karr varr k v
+intersectionsWith f = C.concatSized1 size (intersectionWith f)
 
 appendRightBiased :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendRightBiased = appendWith const
