@@ -17,6 +17,7 @@ module Data.Map.Interval.DBTS.Internal
   , mapBijection
   , traverseP
   , traverse
+  , traverse_
   , fromList
   , foldrWithKey
   , foldlWithKeyM'
@@ -25,6 +26,7 @@ module Data.Map.Interval.DBTS.Internal
   , toList
   , showsPrec
   , concat
+  , elems
   ) where
 
 import Prelude hiding (pure,lookup,compare,map,showsPrec,concat,traverse,foldMap)
@@ -120,6 +122,10 @@ traverse :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, E
   => (v -> m w) -> Map karr varr k v -> m (Map karr varr k w)
 traverse f (Map k v) = fmap (Map k) (I.traverse f v)
 
+traverse_ :: (Contiguous varr, Element varr v, Element varr w, Applicative m)
+  => (v -> m w) -> Map karr varr k v -> m ()
+traverse_ f (Map _ v) = I.traverse_ f v
+
 pure :: (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k) => v -> Map karr varr k v
 pure v = Map
   (runST $ do
@@ -212,13 +218,14 @@ union :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguo
   -> Map karr varr k v
 union = unionWith (<>)
 
-unionWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Eq v)
-  => (v -> v -> v)
-  -> Map karr varr k v
-  -> Map karr varr k v
-  -> Map karr varr k v
+-- This is also known as liftA2
+unionWith :: forall karr aarr barr carr k a b c. (Contiguous karr, Element karr k, Ord k, Contiguous aarr, Element aarr a, Contiguous barr, Element barr b, Contiguous carr, Element carr c, Eq c)
+  => (a -> b -> c)
+  -> Map karr aarr k a
+  -> Map karr barr k b
+  -> Map karr carr k c
 unionWith combine (Map keysA valsA) (Map keysB valsB) = runST action where
-  action :: forall s. ST s (Map karr varr k v)
+  action :: forall s. ST s (Map karr carr k c)
   action = do
     let szA = I.size keysA
         szB = I.size keysB
@@ -228,7 +235,7 @@ unionWith combine (Map keysA valsA) (Map keysB valsB) = runST action where
     -- For total maps, we don't have to worry about one map running out
     -- before the other. Also, this function has a precondition that
     -- all three indices are greater than zero.
-    let go :: Int -> Int -> Int -> v -> ST s Int
+    let go :: Int -> Int -> Int -> c -> ST s Int
         go !ixA !ixB !ixDst prevVal = if ixA < szA && ixB < szB
           then do
             keyA <- I.indexM keysA ixA
@@ -370,4 +377,7 @@ concat :: (Contiguous karr, Bounded k, Element karr k, Ord k, Contiguous varr, E
   => [Map karr varr k v]
   -> Map karr varr k v
 concat = concatWith mempty mappend
+
+elems :: Map karr varr k v -> varr v
+elems (Map _ v) = v
 

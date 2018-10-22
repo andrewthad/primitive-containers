@@ -11,15 +11,21 @@ module Data.Map.Interval.DBTSLL
   , singleton
   , lookup
   , fromList
-  , traverseBijectionP
-  , traverseBijection
+  , unionWith
+    -- * Mapping
   , map
   , mapBijection
+    -- * Traversals
+  , traverseBijectionP
+  , traverseBijection
+    -- * Folds
   , foldl'
   , foldMap
-  , unionWith
   , foldrWithKey
   , foldlWithKeyM'
+  , traverse_
+    -- * Conversion
+  , elems
   ) where
 
 import Prelude hiding (lookup,map,pure,foldMap)
@@ -94,6 +100,9 @@ traverseBijection :: Applicative m
   => (v -> m w) -> Map k v -> m (Map k w)
 traverseBijection f (Map m) = fmap Map (I.traverse f m)
 
+traverse_ :: Applicative m => (v -> m w) -> Map k v -> m ()
+traverse_ f (Map m) = I.traverse_ f m
+
 mapBijection :: (v -> w) -> Map k v -> Map k w
 mapBijection f (Map m) = Map (I.mapBijection f m)
 
@@ -113,11 +122,11 @@ foldMap :: (Monoid m)
   -> m
 foldMap f (Map m) = I.foldMap f m
 
-unionWith :: (Ord k, Eq v)
-  => (v -> v -> v)
-  -> Map k v
-  -> Map k v
-  -> Map k v
+unionWith :: (Ord k, Eq c)
+  => (a -> b -> c)
+  -> Map k a
+  -> Map k b
+  -> Map k c
 unionWith f (Map a) (Map b) = Map (I.unionWith f a b)
 
 foldrWithKey :: (Bounded k, Enum k)
@@ -133,3 +142,7 @@ foldlWithKeyM' :: (Bounded k, Enum k, Monad m)
   -> Map k v
   -> m b
 foldlWithKeyM' f z (Map m) = I.foldlWithKeyM' f z m
+
+elems :: Map k v -> Array v
+elems (Map m) = I.elems m
+
