@@ -261,3 +261,28 @@ foldMap' :: (Contiguous arr, Element arr a, Monoid m)
   -> m
 foldMap' f (Set arr) = A.foldMap' f arr
 {-# INLINEABLE foldMap' #-}
+
+-- This relies on a sensible @Num@ instance for correctness. It is not totally
+-- correcty yet because of the existence of zero
+-- scale :: (Contiguous arr, Element arr a, Num a)
+--   => a
+--   -> Set arr a
+--   -> Set arr a
+-- scale x (Set arr) = Set (A.map' (x *)  arr)
+-- {-# INLINEABLE scale #-}
+
+-- Take the cross product of the two sets. That is, combine every
+-- element in @A@ with every element in @B@ using the provided function.
+-- If the combining function @f@ is an inequality morphism satisfying
+-- @forall x y w z. x >= y ==> f x w >= f y z@, then this algorithm runs
+-- in /O(n*m)/. Otherwise, it runs in @/O(n*m*log(n*m)/@.
+-- cross :: (Contiguous arr, Element arr a, Element arr b, Element arr c)
+--   => (a -> b -> c)
+--   -> Set arr a
+--   -> Set arr b
+--   -> Set arr c
+-- cross f (Set as) (Set bs) = runST $ do
+--   let !maxSz = A.size as * A.size bs
+--   !m <- A.new maxSz
+--   let go !ixA !ixB !ixCount !ixDst !morphism = if ixCount < maxSz
+--         then
