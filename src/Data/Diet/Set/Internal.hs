@@ -1,13 +1,13 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
-{-# OPTIONS_GHC -O2 -Wall #-}
+{-# LANGUAGE UnboxedTuples #-}
 module Data.Diet.Set.Internal
-  ( Set
+  ( Set(..)
   , empty
   , singleton
   , append
@@ -15,23 +15,41 @@ module Data.Diet.Set.Internal
   , concat
   , equals
   , showsPrec
+  , difference
+  , intersection
+  , negate
+  , foldr
+  , size
+    -- unsafe indexing
+  , locate
+  , slice
+  , indexLower
+  , indexUpper
+    -- splitting
+  , aboveExclusive
+  , aboveInclusive
+  , belowInclusive
+  , belowExclusive
+  , betweenInclusive
     -- list conversion
   , fromListN
   , fromList
   , toList
   ) where
 
-import Prelude hiding (lookup,showsPrec,concat,map,foldr)
+import Prelude hiding (lookup,showsPrec,concat,map,foldr,negate)
 
 import Control.Monad.ST (ST,runST)
+import Data.Bool (bool)
 import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
 import qualified Data.Foldable as F
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as I
+import qualified Data.Concatenation as C
 
--- The key array is twice as long as the value array since
--- everything is stored as a range. Also, figure out how to
--- unpack these two arguments at some point.
+-- Although the data constructor for this type is exported,
+-- it isn't needed by anything in the diet Set modules. It is needed
+-- by the diet Map modules to implement conversion functions.
 newtype Set arr a = Set (arr a)
 
 empty :: Contiguous arr => Set arr a
@@ -49,31 +67,27 @@ fromList = fromListN 1
 concat :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
   => [Set arr a]
   -> Set arr a
-concat = go [] where
-  go :: [Set arr a] -> [Set arr a] -> Set arr a
-  go !stack [] = F.foldl' append empty stack
-  go !stack (x : xs) = if size x > 0
-    then go (pushStack x stack) xs
-    else go stack xs
-  pushStack :: Set arr a -> [Set arr a] -> [Set arr a]
-  pushStack x [] = [x]
-  pushStack x (s : ss) = if size x >= size s
-    then pushStack (append x s) ss
-    else x : s : ss
+concat = C.concatSized size empty append
 
 singleton :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => a -- ^ lower inclusive bound
   -> a -- ^ upper inclusive bound
   -> Set arr a
 singleton !lo !hi = if lo <= hi
-  then Set
-    ( runST $ do
-        !(arr :: Mutable arr s a) <- I.new 2
-        I.write arr 0 lo
-        I.write arr 1 hi
-        I.unsafeFreeze arr
-    )
+  then uncheckedSingleton lo hi
   else empty
+
+-- precondition: lo must be less than or equal to hi
+uncheckedSingleton :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a -- ^ lower inclusive bound
+  -> a -- ^ upper inclusive bound
+  -> Set arr a
+uncheckedSingleton lo hi = runST $ do
+  !(arr :: Mutable arr s a) <- I.new 2
+  I.write arr 0 lo
+  I.write arr 1 hi
+  r <- I.unsafeFreeze arr
+  return (Set r)
 
 member :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => a
@@ -84,8 +98,8 @@ member a (Set arr) = go 0 ((div (I.size arr) 2) - 1) where
   go !start !end = if end <= start
     then if end == start
       then 
-        let !valLo = I.index arr (2 * start)
-            !valHi = I.index arr (2 * start + 1)
+        let !(# valLo #) = I.index# arr (2 * start)
+            !(# valHi #) = I.index# arr (2 * start + 1)
          in a >= valLo && a <= valHi
       else False
     else
@@ -96,6 +110,194 @@ member a (Set arr) = go 0 ((div (I.size arr) 2) - 1) where
             EQ -> True
             GT -> go mid end
 {-# INLINEABLE member #-}
+
+-- This may segfault if given something out of bounds
+indexLower :: (Contiguous arr, Element arr a)
+  => Int
+  -> Set arr a
+  -> a 
+indexLower ix (Set arr) = I.index arr (ix * 2)
+
+-- This may segfault if given something out of bounds
+indexUpper :: (Contiguous arr, Element arr a)
+  => Int
+  -> Set arr a
+  -> a 
+indexUpper ix (Set arr) = I.index arr (ix * 2 + 1)
+
+-- This may segfault if given bad indices. You are allow to give
+-- a high index that is one less than the low index though.
+slice :: (Contiguous arr, Element arr a)
+  => Int -- inclusive low index
+  -> Int -- inclusive high index
+  -> Set arr a
+  -> Set arr a
+slice loIx hiIx (Set arr) = Set (I.clone arr (loIx * 2) ((hiIx - loIx + 1) * 2))
+
+-- This is exported for use in Unbounded Diet Sets, but it should
+-- be considered an internal function since it provided an index
+-- into the set.
+-- Right means that the needle was found. The index provided is the
+-- index of the range that contains it [0,n). Left means that the needle
+-- was not contained by any of the ranges. The index provided is
+-- the index of the range to its right [0,n]
+locate :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a
+  -> Set arr a
+  -> Either Int Int
+locate a (Set arr) = go 0 ((div (I.size arr) 2) - 1) where
+  go :: Int -> Int -> Either Int Int
+  go !start !end = if end <= start
+    then if end == start
+      then 
+        let !valLo = I.index arr (2 * start)
+            !valHi = I.index arr (2 * start + 1)
+         in if (a >= valLo)
+              then if a <= valHi
+                then Right start
+                else Left (start + 1)
+              else Left start 
+      else Left 0
+    else
+      let !mid = div (end + start + 1) 2
+          !valLo = I.index arr (2 * mid)
+       in case P.compare a valLo of
+            LT -> go start (mid - 1)
+            EQ -> Right mid
+            GT -> go mid end
+
+betweenInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a -- ^ inclusive lower bound
+  -> a -- ^ inclusive upper bound
+  -> Set arr a
+  -> Set arr a
+betweenInclusive lo hi (Set arr)
+  | hi < lo = empty
+  | I.size arr > 0 && I.index arr 0 >= lo && I.index arr (I.size arr - 1) <= hi = Set arr
+  | otherwise = case locate lo (Set arr) of
+      Left ixLo -> case locate hi (Set arr) of
+        Left ixHi -> Set (I.clone arr (ixLo * 2) ((ixHi - ixLo) * 2))
+        Right ixHi -> runST $ do
+          let len = ixHi - ixLo + 1
+          res <- I.new (len * 2)
+          rightLo <- I.indexM arr (ixHi * 2)
+          I.copy res 0 arr (ixLo * 2) (len * 2 - 2)
+          I.write res (len * 2 - 2) rightLo
+          I.write res (len * 2 - 1) hi
+          r <- I.unsafeFreeze res
+          return (Set r)
+      Right ixLo -> case locate hi (Set arr) of
+        Left ixHi -> runST $ do
+          let len = ixHi - ixLo
+          (res :: Mutable arr s a) <- I.new (len * 2)
+          leftHi <- I.indexM arr (ixLo * 2 + 1)
+          I.write res 0 lo
+          I.write res 1 leftHi
+          I.copy res 2 arr (ixLo * 2 + 2) (len * 2 - 2)
+          r <- I.unsafeFreeze res
+          return (Set r)
+        Right ixHi -> if ixLo == ixHi
+          then uncheckedSingleton lo hi
+          else runST $ do
+            let len = ixHi - ixLo + 1
+            (res :: Mutable arr s a) <- I.new (len * 2)
+            leftHi <- I.indexM arr (ixLo * 2 + 1)
+            I.write res 0 lo
+            I.write res 1 leftHi
+            I.copy res 2 arr (ixLo * 2 + 2) (len * 2 - 4)
+            rightLo <- I.indexM arr (ixHi * 2)
+            I.write res (len * 2 - 2) rightLo
+            I.write res (len * 2 - 1) hi
+            r <- I.unsafeFreeze res
+            return (Set r)
+           
+
+aboveInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a -- ^ inclusive lower bound
+  -> Set arr a
+  -> Set arr a
+aboveInclusive x (Set arr) = case locate x (Set arr) of
+  Left ix -> if ix == 0
+    then Set arr
+    else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+  Right ix ->
+    let lo = I.index arr (ix * 2)
+        hi = I.index arr (ix * 2 + 1)
+     in if lo == x
+          then if ix == 0
+            then Set arr
+            else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+          else runST $ do
+            (result :: Mutable arr s a) <- I.new (I.size arr - ix * 2)
+            I.write result 0 x
+            I.write result 1 hi
+            I.copy result 2 arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2)
+            r <- I.unsafeFreeze result
+            return (Set r)
+
+aboveExclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
+  => a -- ^ exclusive lower bound
+  -> Set arr a
+  -> Set arr a
+aboveExclusive x (Set arr) = case locate x (Set arr) of
+  Left ix -> if ix == 0
+    then Set arr
+    else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+  Right ix ->
+    let hi = I.index arr (ix * 2 + 1)
+     in if hi == x
+          then Set (I.clone arr ((ix + 1) * 2) (I.size arr - (ix + 1) * 2))
+          else runST $ do
+            (result :: Mutable arr s a) <- I.new (I.size arr - ix * 2)
+            I.write result 0 (succ x)
+            I.write result 1 hi
+            I.copy result 2 arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2)
+            r <- I.unsafeFreeze result
+            return (Set r)
+
+
+belowInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+  => a -- ^ inclusive upper bound
+  -> Set arr a
+  -> Set arr a
+belowInclusive x (Set arr) = case locate x (Set arr) of
+  Left ix -> if ix * 2 == I.size arr
+    then Set arr
+    else Set (I.clone arr 0 (ix * 2))
+  Right ix ->
+    let lo = I.index arr (ix * 2)
+        hi = I.index arr (ix * 2 + 1)
+     in if hi == x
+          then if ix * 2 == I.size arr - 2
+            then Set arr
+            else Set (I.clone arr 0 ((ix + 1) * 2))
+          else runST $ do
+            result <- I.new ((ix + 1) * 2)
+            I.copy result 0 arr 0 (ix * 2)
+            I.write result (ix * 2) lo
+            I.write result (ix * 2 + 1) x
+            r <- I.unsafeFreeze result
+            return (Set r)
+
+belowExclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
+  => a -- ^ exclusive upper bound
+  -> Set arr a
+  -> Set arr a
+belowExclusive x (Set arr) = case locate x (Set arr) of
+  Left ix -> if ix * 2 == I.size arr
+    then Set arr
+    else Set (I.clone arr 0 (ix * 2))
+  Right ix ->
+    let lo = I.index arr (ix * 2)
+     in if lo == x
+          then Set (I.clone arr 0 (ix * 2))
+          else runST $ do
+            result <- I.new ((ix + 1) * 2)
+            I.copy result 0 arr 0 (ix * 2)
+            I.write result (ix * 2) lo
+            I.write result (ix * 2 + 1) (pred x)
+            r <- I.unsafeFreeze result
+            return (Set r)
 
 append :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
   => Set arr a
@@ -291,8 +493,126 @@ append (Set keysA) (Set keysB)
     !keysFinal <- I.resize keysDst (total * 2)
     fmap Set (I.unsafeFreeze keysFinal)
 
+-- The element type must have a Bounded instance for
+-- this to work.
+negate :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a, Bounded a)
+  => Set arr a
+  -> Set arr a
+negate set@(Set arr)
+  | sz == 0 = uncheckedSingleton minBound maxBound
+  | otherwise = runST action
+  where
+  action :: forall s. ST s (Set arr a)
+  action = do
+    let !(# lowest #) = I.index# arr 0
+        !(# highest #) = I.index# arr (sz * 2 - 1)
+        anyBeneath = lowest /= minBound
+        anyAbove = highest /= maxBound
+        newSz =
+          (bool 0 1 anyBeneath) +
+          (bool 0 1 anyAbove) +
+          (sz - 1)
+    (marr :: Mutable arr s a) <- I.new (newSz * 2)
+    startDstIx <- if anyBeneath
+      then do
+        I.write marr 0 minBound
+        I.write marr 1 (pred lowest)
+        return 1
+      else return 0
+    let go !ix !dstIx = if ix < sz - 1
+          then do
+            hi <- I.indexM arr (2 * ix + 1)
+            I.write marr (dstIx * 2) (succ hi)
+            lo <- I.indexM arr (2 * ix + 2)
+            I.write marr (dstIx * 2 + 1) (pred lo)
+            go (ix + 1) (dstIx + 1)
+          else return ()
+    go 0 startDstIx
+    if anyAbove
+      then do
+        I.write marr (newSz * 2 - 2) (succ highest)
+        I.write marr (newSz * 2 - 1) maxBound
+      else return ()
+    frozen <- I.unsafeFreeze (marr :: Mutable arr s a)
+    return (Set frozen)
+  sz = size set
+  
+
+-- This is a disappointing implementation, but it's the best I can
+-- come up with given that I'm not willing to spend very much time
+-- on it. Basically, it builds a list of diet sets where each set is
+-- a slice of setA that only contains the elements from a contiguous range
+-- of the negation of setB. This is simple to implement and it's easy
+-- to see that it is correct. However, it is inefficient. There is a
+-- better solution that writes to a output buffer directly without
+-- building any intermediate artifacts. Additionally, the better solution
+-- should not need an Enum constraint. If anyone can figure out the better
+-- way to do this, I would gladly take a PR for it.
+difference :: forall a arr. (Contiguous arr, Element arr a, Ord a, Enum a)
+  => Set arr a
+  -> Set arr a
+  -> Set arr a
+difference setA@(Set arrA) setB@(Set arrB)
+  | szA == 0 = empty
+  | szB == 0 = setA
+  | otherwise =
+      let inners :: Int -> [Set arr a]
+          inners !ix = if ix < szB - 1
+            then
+              let inner = betweenInclusive
+                    (succ (I.index arrB (2 * ix + 1)))
+                    (pred (I.index arrB (2 * ix + 2)))
+                    (Set arrA)
+               in inner : inners (ix + 1) 
+            else []
+          lowestA = I.index arrA 0
+          highestA = I.index arrA (szA * 2 - 1)
+          lowestB = I.index arrB 0
+          highestB = I.index arrB (szB * 2 - 1)
+          lowFragment = if lowestA < lowestB
+            then [belowExclusive lowestB (Set arrA)]
+            else []
+          highFragment = if highestA > highestB
+            then [aboveExclusive highestB (Set arrA)]
+            else []
+          -- we should use a more efficient concat since
+          -- we know everything is ordered.
+       in concat (lowFragment ++ inners 0 ++ highFragment)
+  where
+    !szA = size setA
+    !szB = size setB
+
+-- This implementation suffers from the same problems as the implementation
+-- for difference. Notice that it's a bit simpler since we do not have to
+-- negate the diet set. This means we do not have to do the weirdness with
+-- treating the first and last elements specially and the weirdness with
+-- straddling ranges as we walk the second diet set.
+intersection :: forall a arr. (Contiguous arr, Element arr a, Ord a, Enum a)
+  => Set arr a
+  -> Set arr a
+  -> Set arr a
+intersection setA@(Set arrA) setB@(Set arrB)
+  | szA == 0 = empty
+  | szB == 0 = empty
+  | otherwise =
+      let inners :: Int -> [Set arr a]
+          inners !ix = if ix < szB
+            then
+              let inner = betweenInclusive
+                    (I.index arrB (2 * ix))
+                    (I.index arrB (2 * ix + 1))
+                    (Set arrA)
+               in inner : inners (ix + 1) 
+            else []
+          -- we should use a more efficient concat since
+          -- we know everything is ordered.
+       in concat (inners 0)
+  where
+    !szA = size setA
+    !szB = size setB
+
 size :: (Contiguous arr, Element arr a) => Set arr a -> Int
-size (Set arr) = I.size arr 
+size (Set arr) = quot (I.size arr) 2
 
 toList :: (Contiguous arr, Element arr a) => Set arr a -> [(a,a)]
 toList = foldr (\lo hi xs -> (lo,hi) : xs) []
@@ -307,6 +627,7 @@ foldr f z (Set arr) =
                 !hi = I.index arr (i * 2 + 1)
              in f lo hi (go (i + 1))
    in go 0
+{-# INLINABLE foldr #-}
 
 showsPrec :: (Contiguous arr, Element arr a, Show a)
   => Int

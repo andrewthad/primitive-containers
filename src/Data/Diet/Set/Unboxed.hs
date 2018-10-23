@@ -5,16 +5,25 @@
 
 {-# OPTIONS_GHC -O2 #-}
 module Data.Diet.Set.Unboxed
-  ( Set
+  ( Set(..)
   , singleton
   , member
+  , difference
+  , intersection
+  , negate
+    -- * Split
+  , aboveInclusive
+  , belowInclusive
+  , betweenInclusive
+    -- * Folds
+  , foldr
     -- * List Conversion
   , toList
   , fromList
   , fromListN
   ) where
 
-import Prelude hiding (lookup,map)
+import Prelude hiding (lookup,map,foldr,negate)
 
 import Data.Semigroup (Semigroup)
 import Data.Functor.Classes (Show2(..))
@@ -24,6 +33,8 @@ import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Diet.Set.Internal as I
 
+-- | A diet set. Currently, the data constructor for this type is
+-- exported. Please do not use it.
 newtype Set a = Set (I.Set PrimArray a)
 
 -- | /O(1)/ Create a diet set with a single element.
@@ -71,4 +82,58 @@ fromListN :: (Ord a, Enum a, Prim a)
   -> [(a,a)] -- ^ key-value pairs
   -> Set a
 fromListN n = Set . I.fromListN n
+
+-- | /O(n + m*log n)/ Subtract the subtrahend of size @m@ from the
+-- minuend of size @n@. It should be possible to improve the improve
+-- the performance of this to /O(n + m)/. Anyone interested in doing
+-- this should open a PR.
+difference :: (Ord a, Enum a, Prim a)
+  => Set a -- ^ minuend
+  -> Set a -- ^ subtrahend
+  -> Set a
+difference (Set x) (Set y) = Set (I.difference x y)
+
+-- | The intersection of two diet sets.
+intersection :: (Ord a, Enum a, Prim a)
+  => Set a -- ^ minuend
+  -> Set a -- ^ subtrahend
+  -> Set a
+intersection (Set x) (Set y) = Set (I.intersection x y)
+
+-- | The negation of a diet set. The resulting set contains
+-- all elements that were not contained by the argument set,
+-- and it only contains these elements.
+negate :: (Ord a, Enum a, Prim a, Bounded a)
+  => Set a
+  -> Set a
+negate (Set x) = Set (I.negate x)
+
+foldr :: Prim a => (a -> a -> b -> b) -> b -> Set a -> b
+foldr f z (Set arr) = I.foldr f z arr
+
+-- | /O(n)/ The subset where all elements are greater than
+-- or equal to the given value. 
+aboveInclusive :: (Ord a, Prim a)
+  => a -- ^ inclusive lower bound
+  -> Set a
+  -> Set a
+aboveInclusive x (Set s) = Set (I.aboveInclusive x s)
+
+-- | /O(n)/ The subset where all elements are less than
+-- or equal to the given value. 
+belowInclusive :: (Ord a, Prim a)
+  => a -- ^ inclusive upper bound
+  -> Set a
+  -> Set a
+belowInclusive x (Set s) = Set (I.belowInclusive x s)
+
+-- | /O(n)/ The subset where all elements are greater than
+-- or equal to the lower bound and less than or equal to
+-- the upper bound.
+betweenInclusive :: (Ord a, Prim a)
+  => a -- ^ inclusive lower bound
+  -> a -- ^ inclusive upper bound
+  -> Set a
+  -> Set a
+betweenInclusive x y (Set s) = Set (I.betweenInclusive x y s)
 

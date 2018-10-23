@@ -6,22 +6,38 @@
 {-# OPTIONS_GHC -O2 #-}
 module Data.Map.Unboxed.Unlifted
   ( Map
+  , empty
   , singleton
   , lookup
   , size
+  , map
+  , mapMaybe
+  , mapMaybeWithKey
+    -- * Folds
+  , foldlWithKey'
+  , foldrWithKey'
+  , foldMapWithKey'
+    -- * Monadic Folds
+  , foldlWithKeyM'
+  , foldrWithKeyM'
+  , foldlMapWithKeyM'
+  , foldrMapWithKeyM'
     -- * List Conversion
   , fromList
   , fromListAppend
   , fromListN
   , fromListAppendN
+    -- * Array Conversion
+  , unsafeFreezeZip
   ) where
 
-import Prelude hiding (lookup)
+import Prelude hiding (lookup,map)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
-import Data.Primitive.UnliftedArray (PrimUnlifted)
-import Data.Primitive (PrimArray,UnliftedArray)
+import Data.Primitive.UnliftedArray (PrimUnlifted,UnliftedArray,MutableUnliftedArray)
+import Data.Primitive (PrimArray,MutablePrimArray)
+import Control.Monad.ST (ST)
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
@@ -52,6 +68,10 @@ instance (Prim k, Ord k, PrimUnlifted v) => E.IsList (Map k v) where
 
 instance (Prim k, Show k, PrimUnlifted v, Show v) => Show (Map k v) where
   showsPrec p (Map s) = I.showsPrec p s
+
+-- | The empty diet map.
+empty :: Map k v
+empty = Map I.empty
 
 -- | /O(log n)/ Lookup the value at a key in the map.
 lookup :: (Prim k, Ord k, PrimUnlifted v) => k -> Map k v -> Maybe v
@@ -99,4 +119,103 @@ fromListAppendN n = Map . I.fromListAppendN n
 size :: PrimUnlifted v => Map k v -> Int
 size (Map m) = I.size m
 
+-- | /O(n)/ Map over the values in the map.
+map :: (Prim k, PrimUnlifted v, PrimUnlifted w)
+  => (v -> w)
+  -> Map k v
+  -> Map k w
+map f (Map m) = Map (I.map f m)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+mapMaybe :: (Prim k, PrimUnlifted v, PrimUnlifted w)
+  => (v -> Maybe w)
+  -> Map k v
+  -> Map k w
+mapMaybe f (Map m) = Map (I.mapMaybe f m)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+-- The predicate is given access to the key.
+mapMaybeWithKey :: (Prim k, PrimUnlifted v, PrimUnlifted w)
+  => (k -> v -> Maybe w)
+  -> Map k v
+  -> Map k w
+mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
+
+-- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
+-- is strict in the accumulator.
+foldlWithKeyM' :: (Monad m, Prim k, PrimUnlifted v)
+  => (b -> k -> v -> m b) -- ^ reduction
+  -> b -- ^ initial accumulator
+  -> Map k v -- ^ map
+  -> m b
+foldlWithKeyM' f b0 (Map m) = I.foldlWithKeyM' f b0 m
+
+-- | /O(n)/ Right monadic fold over the keys and values of the map. This fold
+-- is strict in the accumulator.
+foldrWithKeyM' :: (Monad m, Prim k, PrimUnlifted v)
+  => (k -> v -> b -> m b) -- ^ reduction
+  -> b -- ^ initial accumulator
+  -> Map k v -- ^ map
+  -> m b
+foldrWithKeyM' f b0 (Map m) = I.foldrWithKeyM' f b0 m
+
+-- | /O(n)/ Monadic left fold over the keys and values of the map with a strict
+-- monoidal accumulator. The monoidal accumulator is appended to the left
+-- after each reduction.
+foldlMapWithKeyM' :: (Monad m, Monoid b, Prim k, PrimUnlifted v)
+  => (k -> v -> m b) -- ^ reduction
+  -> Map k v -- ^ map
+  -> m b
+foldlMapWithKeyM' f (Map m) = I.foldlMapWithKeyM' f m
+
+-- | /O(n)/ Monadic right fold over the keys and values of the map with a strict
+-- monoidal accumulator. The monoidal accumulator is appended to the right
+-- after each reduction.
+foldrMapWithKeyM' :: (Monad m, Monoid b, Prim k, PrimUnlifted v)
+  => (k -> v -> m b) -- ^ reduction
+  -> Map k v -- ^ map
+  -> m b
+foldrMapWithKeyM' f (Map m) = I.foldrMapWithKeyM' f m
+
+-- | /O(n)/ Fold over the keys and values of the map with a strict monoidal
+-- accumulator. This function does not have left and right variants since
+-- the associativity required by a monoid instance means that both variants
+-- would always produce the same result.
+foldMapWithKey' :: (Monoid b, Prim k, PrimUnlifted v)
+  => (k -> v -> b) -- ^ reduction 
+  -> Map k v -- ^ map
+  -> b
+foldMapWithKey' f (Map m) = I.foldMapWithKey' f m
+
+-- | /O(n)/ Left fold over the keys and values with a strict accumulator.
+foldlWithKey' :: (Prim k, PrimUnlifted v)
+  => (b -> k -> v -> b) -- ^ reduction
+  -> b -- ^ initial accumulator
+  -> Map k v -- ^ map
+  -> b
+foldlWithKey' f b0 (Map m) = I.foldlWithKey' f b0 m
+
+-- | /O(n)/ Right fold over the keys and values with a strict accumulator.
+foldrWithKey' :: (Prim k, PrimUnlifted v)
+  => (k -> v -> b -> b) -- ^ reduction
+  -> b -- ^ initial accumulator
+  -> Map k v -- ^ map
+  -> b
+foldrWithKey' f b0 (Map m) = I.foldrWithKey' f b0 m
+
+-- | /O(n*log n)/ Zip an array of keys with an array of values. If they are
+-- not the same length, the longer one will be truncated to match the shorter
+-- one. This function sorts and deduplicates the array of keys, preserving the
+-- last value associated with each key. The argument arrays may not be
+-- reused after being passed to this function.
+--
+-- This is by far the fastest way to create a map, since the functions backing it
+-- are aggressively specialized. It internally uses a hybrid of mergesort and
+-- insertion sort provided by the @primitive-sort@ package. It generates much
+-- less garbage than any of the @fromList@ variants. 
+unsafeFreezeZip :: (Ord k, Prim k, PrimUnlifted v)
+  => MutablePrimArray s k
+  -> MutableUnliftedArray s v
+  -> ST s (Map k v)
+unsafeFreezeZip keys vals = fmap Map (I.unsafeFreezeZip keys vals)
 

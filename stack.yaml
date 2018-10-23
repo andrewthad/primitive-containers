@@ -1,7 +1,33 @@
-resolver: lts-11.7
+compiler-check: match-exact
+compiler: 'ghcjs-0.2.2.9011011_ghc-8.4.1'
+setup-info:
+  ghcjs:
+    source:
+      ghcjs-0.2.2.9011011_ghc-8.4.1:
+        url: /home/amartin/Development/test/ghcjs_tweaks/v2/ghcjs.tar.gz
+work-dir: '.stack-work-ghcjs-2'
+flags: {}
+extra-package-dbs: []
 packages:
 - '.'
 extra-deps:
-- git: https://github.com/andrewthad/primitive.git
-  commit: cb59c2e965e2e9007c8db224cec10335ecf4ec20
+- 'aeson-1.4.0.0'
+- 'quickcheck-classes-0.4.14.1'
+- 'semirings-0.2.0.1'
+- git: 'https://github.com/andrewthad/contiguous'
+  commit: '9f765c6e536ce31e1daabcbc49717e06f15e6174'
+- git: 'https://github.com/ghcjs/ghcjs-base'
+  commit: '01014ade3f8f5ae677df192d7c2a208bd795b96c'
+- git: 'https://github.com/haskell/primitive'
+  commit: '66c4fba2a32d5b4c37c95943f6842ad0421b4f4e'
+- git: 'https://github.com/andrewthad/quantification'
+  commit: '26c3ee7c37ca3ee0b575d31c721e45dedc384dd6'
+- git: 'https://github.com/andrewthad/primitive-sort'
+  commit: '820f862b8a3d0e12fe5175bf66bfeddbec51e93b'
+- git: 'https://github.com/andrewthad/wcwidth'
+  commit: 'c9d6d797d80c640ce48c967da023d3ae10558124'
+resolver: nightly-2018-08-17
+allow-newer: true
+
+
 

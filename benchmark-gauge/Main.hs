@@ -11,6 +11,7 @@ import qualified GHC.Exts as E
 import qualified Data.Set.Unboxed as DSU
 import qualified Data.Set.Lifted as DSL
 import qualified Data.Map.Unboxed.Unboxed as DMUU
+import qualified Data.Map.Unboxed.Lifted as DMUL
 import qualified Data.Map.Lifted.Lifted as DMLL
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap.Strict as IM
@@ -21,6 +22,7 @@ main = defaultMain
   [ bgroup "Map"
     [ bgroup "lookup" 
       [ bench "primitive-unboxed-unboxed" $ whnf lookupAllUnboxed bigUnboxedMap
+      , bench "primitive-unboxed-lifted" $ whnf lookupAllUnboxedLifted bigUnboxedLiftedMap
       , bench "containers-map" $ whnf lookupAllContainers bigContainersMap
       , bench "containers-intmap" $ whnf lookupAllIntContainers bigContainersIntMap
       ]
@@ -28,6 +30,13 @@ main = defaultMain
       [ bench "primitive-unboxed-unboxed" $ whnf (DMUU.foldlWithKey' reduction 0) bigUnboxedMap
       , bench "primitive-lifted-lifted" $ whnf (DMLL.foldlWithKey' reduction 0) bigLiftedMap
       , bench "containers-map" $ whnf (M.foldlWithKey' reduction 0) bigContainersMap
+      ]
+    , bgroup "fromList"
+      [ bgroup "primitive-unboxed-unboxed" 
+        [ bench "20" $ whnf DMUU.fromList randomKeyValue20
+        , bench "200" $ whnf DMUU.fromList randomKeyValue200
+        , bench "2000" $ whnf DMUU.fromList randomKeyValue2000
+        ]
       ]
     ]
   , bgroup "Set"
@@ -77,6 +86,9 @@ bigLiftedSet = E.fromList (map (\x -> x `mod` (bigNumber * 2)) (take bigNumber (
 bigUnboxedMap :: DMUU.Map Int Int
 bigUnboxedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
 
+bigUnboxedLiftedMap :: DMUL.Map Int Int
+bigUnboxedLiftedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
+
 bigLiftedMap :: DMLL.Map Int Int
 bigLiftedMap = E.fromList (map (\x -> (x `mod` (bigNumber * 2),x)) (take bigNumber (randoms (mkStdGen 75843))))
 
@@ -90,6 +102,12 @@ lookupAllUnboxed :: DMUU.Map Int Int -> Int
 lookupAllUnboxed m = go 0 0 where
   go !acc !n = if n < bigNumber
     then go (acc + fromMaybe 0 (DMUU.lookup n m)) (n + 1)
+    else acc
+
+lookupAllUnboxedLifted :: DMUL.Map Int Int -> Int
+lookupAllUnboxedLifted m = go 0 0 where
+  go !acc !n = if n < bigNumber
+    then go (acc + fromMaybe 0 (DMUL.lookup n m)) (n + 1)
     else acc
 
 lookupAllSetUnboxed :: DSU.Set Int -> Int
@@ -124,6 +142,22 @@ ascArray200 = take 200 (enumFrom 0)
 
 ascArray2000 :: [Word]
 ascArray2000 = take 2000 (enumFrom 0)
+
+randomKeyValue20 :: [(Word,Word)]
+randomKeyValue20 = take 20 $ zip
+  (randoms (mkStdGen 75843))
+  (randoms (mkStdGen 4632465))
+
+randomKeyValue200 :: [(Word,Word)]
+randomKeyValue200 = take 200 $ zip
+  (randoms (mkStdGen 75843))
+  (randoms (mkStdGen 4632465))
+
+randomKeyValue2000 :: [(Word,Word)]
+randomKeyValue2000 = take 2000 $ zip
+  (randoms (mkStdGen 75843))
+  (randoms (mkStdGen 4632465))
+
 
 randomArray20 :: [Word]
 randomArray20 = take 20 (randoms (mkStdGen 75843))

@@ -1,7 +1,11 @@
+cabal-version: 2.0
 name: primitive-containers
-version: 0.1.0.0
-description: Please see the README on Github at <https://github.com/andrewthad/primitive-containers#readme>
-homepage: https://github.com/andrewthad/primitive-containers#readme
+version: 0.3.0
+synopsis: containers backed by arrays
+description:
+  Containers backed by flat arrays. Updates require rebuilding the
+  entire structure, but lookups are cache coherent.
+homepage: https://github.com/andrewthad/primitive-containers
 bug-reports: https://github.com/andrewthad/primitive-containers/issues
 author: Andrew Martin
 maintainer: andrew.thaddeus@gmail.com
@@ -9,42 +13,90 @@ copyright: 2018 Andrew Martin
 license: BSD3
 license-file: LICENSE
 build-type: Simple
-cabal-version: >= 2.0
 
 extra-source-files:
-    ChangeLog.md
-    README.md
+  ChangeLog.md
+  README.md
 
 source-repository head
   type: git
   location: https://github.com/andrewthad/primitive-containers
+
+flag checked
+  description:
+    Check all array indexing. This makes most functions slower, but
+    it replaces segfaults with descriptive errors. This should
+    only be used for debugging.
+  default: False
+  manual: True
 
 library
   hs-source-dirs:
       src
   build-depends:
       base >=4.9 && <5
-    , primitive
-    , primitive-sort
-    , contiguous
+    , primitive-sort >= 0.1 && < 0.2
+    , hashable >= 1.2.5
+    , deepseq >= 1.4
+      -- move these five out when we kick out dependent maps 
+    , quantification >= 0.5.0 && < 0.6
+    , aeson >= 1.0 && < 1.5
+    , unordered-containers >= 0.2.8.0
+    , vector >= 0.11 && < 0.13
+    , text >= 1.2 && < 1.3
+  if flag(checked)
+    build-depends: 
+        contiguous-checked >= 0.3.1 && < 0.4
+      , primitive-checked >= 0.6.4.1
+  else
+    build-depends: 
+        contiguous >= 0.3.1 && < 0.4
+      , primitive >= 0.6.4
   exposed-modules:
-    Data.Diet.Set.Internal
+    Data.Continuous.Set.Lifted
+    Data.Diet.Map.Strict.Lifted.Lifted
+    Data.Diet.Map.Strict.Unboxed.Lifted
+    Data.Diet.Set
     Data.Diet.Set.Lifted
     Data.Diet.Set.Unboxed
-    Data.Diet.Map.Lifted.Lifted
-    Data.Diet.Map.Unboxed.Lifted
+    Data.Diet.Unbounded.Set.Lifted
     Data.Map.Lifted.Lifted
+    Data.Map.Lifted.Unlifted
     Data.Map.Unboxed.Lifted
     Data.Map.Unboxed.Unboxed
     Data.Map.Unboxed.Unlifted
+    Data.Map.Unlifted.Unboxed
+    Data.Map.Unlifted.Lifted
     Data.Set.Lifted
     Data.Set.Unboxed
     Data.Set.Unlifted
+    Data.Set.NonEmpty.Unlifted
+    Data.Map.Interval
+    Data.Map.Subset.Strict.Lifted
+    Data.Map.Subset.Strict.Unlifted
+    Data.Map.Subset.Lazy.Lifted
+    Data.Map.Subset.Lazy.Unlifted
+    Data.Dependent.Map.Class
+    Data.Dependent.Map.Internal
+    Data.Dependent.Map.Lifted.Lifted
+    Data.Dependent.Map.Unlifted.Lifted
+    Data.Dependent.Map.Unboxed.Lifted
+    Data.Map.Interval.DBTSLL
   other-modules:
-    Data.Set.Internal
+    Data.Concatenation
+    Data.Diet.Map.Strict.Internal
+    Data.Diet.Set.Internal
+    Data.Continuous.Set.Internal
+    Data.Diet.Unbounded.Set.Internal
     Data.Map.Internal
-    Data.Diet.Map.Internal
-  ghc-options: -O2
+    Data.Map.Subset.Strict.Internal
+    Data.Map.Subset.Lazy.Internal
+    Data.Set.Internal
+    Data.Set.Lifted.Internal
+    Data.Set.Unboxed.Internal
+    Data.Set.Unlifted.Internal
+    Data.Map.Interval.DBTS.Internal
+  ghc-options: -O2 -Wall
   default-language: Haskell2010
 
 test-suite test
@@ -53,13 +105,18 @@ test-suite test
   main-is: Main.hs
   build-depends:
       base
-    , QuickCheck
-    , containers
+    , HUnit
+    , QuickCheck < 2.12
+    , aeson
+    , containers >= 0.5.10
     , primitive
     , primitive-containers
-    , quickcheck-classes >= 0.4.10
+    , quantification >= 0.4
+    , quickcheck-classes >= 0.5
     , tasty
+    , tasty-hunit
     , tasty-quickcheck
+    , text
   ghc-options: -Wall -O2
   default-language: Haskell2010
 

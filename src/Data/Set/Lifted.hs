@@ -4,120 +4,69 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{-# OPTIONS_GHC -O2 #-}
 module Data.Set.Lifted
   ( Set
+  , empty
   , singleton
+  , null
   , member
   , size
   , difference
   , (\\)
-    -- * List Conversion
-  , toList
+  , intersection
+    -- * Conversion
+  , toArray
+  , LI.toList
+  , LI.fromList
     -- * Folds
-  , foldr
-  , foldl'
-  , foldr'
+  , LI.foldr
+  , LI.foldl'
+  , LI.foldr'
   , foldMap'
+  , foldMap
+    -- * Traversals
+  , traverse_
+  , itraverse_
   ) where
 
-import Prelude hiding (foldr)
-import Data.Primitive.UnliftedArray (PrimUnlifted(..))
+import Prelude hiding (foldr,foldMap,null)
 import Data.Semigroup (Semigroup)
+import Data.Set.Lifted.Internal (Set(..))
 import Data.Primitive (Array)
-import Data.Functor.Classes (Eq1(liftEq),Show1(liftShowsPrec))
-import Text.Show (showListWith)
-import qualified Data.Foldable as F
-import qualified Data.Semigroup as SG
-import qualified GHC.Exts as E
 import qualified Data.Set.Internal as I
+import qualified Data.Set.Lifted.Internal as LI
 
-newtype Set a = Set (I.Set Array a)
-
-instance F.Foldable Set where
-  foldr = foldr
-  foldl' = foldl'
-  foldr' = foldr'
-
-instance PrimUnlifted (Set a) where
-  toArrayArray# (Set x) = toArrayArray# x
-  fromArrayArray# y = Set (fromArrayArray# y)
-
-instance Ord a => Semigroup (Set a) where
-  Set x <> Set y = Set (I.append x y)
-  stimes = SG.stimesIdempotentMonoid
-  sconcat xs = Set (I.concat (E.coerce (F.toList xs)))
-
-instance Ord a => Monoid (Set a) where
-  mempty = Set I.empty
-  mappend = (SG.<>)
-  mconcat xs = Set (I.concat (E.coerce xs))
-
-instance Eq a => Eq (Set a) where
-  Set x == Set y = I.equals x y
-
-instance Eq1 Set where
-  liftEq f a b = liftEq f (toList a) (toList b)
-
-instance Ord a => Ord (Set a) where
-  compare (Set x) (Set y) = I.compare x y
-
-instance Ord a => E.IsList (Set a) where
-  type Item (Set a) = a
-  fromListN n = Set . I.fromListN n
-  fromList = Set . I.fromList
-  toList = toList
-
-instance Show a => Show (Set a) where
-  showsPrec p (Set s) = I.showsPrec p s
-
-instance Show1 Set where
-  liftShowsPrec f _ p s = showParen (p > 10) $
-   showString "fromList " . showListWith (f 0) (toList s)
-
+-- | The difference of two sets.
 difference :: Ord a => Set a -> Set a -> Set a
-difference = I.difference
+difference (Set x) (Set y) = Set (I.difference x y)
 
+-- | The intersection of two sets.
+intersection :: Ord a => Set a -> Set a -> Set a
+intersection (Set x) (Set y) = Set (I.intersection x y)
+
+-- | The empty set.
+empty :: Set a
+empty = Set I.empty
+
+-- | Infix operator for 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
-(\\) = (I.\\)
+(\\) (Set x) (Set y) = Set (I.difference x y)
 
+-- | True if the set is empty
+null :: Set a -> Bool
+null (Set s) = I.null s
+
+-- | Test whether or not an element is present in a set.
 member :: Ord a => a -> Set a -> Bool
 member a (Set s) = I.member a s
 
+-- | Construct a set with a single element.
 singleton :: a -> Set a
 singleton = Set . I.singleton
-
--- | Convert a set to a list. The elements are given in ascending order.
-toList :: Set a -> [a]
-toList (Set s) = I.toList s
 
 -- | The number of elements in the set.
 size :: Set a -> Int
 size (Set s) = I.size s
-
--- | Right fold over the elements in the set. This is lazy in the accumulator.
-foldr :: 
-     (a -> b -> b)
-  -> b
-  -> Set a
-  -> b
-foldr f b0 (Set s) = I.foldr f b0 s
-
--- | Strict left fold over the elements in the set.
-foldl' :: 
-     (b -> a -> b)
-  -> b
-  -> Set a
-  -> b
-foldl' f b0 (Set s) = I.foldl' f b0 s
-
--- | Strict right fold over the elements in the set.
-foldr' :: 
-     (a -> b -> b)
-  -> b
-  -> Set a
-  -> b
-foldr' f b0 (Set s) = I.foldr' f b0 s
 
 -- | Strict monoidal fold over the elements in the set.
 foldMap' :: Monoid m
@@ -126,3 +75,29 @@ foldMap' :: Monoid m
   -> m
 foldMap' f (Set arr) = I.foldMap' f arr
 
+-- | Lazy monoidal fold over the elements in the set.
+foldMap :: Monoid m
+  => (a -> m)
+  -> Set a
+  -> m
+foldMap f (Set arr) = I.foldMap f arr
+
+-- | /O(1)/ Convert a set to an array. The elements are given in ascending
+-- order. This function is zero-cost.
+toArray :: Set a -> Array a
+toArray (Set s) = I.toArray s
+
+-- | Traverse a set, discarding the result.
+traverse_ :: Applicative m
+  => (a -> m b)
+  -> Set a
+  -> m ()
+traverse_ f (Set arr) = I.traverse_ f arr
+
+-- | Traverse a set with the indices, discarding the result.
+itraverse_ :: Applicative m
+  => (Int -> a -> m b)
+  -> Set a
+  -> m ()
+itraverse_ f (Set arr) = I.itraverse_ f arr
+{-# INLINEABLE itraverse_ #-}

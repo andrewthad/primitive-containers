@@ -10,9 +10,12 @@
 module Data.Set.Internal
   ( Set(..)
   , empty
+  , null
   , singleton
-  , (\\)
+  , doubleton
+  , tripleton
   , difference
+  , intersection
   , append
   , member
   , showsPrec
@@ -21,23 +24,32 @@ module Data.Set.Internal
   , fromListN
   , fromList
   , toList
+  , toArray
   , size
   , concat
     -- * Folds
   , foldr
+  , foldMap
   , foldl'
   , foldr'
   , foldMap'
+  , foldlM'
+  , liftHashWithSalt
+    -- * Traversals
+  , traverse_
+  , itraverse_
+  , map
   ) where
 
-import Prelude hiding (compare,showsPrec,concat,foldr)
-import qualified Prelude as P
+import Prelude hiding (compare,showsPrec,concat,foldr,foldMap,null,map)
 
 import Control.Monad.ST (ST,runST)
+import Data.Hashable (Hashable)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
-import qualified Data.Foldable as F
+import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as A
+import qualified Data.Concatenation as C
 
 newtype Set arr a = Set (arr a)
 
@@ -48,6 +60,9 @@ instance Contiguous arr => PrimUnlifted (Set arr a) where
 append :: (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
 append (Set x) (Set y) = Set (unionArr x y)
   
+null :: Contiguous arr => Set arr a -> Bool
+null (Set x) = A.null x
+
 empty :: Contiguous arr => Set arr a
 empty = Set A.empty
 
@@ -56,6 +71,10 @@ equals (Set x) (Set y) = A.equals x y
 
 compare :: (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Ordering
 compare (Set x) (Set y) = compareArr x y
+
+-- Only correct if the function is a monotone.
+map :: (Contiguous arr, Element arr a, Element arr b) => (a -> b) -> Set arr a -> Set arr b
+map f (Set x) = Set (A.map f x)
 
 fromListN :: (Contiguous arr, Element arr a, Ord a) => Int -> [a] -> Set arr a
 fromListN n xs = -- fromList xs
@@ -68,37 +87,62 @@ fromListN n xs = -- fromList xs
 fromList :: (Contiguous arr, Element arr a, Ord a) => [a] -> Set arr a
 fromList = fromListN 1
 
-difference :: (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
-difference = (\\)
-
-infixl 9 \\
-
-consT :: a -> ([a], b) -> ([a], b)
-consT x (xs,b) = (x : xs, b)
-
---s1 \\ s2 === set of elements in s1 but not in s2
-(\\) :: forall a arr. (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
-(\\) s1@(Set arr1) s2@(Set arr2)
+difference :: forall a arr. (Contiguous arr, Element arr a, Ord a)
+  => Set arr a
+  -> Set arr a
+  -> Set arr a
+difference s1@(Set arr1) s2@(Set arr2)
   | sz1 == 0 = empty
   | sz2 == 0 = s1
   | otherwise = runST $ do
-      let go :: Int -> Int -> Int -> ([a], Int) -- (stuff, size of what stuff should be) 
-          go ix1 ix2 i = if (ix1 < sz && ix2 < sz)
-            then if zth1 < zth2
-              then consT zth1 $ go (ix1 + 1) ix2 (i + 1)
-              else if zth1 == zth2
-                then go (ix1 + 1) (ix2 + 1) (i + 1)
-                else consT zth2 $ go ix1 (ix2 + 1) (i + 1)
-            else ([], i)
-            where
-              zth1 = A.index arr1 ix1
-              zth2 = A.index arr2 ix2
-
-      let (as, resultSize) = go 0 0 0
-      return (fromList as)
-
+      dst <- A.new sz1
+      let go !ix1 !ix2 !dstIx = if ix2 < sz2
+            then if ix1 < sz1
+              then do
+                v1 <- A.indexM arr1 ix1
+                v2 <- A.indexM arr2 ix2
+                case P.compare v1 v2 of
+                  EQ -> go (ix1 + 1) (ix2 + 1) dstIx
+                  LT -> do
+                    A.write dst dstIx v1
+                    go (ix1 + 1) ix2 (dstIx + 1)
+                  GT -> go ix1 (ix2 + 1) dstIx
+              else return dstIx
+            else do
+              let !remaining = sz1 - ix1
+              A.copy dst dstIx arr1 ix1 remaining
+              return (dstIx + remaining)
+      dstSz <- go 0 0 0
+      dstFrozen <- A.resize dst dstSz >>= A.unsafeFreeze
+      return (Set dstFrozen)
   where
-    !sz  = max sz1 sz2
+    !sz1 = size s1
+    !sz2 = size s2
+
+intersection :: forall a arr. (Contiguous arr, Element arr a, Ord a)
+  => Set arr a
+  -> Set arr a
+  -> Set arr a
+intersection s1@(Set arr1) s2@(Set arr2)
+  | sz1 == 0 = empty
+  | sz2 == 0 = empty
+  | otherwise = runST $ do
+      dst <- A.new (min sz1 sz2)
+      let go !ix1 !ix2 !dstIx = if ix2 < sz2 && ix1 < sz1
+            then do
+              v1 <- A.indexM arr1 ix1
+              v2 <- A.indexM arr2 ix2
+              case P.compare v1 v2 of
+                EQ -> do
+                  A.write dst dstIx v1
+                  go (ix1 + 1) (ix2 + 1) (dstIx + 1)
+                LT -> go (ix1 + 1) ix2 dstIx
+                GT -> go ix1 (ix2 + 1) dstIx
+            else return dstIx
+      dstSz <- go 0 0 0
+      dstFrozen <- A.resize dst dstSz >>= A.unsafeFreeze
+      return (Set dstFrozen)
+  where
     !sz1 = size s1
     !sz2 = size s2
 
@@ -142,6 +186,9 @@ showsPrec p xs = showParen (p > 10) $
 toList :: (Contiguous arr, Element arr a) => Set arr a -> [a]
 toList = foldr (:) []
 
+toArray :: Set arr a -> arr a
+toArray (Set a) = a
+
 member :: forall arr a. (Contiguous arr, Element arr a, Ord a) => a -> Set arr a -> Bool
 member a (Set arr) = go 0 (A.size arr - 1) where
   go :: Int -> Int -> Bool
@@ -157,17 +204,7 @@ member a (Set arr) = go 0 (A.size arr - 1) where
 {-# INLINEABLE member #-}
 
 concat :: forall arr a. (Contiguous arr, Element arr a, Ord a) => [Set arr a] -> Set arr a
-concat = go [] where
-  go :: [Set arr a] -> [Set arr a] -> Set arr a
-  go !stack [] = F.foldl' append empty stack
-  go !stack (x : xs) = if size x > 0
-    then go (pushStack x stack) xs
-    else go stack xs
-  pushStack :: Set arr a -> [Set arr a] -> [Set arr a]
-  pushStack x [] = [x]
-  pushStack x (s : ss) = if size x >= size s
-    then pushStack (append x s) ss
-    else x : s : ss
+concat = C.concatSized size empty append
 
 compareArr :: (Contiguous arr, Element arr a, Ord a)
   => arr a
@@ -184,11 +221,38 @@ compareArr arrA arrB = go 0 where
       else EQ
 
 singleton :: (Contiguous arr, Element arr a) => a -> Set arr a
-singleton a = Set $ runST $ do
-  arr <- A.new 1
-  A.write arr 0 a
-  A.unsafeFreeze arr
+singleton a = Set (A.singleton a)
 
+doubleton :: (Contiguous arr, Element arr a, Ord a) => a -> a -> Set arr a
+doubleton a b = case P.compare a b of
+  LT -> Set (A.doubleton a b)
+  GT -> Set (A.doubleton b a)
+  EQ -> Set (A.singleton a)
+
+tripleton :: (Contiguous arr, Element arr a, Ord a) => a -> a -> a -> Set arr a
+tripleton a b c = case P.compare a b of
+  LT -> case P.compare b c of
+    LT -> Set (A.tripleton a b c)
+    EQ -> doubleton a b
+    GT -> case P.compare a c of
+      LT -> Set (A.tripleton a c b)
+      EQ -> doubleton a b
+      GT -> Set (A.tripleton c a b)
+  GT -> case P.compare b c of
+    LT -> case P.compare a c of
+      LT -> Set (A.tripleton b a c)
+      EQ -> doubleton b a
+      GT -> Set (A.tripleton b c a)
+    EQ -> doubleton b a
+    GT -> Set (A.tripleton c b a)
+  EQ -> doubleton b c
+
+-- The shortcuts help when:
+-- 
+-- * One of the arrays is empty. In this situation, we can just return
+--   the other array instead of reconstructing it.
+-- * All elements in one array are smaller than all elements in the
+--   other. In this case, we can append the arrays, which uses memcpy.
 unionArr :: forall arr a. (Contiguous arr, Element arr a, Ord a)
   => arr a -- array x
   -> arr a -- array y
@@ -196,6 +260,7 @@ unionArr :: forall arr a. (Contiguous arr, Element arr a, Ord a)
 unionArr arrA arrB
   | szA < 1 = arrB
   | szB < 1 = arrA
+  | A.index arrA (szA - 1) < A.index arrB 0 = A.append arrA arrB
   | otherwise = runST $ do
       !(arrDst :: Mutable arr s a)  <- A.new (szA + szB)
       let go !ixA !ixB !ixDst = if ixA < szA
@@ -239,6 +304,14 @@ foldr :: (Contiguous arr, Element arr a)
 foldr f b0 (Set arr) = A.foldr f b0 arr
 {-# INLINEABLE foldr #-}
 
+-- | Monoidal fold over the elements in the set. This is lazy in the accumulator.
+foldMap :: (Contiguous arr, Element arr a, Monoid m)
+  => (a -> m)
+  -> Set arr a
+  -> m
+foldMap f (Set arr) = A.foldMap f arr
+{-# INLINEABLE foldMap #-}
+
 foldl' :: (Contiguous arr, Element arr a)
   => (b -> a -> b)
   -> b
@@ -261,6 +334,36 @@ foldMap' :: (Contiguous arr, Element arr a, Monoid m)
   -> m
 foldMap' f (Set arr) = A.foldMap' f arr
 {-# INLINEABLE foldMap' #-}
+
+foldlM' :: (Contiguous arr, Element arr a, Monad m)
+  => (b -> a -> m b)
+  -> b
+  -> Set arr a
+  -> m b
+foldlM' f b0 (Set arr) = A.foldlM' f b0 arr
+{-# INLINEABLE foldlM' #-}
+
+traverse_ :: (Contiguous arr, Element arr a, Applicative m)
+  => (a -> m b)
+  -> Set arr a
+  -> m ()
+traverse_ f (Set arr) = A.traverse_ f arr
+{-# INLINEABLE traverse_ #-}
+
+itraverse_ :: (Contiguous arr, Element arr a, Applicative m)
+  => (Int -> a -> m b)
+  -> Set arr a
+  -> m ()
+itraverse_ f (Set arr) = A.itraverse_ f arr
+{-# INLINEABLE itraverse_ #-}
+
+liftHashWithSalt :: (Contiguous arr, Element arr a)
+  => (Int -> a -> Int)
+  -> Int -- ^ salt
+  -> Set arr a -- ^ set
+  -> Int
+liftHashWithSalt f s (Set arr) = A.liftHashWithSalt f s arr
+{-# INLINEABLE liftHashWithSalt #-}
 
 -- This relies on a sensible @Num@ instance for correctness. It is not totally
 -- correcty yet because of the existence of zero

@@ -6,11 +6,13 @@
 {-# OPTIONS_GHC -O2 -Wall #-}
 module Data.Map.Unboxed.Unboxed
   ( Map
+  , empty
   , singleton
   , lookup
   , size
   , map
   , mapMaybe
+  , mapMaybeWithKey
     -- * Folds
   , foldlWithKey'
   , foldrWithKey'
@@ -20,7 +22,10 @@ module Data.Map.Unboxed.Unboxed
   , foldrWithKeyM'
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
+    -- * Traversals
+  , traverseWithKey_
     -- * List Conversion
+  , toList
   , fromList
   , fromListAppend
   , fromListN
@@ -70,9 +75,17 @@ instance (Prim k, Show k, Prim v, Show v) => Show (Map k v) where
 lookup :: (Prim k, Ord k, Prim v) => k -> Map k v -> Maybe v
 lookup a (Map s) = I.lookup a s
 
+-- | The empty diet map.
+empty :: Map k v
+empty = Map I.empty
+
 -- | /O(1)/ Create a map with a single element.
 singleton :: (Prim k, Prim v) => k -> v -> Map k v
 singleton k v = Map (I.singleton k v)
+
+-- | /O(n)/ A list of key-value pairs in ascending order.
+toList :: (Prim k, Ord k, Prim v) => Map k v -> [(k,v)]
+toList (Map m) = I.toList m
 
 -- | /O(n*log n)/ Create a map from a list of key-value pairs.
 -- If the list contains more than one value for the same key,
@@ -126,6 +139,14 @@ mapMaybe :: (Prim k, Prim v, Prim w)
   -> Map k w
 mapMaybe f (Map m) = Map (I.mapMaybe f m)
 
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+-- The predicate is given access to the key.
+mapMaybeWithKey :: (Prim k, Prim v, Prim w)
+  => (k -> v -> Maybe w)
+  -> Map k v
+  -> Map k w
+mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
+
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.
 foldlWithKeyM' :: (Monad m, Prim k, Prim v)
@@ -161,6 +182,13 @@ foldrMapWithKeyM' :: (Monad m, Monoid b, Prim k, Prim v)
   -> Map k v -- ^ map
   -> m b
 foldrMapWithKeyM' f (Map m) = I.foldrMapWithKeyM' f m
+
+-- | /O(n)/ Traverse the keys and values of the map from left to right.
+traverseWithKey_ :: (Monad m, Prim k, Prim v)
+  => (k -> v -> m b) -- ^ reduction
+  -> Map k v -- ^ map
+  -> m ()
+traverseWithKey_ f (Map m) = I.traverseWithKey_ f m
 
 -- | /O(n)/ Fold over the keys and values of the map with a strict monoidal
 -- accumulator. This function does not have left and right variants since

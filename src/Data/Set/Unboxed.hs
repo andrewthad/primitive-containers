@@ -6,85 +6,81 @@
 
 {-# OPTIONS_GHC -Wall #-}
 module Data.Set.Unboxed
-  ( Set
+  ( S.Set
+  , empty
   , singleton
+  , doubleton
+  , tripleton
+  , null
   , member
   , size
+  , difference
+  , (\\)
+  , intersection
     -- * List Conversion
-  , toList
-  , fromList
+  , S.toList
+  , S.fromList
     -- * Folds
   , foldr
+  , foldMap
   , foldl'
   , foldr'
   , foldMap'
+    -- * Traversals
+  , traverse_
+  , itraverse_
+  , mapMonotonic
   ) where
 
-import Prelude hiding (foldr)
+import Prelude hiding (foldr,foldMap,null)
+import Data.Hashable (Hashable)
+import Data.Primitive.PrimArray (PrimArray)
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted(..))
-import Data.Primitive.PrimArray (PrimArray)
 import Data.Semigroup (Semigroup)
+import Data.Set.Unboxed.Internal (Set(..))
 import qualified Data.Foldable as F
+import qualified Data.Hashable as H
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
 import qualified Data.Set.Internal as I
+import qualified Data.Set.Unboxed.Internal as S
 
--- | A set of elements.
-newtype Set a = Set (I.Set PrimArray a)
+-- | The empty set.
+empty :: Set a
+empty = Set I.empty
 
-instance PrimUnlifted (Set a) where
-  toArrayArray# (Set x) = toArrayArray# x
-  fromArrayArray# y = Set (fromArrayArray# y)
+-- | The difference of two sets.
+difference :: (Ord a, Prim a) => Set a -> Set a -> Set a
+difference (Set x) (Set y) = Set (I.difference x y)
 
-instance (Prim a, Ord a) => Semigroup (Set a) where
-  Set x <> Set y = Set (I.append x y)
-  stimes = SG.stimesIdempotentMonoid
-  sconcat xs = Set (I.concat (E.coerce (F.toList xs)))
+-- | Infix operator for 'difference'.
+(\\) :: (Ord a, Prim a) => Set a -> Set a -> Set a
+(\\) (Set x) (Set y) = Set (I.difference x y)
 
-instance (Prim a, Ord a) => Monoid (Set a) where
-  mempty = Set I.empty
-  mappend = (SG.<>)
-  mconcat xs = Set (I.concat (E.coerce xs))
+-- | The intersection of two sets.
+intersection :: (Ord a, Prim a) => Set a -> Set a -> Set a
+intersection (Set x) (Set y) = Set (I.intersection x y)
 
-instance (Prim a, Eq a) => Eq (Set a) where
-  Set x == Set y = I.equals x y
-
-instance (Prim a, Ord a) => Ord (Set a) where
-  compare (Set x) (Set y) = I.compare x y
-
--- | The functions that convert a list to a 'Set' are asymptotically
--- better that using @'foldMap' 'singleton'@, with a cost of /O(n*log n)/
--- rather than /O(n^2)/. If the input list is sorted, even if duplicate
--- elements are present, the algorithm further improves to /O(n)/. The
--- fastest option available is calling 'fromListN' on a presorted list
--- and passing the correct size size of the resulting 'Set'. However, even
--- if an incorrect size is given to this function,
--- it will still correctly convert the list into a 'Set'.
-instance (Prim a, Ord a) => E.IsList (Set a) where
-  type Item (Set a) = a
-  fromListN n = Set . I.fromListN n
-  fromList = Set . I.fromList
-  toList = toList
-
-instance (Prim a, Show a) => Show (Set a) where
-  showsPrec p (Set s) = I.showsPrec p s
-
--- | Test for membership in the set.
+-- | Test whether or not an element is present in a set.
 member :: (Prim a, Ord a) => a -> Set a -> Bool
 member a (Set s) = I.member a s
+
+-- | /O(1)/ Is the set empty?
+null :: Set a -> Bool
+null (Set s) = I.null s
 
 -- | Construct a set with a single element.
 singleton :: Prim a => a -> Set a
 singleton = Set . I.singleton
 
--- | Convert a set to a list. The elements are given in ascending order.
-toList :: Prim a => Set a -> [a]
-toList (Set s) = I.toList s
+-- | Construct a set with two elements.
+doubleton :: (Prim a, Ord a) => a -> a -> Set a
+doubleton a b = Set (I.doubleton a b)
 
--- | Convert a list to a set.
-fromList :: (Ord a, Prim a) => [a] -> Set a
-fromList xs = Set (I.fromList xs)
+-- | Construct a set with two elements.
+tripleton :: (Prim a, Ord a) => a -> a -> a -> Set a
+tripleton a b c = Set (I.tripleton a b c)
 
 -- | The number of elements in the set.
 size :: Prim a => Set a -> Int
@@ -120,4 +116,35 @@ foldMap' :: (Monoid m, Prim a)
   -> Set a
   -> m
 foldMap' f (Set arr) = I.foldMap' f arr
+
+-- | Lazy monoidal fold over the elements in the set.
+foldMap :: (Monoid m, Prim a)
+  => (a -> m)
+  -> Set a
+  -> m
+foldMap f (Set arr) = I.foldMap f arr
+
+-- | Traverse a set, discarding the result.
+traverse_ :: (Applicative m, Prim a)
+  => (a -> m b)
+  -> Set a
+  -> m ()
+traverse_ f (Set arr) = I.traverse_ f arr
+
+-- | Traverse a set with the indices, discarding the result.
+itraverse_ :: (Applicative m, Prim a)
+  => (Int -> a -> m b)
+  -> Set a
+  -> m ()
+itraverse_ f (Set arr) = I.itraverse_ f arr
+{-# INLINEABLE itraverse_ #-}
+
+-- | Map over the elements of a set. The provided function must be
+-- monotonic.
+mapMonotonic :: (Prim a, Prim b)
+  => (a -> b)
+  -> Set a
+  -> Set b
+mapMonotonic f (Set arr) = Set (I.map f arr)
+{-# INLINEABLE mapMonotonic #-}
 
