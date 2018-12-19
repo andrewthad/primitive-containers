@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_GHC -Wall #-}
@@ -27,6 +28,7 @@ module Data.Set.Internal
   , toArray
   , size
   , concat
+  , subset
     -- * Folds
   , foldr
   , foldMap
@@ -364,6 +366,29 @@ liftHashWithSalt :: (Contiguous arr, Element arr a)
   -> Int
 liftHashWithSalt f s (Set arr) = A.liftHashWithSalt f s arr
 {-# INLINEABLE liftHashWithSalt #-}
+
+-- Returns true if the first set is a subset of the second set.
+-- This algorithm could be improved by performing some kind of
+-- galloping.
+subset :: (Contiguous arr, Element arr a, Ord a)
+  => Set arr a
+  -> Set arr a
+  -> Bool
+subset (Set arrA) (Set arrB) = go 0 0
+  where
+  !szA = A.size arrA
+  !szB = A.size arrB
+  go !ixA !ixB = if ixA < szA
+    then if ixB < szB
+      then
+        let !(# a #) = A.index# arrA ixA
+            !(# b #) = A.index# arrB ixB
+         in case P.compare a b of
+              LT -> False
+              EQ -> go (ixA + 1) (ixB + 1)
+              GT -> go ixA (ixB + 1)
+      else False
+    else True
 
 -- This relies on a sensible @Num@ instance for correctness. It is not totally
 -- correcty yet because of the existence of zero
