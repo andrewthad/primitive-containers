@@ -10,6 +10,7 @@ module Data.Map.Unboxed.Unboxed
   , singleton
   , lookup
   , size
+    -- * Transform
   , map
   , mapMaybe
   , mapMaybeWithKey

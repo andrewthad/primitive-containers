@@ -10,9 +10,11 @@ module Data.Map.Unboxed.Unlifted
   , singleton
   , lookup
   , size
+    -- * Transform
   , map
   , mapMaybe
   , mapMaybeWithKey
+  , adjustMany
     -- * Folds
   , foldlWithKey'
   , foldrWithKey'
@@ -33,14 +35,16 @@ module Data.Map.Unboxed.Unlifted
 
 import Prelude hiding (lookup,map)
 
-import Data.Semigroup (Semigroup)
+import Control.Monad.Primitive (PrimMonad)
+import Control.Monad.ST (ST)
+import Data.Primitive (PrimArray,MutablePrimArray)
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted,UnliftedArray,MutableUnliftedArray)
-import Data.Primitive (PrimArray,MutablePrimArray)
-import Control.Monad.ST (ST)
-import qualified GHC.Exts as E
-import qualified Data.Semigroup as SG
+import Data.Semigroup (Semigroup)
+
 import qualified Data.Map.Internal as I
+import qualified Data.Semigroup as SG
+import qualified GHC.Exts as E
 
 -- | A map from keys @k@ to values @v@. The key type and the value
 --   type must both have 'Prim' instances.
@@ -140,6 +144,23 @@ mapMaybeWithKey :: (Prim k, PrimUnlifted v, PrimUnlifted w)
   -> Map k v
   -> Map k w
 mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
+
+-- | Update the values at any number of keys. This is done
+-- on in a buffer without building intermediate maps. Example use:
+--
+-- > adjustMany
+-- >   (\adjust -> do
+-- >     adjust 2 (\x -> pure (x + 1))
+-- >     adjust 3 (\_ -> pure 42)
+-- >   ) myMap
+--
+-- This increments by 1 the value associated with key 2. Then,
+-- it replaces with 42 the value associated with key 3.
+adjustMany :: (Prim k, PrimUnlifted v, PrimMonad m, Ord k)
+  => ((k -> (v -> m v) -> m ()) -> m a) -- ^ Modification-applying function
+  -> Map k v -- ^ Map
+  -> m (Map k v)
+adjustMany f (Map m) = fmap Map (I.adjustMany f m)
 
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.

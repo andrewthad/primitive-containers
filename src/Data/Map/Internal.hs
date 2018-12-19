@@ -36,6 +36,7 @@ module Data.Map.Internal
   , appendRightBiased
   , intersectionWith
   , intersectionsWith
+  , adjustMany
   , lookup
   , showsPrec
   , equals
@@ -63,17 +64,19 @@ import Prelude hiding (compare,showsPrec,lookup,map,concat,null)
 
 import Control.Applicative (liftA2)
 import Control.DeepSeq (NFData)
+import Control.Monad.Primitive (PrimMonad)
 import Control.Monad.ST (ST,runST)
-import Data.Semigroup (Semigroup)
+import Data.List.NonEmpty (NonEmpty)
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
 import Data.Primitive.Sort (sortUniqueTaggedMutable)
+import Data.Semigroup (Semigroup)
 import Data.Set.Internal (Set(..))
-import Data.List.NonEmpty (NonEmpty)
+
+import qualified Data.Concatenation as C
 import qualified Data.List as L
+import qualified Data.Primitive.Contiguous as I
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
-import qualified Data.Primitive.Contiguous as I
-import qualified Data.Concatenation as C
 
 -- TODO: Do some sneakiness with UnliftedRep
 data Map karr varr k v = Map !(karr k) !(varr v)
@@ -319,6 +322,32 @@ foldMapWithKey f (Map theKeys vals) =
              in mappend (f k v) (go (i + 1))
    in go 0
 
+adjustMany :: forall karr varr m k v a. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, PrimMonad m, Ord k)
+  => ((k -> (v -> m v) -> m ()) -> m a) -- Callback that takes a modify function
+  -> Map karr varr k v
+  -> m (Map karr varr k v)
+{-# INLINABLE adjustMany #-}
+adjustMany f (Map theKeys theVals) = do
+  mvals <- I.thaw theVals 0 (I.size theVals)
+  let g :: k -> (v -> m v) -> m ()
+      g k updateVal = 
+        let go !start !end = if end < start
+              then pure ()
+              else
+                let !mid = div (end + start) 2
+                    !(# v #) = I.index# theKeys mid
+                 in case P.compare k v of
+                      LT -> go start (mid - 1)
+                      EQ -> do
+                        r <- I.read mvals mid
+                        r' <- updateVal r
+                        I.write mvals mid r'
+                      GT -> go (mid + 1) end
+         in go 0 (I.size theVals - 1)
+  _ <- f g
+  rvals <- I.unsafeFreeze mvals
+  pure (Map theKeys rvals)
+
 concat :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => [Map karr varr k v] -> Map karr varr k v
 concat = concatWith (SG.<>)
 
@@ -446,6 +475,7 @@ lookup :: forall karr varr k v.
   => k
   -> Map karr varr k v
   -> Maybe v
+{-# INLINEABLE lookup #-}
 lookup a (Map arr vals) = go 0 (I.size vals - 1) where
   go :: Int -> Int -> Maybe v
   go !start !end = if end < start
@@ -458,7 +488,6 @@ lookup a (Map arr vals) = go 0 (I.size vals - 1) where
             EQ -> case I.index# vals mid of
               (# r #) -> Just r
             GT -> go (mid + 1) end
-{-# INLINEABLE lookup #-}
 
 size :: (Contiguous varr, Element varr v) => Map karr varr k v -> Int
 size (Map _ arr) = I.size arr
