@@ -14,6 +14,7 @@ module Data.Set.Unlifted
   , size
   , difference
   , intersection
+  , enumFromTo
     -- * Conversion
   , toArray
   , S.toList
@@ -29,7 +30,7 @@ module Data.Set.Unlifted
   , itraverse_
   ) where
 
-import Prelude hiding (foldr,foldMap,null)
+import Prelude hiding (foldr,foldMap,null,enumFromTo)
 
 import Data.Primitive.UnliftedArray (UnliftedArray, PrimUnlifted(..))
 import Data.Semigroup (Semigroup)
@@ -64,6 +65,14 @@ difference (Set x) (Set y) = Set (I.difference x y)
 -- | The intersection of two sets.
 intersection :: (Ord a, PrimUnlifted a) => Set a -> Set a -> Set a
 intersection (Set x) (Set y) = Set (I.intersection x y)
+
+-- | The set that includes all elements from the lower bound to the
+-- upper bound.
+enumFromTo :: (Enum a, Ord a, Num a, PrimUnlifted a)
+  => a -- ^ Inclusive lower bound
+  -> a -- ^ Inclusive upper bound
+  -> Set a
+enumFromTo lo hi = Set (I.enumFromTo lo hi)
 
 -- | /O(1)/ Convert a set to an array. The elements are given in ascending
 -- order. This function is zero-cost.

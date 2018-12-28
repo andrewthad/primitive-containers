@@ -18,9 +18,11 @@ module Data.Set.Unboxed
   , (\\)
   , intersection
   , subset
+  , enumFromTo
     -- * List Conversion
   , S.toList
   , S.fromList
+  , toArray
     -- * Folds
   , foldr
   , foldMap
@@ -33,7 +35,7 @@ module Data.Set.Unboxed
   , mapMonotonic
   ) where
 
-import Prelude hiding (foldr,foldMap,null)
+import Prelude hiding (foldr,foldMap,null,enumFromTo)
 import Data.Hashable (Hashable)
 import Data.Primitive.PrimArray (PrimArray)
 import Data.Primitive.Types (Prim)
@@ -66,6 +68,14 @@ intersection (Set x) (Set y) = Set (I.intersection x y)
 -- | Is the first argument a subset of the second argument?
 subset :: (Ord a, Prim a) => Set a -> Set a -> Bool
 subset (Set x) (Set y) = I.subset x y
+
+-- | The set that includes all elements from the lower bound to the
+-- upper bound.
+enumFromTo :: (Enum a, Ord a, Num a, Prim a)
+  => a -- ^ Inclusive lower bound
+  -> a -- ^ Inclusive upper bound
+  -> Set a
+enumFromTo lo hi = Set (I.enumFromTo lo hi)
 
 -- | Test whether or not an element is present in a set.
 member :: (Prim a, Ord a) => a -> Set a -> Bool
@@ -128,6 +138,11 @@ foldMap :: (Monoid m, Prim a)
   -> Set a
   -> m
 foldMap f (Set arr) = I.foldMap f arr
+
+-- | /O(1)/ Convert a set to an array. The elements are given in ascending
+-- order. This function is zero-cost.
+toArray :: Set a -> PrimArray a
+toArray (Set s) = I.toArray s
 
 -- | Traverse a set, discarding the result.
 traverse_ :: (Applicative m, Prim a)

@@ -28,6 +28,7 @@ module Data.Map.Internal
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
     -- * Traversals
+  , traverse
   , traverseWithKey_
     -- * Functions
   , append
@@ -37,6 +38,7 @@ module Data.Map.Internal
   , intersectionWith
   , intersectionsWith
   , adjustMany
+  , adjustManyInline
   , lookup
   , showsPrec
   , equals
@@ -55,12 +57,13 @@ module Data.Map.Internal
   , fromListAppend
   , fromListAppendN
   , fromSet
+  , fromSetP
     -- * Array Conversion
   , unsafeFreezeZip
   , unsafeZipPresorted
   ) where
 
-import Prelude hiding (compare,showsPrec,lookup,map,concat,null)
+import Prelude hiding (compare,showsPrec,lookup,map,concat,null,traverse)
 
 import Control.Applicative (liftA2)
 import Control.DeepSeq (NFData)
@@ -325,12 +328,12 @@ foldMapWithKey f (Map theKeys vals) =
 adjustMany :: forall karr varr m k v a. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, PrimMonad m, Ord k)
   => ((k -> (v -> m v) -> m ()) -> m a) -- Callback that takes a modify function
   -> Map karr varr k v
-  -> m (Map karr varr k v)
+  -> m (Map karr varr k v, a)
 {-# INLINABLE adjustMany #-}
 adjustMany f (Map theKeys theVals) = do
   mvals <- I.thaw theVals 0 (I.size theVals)
   let g :: k -> (v -> m v) -> m ()
-      g k updateVal = 
+      g !k updateVal = 
         let go !start !end = if end < start
               then pure ()
               else
@@ -344,9 +347,35 @@ adjustMany f (Map theKeys theVals) = do
                         I.write mvals mid r'
                       GT -> go (mid + 1) end
          in go 0 (I.size theVals - 1)
-  _ <- f g
+  r <- f g
   rvals <- I.unsafeFreeze mvals
-  pure (Map theKeys rvals)
+  pure (Map theKeys rvals, r)
+
+adjustManyInline :: forall karr varr m k v a. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, PrimMonad m, Ord k)
+  => ((k -> (v -> m v) -> m ()) -> m a) -- Callback that takes a modify function
+  -> Map karr varr k v
+  -> m (Map karr varr k v, a)
+{-# INLINE adjustManyInline #-}
+adjustManyInline f (Map theKeys theVals) = do
+  mvals <- I.thaw theVals 0 (I.size theVals)
+  let g :: k -> (v -> m v) -> m ()
+      g !k updateVal = 
+        let go !start !end = if end < start
+              then pure ()
+              else
+                let !mid = div (end + start) 2
+                    !(# v #) = I.index# theKeys mid
+                 in case P.compare k v of
+                      LT -> go start (mid - 1)
+                      EQ -> do
+                        r <- I.read mvals mid
+                        r' <- updateVal r
+                        I.write mvals mid r'
+                      GT -> go (mid + 1) end
+         in go 0 (I.size theVals - 1)
+  r <- f g
+  rvals <- I.unsafeFreeze mvals
+  pure (Map theKeys rvals, r)
 
 concat :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => [Map karr varr k v] -> Map karr varr k v
 concat = concatWith (SG.<>)
@@ -576,6 +605,14 @@ foldlMapWithKeyM' f (Map ks vs) = go 0 mempty
     else return accl
 {-# INLINEABLE foldlMapWithKeyM' #-}
 
+traverse :: (Applicative m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+  => (v -> m w)
+  -> Map karr varr k v
+  -> m (Map karr varr k w)
+{-# INLINEABLE traverse #-}
+traverse f (Map theKeys theVals) =
+  fmap (Map theKeys) (I.traverse f theVals)
+
 traverseWithKey_ :: forall karr varr k v m b. (Applicative m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   => (k -> v -> m b)
   -> Map karr varr k v
@@ -720,6 +757,12 @@ fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   -> Set karr k
   -> Map karr varr k v
 fromSet f (Set arr) = Map arr (I.map f arr)
+
+fromSetP :: (PrimMonad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (k -> m v)
+  -> Set karr k
+  -> m (Map karr varr k v)
+fromSetP f (Set arr) = fmap (Map arr) (I.traverseP f arr)
 
 keys :: Map karr varr k v -> Set karr k
 keys (Map k _) = Set k

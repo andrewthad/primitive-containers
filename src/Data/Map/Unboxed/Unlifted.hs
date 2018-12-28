@@ -24,16 +24,20 @@ module Data.Map.Unboxed.Unlifted
   , foldrWithKeyM'
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
+    -- * Traversals
+  , traverse
     -- * List Conversion
   , fromList
   , fromListAppend
   , fromListN
   , fromListAppendN
+  , fromSet
+  , fromSetP
     -- * Array Conversion
   , unsafeFreezeZip
   ) where
 
-import Prelude hiding (lookup,map)
+import Prelude hiding (lookup,map,traverse)
 
 import Control.Monad.Primitive (PrimMonad)
 import Control.Monad.ST (ST)
@@ -41,6 +45,7 @@ import Data.Primitive (PrimArray,MutablePrimArray)
 import Data.Primitive.Types (Prim)
 import Data.Primitive.UnliftedArray (PrimUnlifted,UnliftedArray,MutableUnliftedArray)
 import Data.Semigroup (Semigroup)
+import Data.Set.Unboxed.Internal (Set(..))
 
 import qualified Data.Map.Internal as I
 import qualified Data.Semigroup as SG
@@ -119,6 +124,25 @@ fromListAppendN :: (Prim k, Ord k, PrimUnlifted v, Semigroup v)
   -> Map k v
 fromListAppendN n = Map . I.fromListAppendN n
 
+-- | /O(n)/ Build a map from a set. This function is uses the underlying
+-- array that backs the set as the array for the keys. It constructs the
+-- values by apply the given function to each key.
+fromSet :: (Prim k, PrimUnlifted v)
+  => (k -> v)
+  -> Set k
+  -> Map k v
+fromSet f (Set s) = Map (I.fromSet f s)
+
+-- | /O(n)/ Build a map from a set. This function is uses the underlying
+-- array that backs the set as the array for the keys. It constructs the
+-- values by apply the given function to each key. The function can perform
+-- primitive monadic effects.
+fromSetP :: (PrimMonad m, Prim k, PrimUnlifted v)
+  => (k -> m v)
+  -> Set k
+  -> m (Map k v)
+fromSetP f (Set s) = fmap Map (I.fromSetP f s)
+
 -- | /O(1)/ The number of elements in the map.
 size :: PrimUnlifted v => Map k v -> Int
 size (Map m) = I.size m
@@ -159,8 +183,10 @@ mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
 adjustMany :: (Prim k, PrimUnlifted v, PrimMonad m, Ord k)
   => ((k -> (v -> m v) -> m ()) -> m a) -- ^ Modification-applying function
   -> Map k v -- ^ Map
-  -> m (Map k v)
-adjustMany f (Map m) = fmap Map (I.adjustMany f m)
+  -> m (Map k v, a)
+adjustMany f (Map m) = do
+  (r,a) <- I.adjustMany f m
+  pure (Map r, a)
 
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.
@@ -197,6 +223,13 @@ foldrMapWithKeyM' :: (Monad m, Monoid b, Prim k, PrimUnlifted v)
   -> Map k v -- ^ map
   -> m b
 foldrMapWithKeyM' f (Map m) = I.foldrMapWithKeyM' f m
+
+-- | /O(n)/ Traverse the values of the map.
+traverse :: (Applicative m, Prim k, PrimUnlifted v, PrimUnlifted w)
+  => (v -> m w)
+  -> Map k v
+  -> m (Map k w)
+traverse f (Map m) = fmap Map (I.traverse f m)
 
 -- | /O(n)/ Fold over the keys and values of the map with a strict monoidal
 -- accumulator. This function does not have left and right variants since

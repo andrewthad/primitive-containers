@@ -29,6 +29,7 @@ module Data.Set.Internal
   , size
   , concat
   , subset
+  , enumFromTo
     -- * Folds
   , foldr
   , foldMap
@@ -43,7 +44,7 @@ module Data.Set.Internal
   , map
   ) where
 
-import Prelude hiding (compare,showsPrec,concat,foldr,foldMap,null,map)
+import Prelude hiding (compare,showsPrec,concat,foldr,foldMap,null,map,enumFromTo)
 
 import Control.Monad.ST (ST,runST)
 import Data.Hashable (Hashable)
@@ -88,6 +89,35 @@ fromListN n xs = -- fromList xs
 
 fromList :: (Contiguous arr, Element arr a, Ord a) => [a] -> Set arr a
 fromList = fromListN 1
+
+-- This is intended to be used with things like Word8,Int8,Word16,Int16,etc.
+-- It does the minimal number of allocations. It does some extra checks
+-- just in case someone write a bad Num instance for something. If
+-- you have a Num instance that doesn't satisfy the laws one would
+-- intuitively expect, this function will bail out and return
+-- the empty set.
+enumFromTo :: (Contiguous arr, Element arr a, Enum a, Ord a, Num a)
+  => a -- Low
+  -> a -- High
+  -> Set arr a
+enumFromTo !lo !hi = if hi >= lo
+  then runST $ do
+    let go !arr !ix !a !old = if ix >= 0
+          then if a < old
+            then A.write arr ix a *> go arr (ix - 1) (a - 1) a
+            else pure (Set A.empty)
+          else do
+            r <- A.unsafeFreeze arr
+            pure (Set r)
+    let total = fromEnum (hi - lo)
+    if total >= 0
+      then do
+        arr <- A.new (total + 1)
+        A.write arr total hi
+        go arr (total - 1) (hi - 1) hi
+      else pure (Set A.empty)
+  else Set A.empty
+
 
 difference :: forall a arr. (Contiguous arr, Element arr a, Ord a)
   => Set arr a
