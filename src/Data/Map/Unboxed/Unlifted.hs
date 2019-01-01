@@ -13,6 +13,7 @@ module Data.Map.Unboxed.Unlifted
     -- * Transform
   , map
   , mapMaybe
+  , mapMaybeP
   , mapMaybeWithKey
   , adjustMany
     -- * Folds
@@ -160,6 +161,13 @@ mapMaybe :: (Prim k, PrimUnlifted v, PrimUnlifted w)
   -> Map k v
   -> Map k w
 mapMaybe f (Map m) = Map (I.mapMaybe f m)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+mapMaybeP :: (PrimMonad m, Prim k, PrimUnlifted v, PrimUnlifted w)
+  => (v -> m (Maybe w))
+  -> Map k v
+  -> m (Map k w)
+mapMaybeP f (Map m) = fmap Map (I.mapMaybeP f m)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
 -- The predicate is given access to the key.

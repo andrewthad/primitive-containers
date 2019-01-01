@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
@@ -15,6 +16,7 @@ module Data.Map.Internal
   , map
   , mapWithKey
   , mapMaybe
+  , mapMaybeP
   , mapMaybeWithKey
     -- * Folds
   , foldrWithKey
@@ -67,7 +69,7 @@ import Prelude hiding (compare,showsPrec,lookup,map,concat,null,traverse)
 
 import Control.Applicative (liftA2)
 import Control.DeepSeq (NFData)
-import Control.Monad.Primitive (PrimMonad)
+import Control.Monad.Primitive (PrimMonad,PrimState)
 import Control.Monad.ST (ST,runST)
 import Data.List.NonEmpty (NonEmpty)
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
@@ -252,6 +254,31 @@ mapMaybe f (Map ks vs) = runST $ do
         then do
           a <- I.indexM vs ixSrc
           case f a of
+            Nothing -> go (ixSrc + 1) ixDst
+            Just b -> do
+              I.write varr ixDst b
+              I.write karr ixDst =<< I.indexM ks ixSrc
+              go (ixSrc + 1) (ixDst + 1)
+        else return ixDst
+  dstLen <- go 0 0
+  ksFinal <- I.resize karr dstLen >>= I.unsafeFreeze
+  vsFinal <- I.resize varr dstLen >>= I.unsafeFreeze
+  return (Map ksFinal vsFinal)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+mapMaybeP :: forall karr varr m k v w. (PrimMonad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+  => (v -> m (Maybe w))
+  -> Map karr varr k v
+  -> m (Map karr varr k w)
+{-# INLINEABLE mapMaybeP #-}
+mapMaybeP f (Map ks vs) = do
+  let !sz = I.size vs
+  !(karr :: Mutable karr (PrimState m) k) <- I.new sz
+  !(varr :: Mutable varr (PrimState m) w) <- I.new sz
+  let go !ixSrc !ixDst = if ixSrc < sz
+        then do
+          a <- I.indexM vs ixSrc
+          f a >>= \case
             Nothing -> go (ixSrc + 1) ixDst
             Just b -> do
               I.write varr ixDst b
