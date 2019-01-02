@@ -245,7 +245,7 @@ mapMaybe :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous
   => (v -> Maybe w)
   -> Map karr varr k v
   -> Map karr varr k w
-{-# INLINEABLE mapMaybe #-}
+{-# INLINE mapMaybe #-}
 mapMaybe f (Map ks vs) = runST $ do
   let !sz = I.size vs
   !(karr :: Mutable karr s k) <- I.new sz
@@ -270,7 +270,7 @@ mapMaybeP :: forall karr varr m k v w. (PrimMonad m, Contiguous karr, Element ka
   => (v -> m (Maybe w))
   -> Map karr varr k v
   -> m (Map karr varr k w)
-{-# INLINEABLE mapMaybeP #-}
+{-# INLINE mapMaybeP #-}
 mapMaybeP f (Map ks vs) = do
   let !sz = I.size vs
   !(karr :: Mutable karr (PrimState m) k) <- I.new sz
@@ -784,12 +784,14 @@ fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   -> Set karr k
   -> Map karr varr k v
 fromSet f (Set arr) = Map arr (I.map f arr)
+{-# INLINE fromSet #-}
 
 fromSetP :: (PrimMonad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   => (k -> m v)
   -> Set karr k
   -> m (Map karr varr k v)
 fromSetP f (Set arr) = fmap (Map arr) (I.traverseP f arr)
+{-# INLINE fromSetP #-}
 
 keys :: Map karr varr k v -> Set karr k
 keys (Map k _) = Set k

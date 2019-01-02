@@ -132,6 +132,7 @@ fromSet :: (Prim k, PrimUnlifted v)
   => (k -> v)
   -> Set k
   -> Map k v
+{-# INLINE fromSet #-}
 fromSet f (Set s) = Map (I.fromSet f s)
 
 -- | /O(n)/ Build a map from a set. This function is uses the underlying
@@ -142,6 +143,7 @@ fromSetP :: (PrimMonad m, Prim k, PrimUnlifted v)
   => (k -> m v)
   -> Set k
   -> m (Map k v)
+{-# INLINE fromSetP #-}
 fromSetP f (Set s) = fmap Map (I.fromSetP f s)
 
 -- | /O(1)/ The number of elements in the map.
@@ -160,6 +162,7 @@ mapMaybe :: (Prim k, PrimUnlifted v, PrimUnlifted w)
   => (v -> Maybe w)
   -> Map k v
   -> Map k w
+{-# INLINE mapMaybe #-}
 mapMaybe f (Map m) = Map (I.mapMaybe f m)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
@@ -167,6 +170,7 @@ mapMaybeP :: (PrimMonad m, Prim k, PrimUnlifted v, PrimUnlifted w)
   => (v -> m (Maybe w))
   -> Map k v
   -> m (Map k w)
+{-# INLINE mapMaybeP #-}
 mapMaybeP f (Map m) = fmap Map (I.mapMaybeP f m)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
