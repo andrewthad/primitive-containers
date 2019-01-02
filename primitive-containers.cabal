@@ -10,6 +10,7 @@ bug-reports: https://github.com/andrewthad/primitive-containers/issues
 author: Andrew Martin
 maintainer: andrew.thaddeus@gmail.com
 copyright: 2018 Andrew Martin
+category: Data Structures
 license: BSD3
 license-file: LICENSE
 build-type: Simple
