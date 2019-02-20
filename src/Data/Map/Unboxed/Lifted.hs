@@ -5,7 +5,7 @@
 
 {-# OPTIONS_GHC -O2 #-}
 module Data.Map.Unboxed.Lifted
-  ( Map
+  ( Map(..) -- TODO: use an internal module for this
   , empty
   , singleton
   , lookup

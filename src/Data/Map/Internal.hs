@@ -214,7 +214,10 @@ fromAscListWith combine !n !k0 !v0 xs0 = runST $ do
   go 1 k0 n keys0 vals0 xs0
 
 
-map :: (Contiguous varr, Element varr v, Element varr w) => (v -> w) -> Map karr varr k v -> Map karr varr k w
+map :: (Contiguous varr, Contiguous warr, Element varr v, Element warr w)
+  => (v -> w)
+  -> Map karr varr k v
+  -> Map karr warr k w
 map f (Map k v) = Map k (I.map f v)
 
 -- | /O(n)/ Map over the elements with access to their corresponding keys.

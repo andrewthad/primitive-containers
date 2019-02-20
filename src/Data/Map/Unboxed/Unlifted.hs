@@ -12,6 +12,7 @@ module Data.Map.Unboxed.Unlifted
   , size
     -- * Transform
   , map
+  , mapLifted
   , mapMaybe
   , mapMaybeP
   , mapMaybeWithKey
@@ -19,6 +20,7 @@ module Data.Map.Unboxed.Unlifted
     -- * Folds
   , foldlWithKey'
   , foldrWithKey'
+  , foldMapWithKey
   , foldMapWithKey'
     -- * Monadic Folds
   , foldlWithKeyM'
@@ -48,6 +50,7 @@ import Data.Primitive.UnliftedArray (PrimUnlifted,UnliftedArray,MutableUnliftedA
 import Data.Semigroup (Semigroup)
 import Data.Set.Unboxed.Internal (Set(..))
 
+import qualified Data.Map.Unboxed.Lifted as MUL
 import qualified Data.Map.Internal as I
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
@@ -157,6 +160,14 @@ map :: (Prim k, PrimUnlifted v, PrimUnlifted w)
   -> Map k w
 map f (Map m) = Map (I.map f m)
 
+-- | /O(n)/ Map over the values in the map. The resulting map contains
+--   lifted values.
+mapLifted :: (Prim k, PrimUnlifted v)
+  => (v -> w)
+  -> Map k v
+  -> MUL.Map k w
+mapLifted f (Map m) = MUL.Map (I.map f m)
+
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
 mapMaybe :: (Prim k, PrimUnlifted v, PrimUnlifted w)
   => (v -> Maybe w)
@@ -242,6 +253,16 @@ traverse :: (Applicative m, Prim k, PrimUnlifted v, PrimUnlifted w)
   -> Map k v
   -> m (Map k w)
 traverse f (Map m) = fmap Map (I.traverse f m)
+
+-- | /O(n)/ Fold over the keys and values of the map with a monoidal
+-- accumulator. This function does not have left and right variants since
+-- the associativity required by a monoid instance means that both variants
+-- would always produce the same result.
+foldMapWithKey :: (Monoid b, Prim k, PrimUnlifted v)
+  => (k -> v -> b) -- ^ reduction 
+  -> Map k v -- ^ map
+  -> b
+foldMapWithKey f (Map m) = I.foldMapWithKey f m
 
 -- | /O(n)/ Fold over the keys and values of the map with a strict monoidal
 -- accumulator. This function does not have left and right variants since

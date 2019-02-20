@@ -26,6 +26,7 @@ module Data.Map.Interval.DBTSLL
   , traverse_
     -- * Conversion
   , elems
+  , toList
   ) where
 
 import Prelude hiding (lookup,map,pure,foldMap)
@@ -146,3 +147,5 @@ foldlWithKeyM' f z (Map m) = I.foldlWithKeyM' f z m
 elems :: Map k v -> Array v
 elems (Map m) = I.elems m
 
+toList :: (Bounded k, Enum k) => Map k v -> [(k,k,v)]
+toList (Map m) = I.toList m
