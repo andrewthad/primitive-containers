@@ -24,6 +24,8 @@ module Data.Map.Interval.DBTSLL
   , foldrWithKey
   , foldlWithKeyM'
   , traverse_
+    -- * Properties
+  , size
     -- * Conversion
   , elems
   , toList
@@ -143,6 +145,11 @@ foldlWithKeyM' :: (Bounded k, Enum k, Monad m)
   -> Map k v
   -> m b
 foldlWithKeyM' f z (Map m) = I.foldlWithKeyM' f z m
+
+-- | The number of values in the interval map. Also the number of
+--   contiguous key ranges in the map.
+size :: Map k v -> Int
+size (Map m) = I.size m
 
 elems :: Map k v -> Array v
 elems (Map m) = I.elems m
