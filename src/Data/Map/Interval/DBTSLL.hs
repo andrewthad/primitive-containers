@@ -20,6 +20,7 @@ module Data.Map.Interval.DBTSLL
   , traverseBijection
     -- * Folds
   , foldl'
+  , foldlM'
   , foldMap
   , foldrWithKey
   , foldlWithKeyM'
@@ -115,6 +116,13 @@ foldl' ::
   -> Map k v
   -> b
 foldl' f b0 (Map m) = I.foldl' f b0 m
+
+foldlM' :: Monad m
+  => (b -> v -> m b)
+  -> b
+  -> Map k v
+  -> m b
+foldlM' f b0 (Map m) = I.foldlM' f b0 m
 
 foldMap :: (Monoid m)
   => (v -> m)

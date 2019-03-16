@@ -22,6 +22,7 @@ module Data.Map.Interval.DBTS.Internal
   , foldrWithKey
   , foldlWithKeyM'
   , foldl'
+  , foldlM'
   , foldMap
   , toList
   , showsPrec
@@ -345,6 +346,13 @@ foldl' :: (Contiguous varr, Element varr v)
   -> Map karr varr k v
   -> b
 foldl' f b0 (Map _ vals) = I.foldl' f b0 vals
+
+foldlM' :: (Contiguous varr, Element varr v, Monad m)
+  => (b -> v -> m b)
+  -> b
+  -> Map karr varr k v
+  -> m b
+foldlM' f b0 (Map _ vals) = I.foldlM' f b0 vals
 
 foldMap :: (Contiguous varr, Element varr v, Monoid m)
   => (v -> m)
