@@ -10,9 +10,12 @@ module Data.Map.Unboxed.Unboxed
   , singleton
   , lookup
   , size
+    -- * Transform
   , map
   , mapMaybe
   , mapMaybeWithKey
+  , adjustMany
+  , adjustManyInline
     -- * Folds
   , foldlWithKey'
   , foldrWithKey'
@@ -30,19 +33,25 @@ module Data.Map.Unboxed.Unboxed
   , fromListAppend
   , fromListN
   , fromListAppendN
+  , fromSet
+  , fromSetP
     -- * Array Conversion
   , unsafeFreezeZip
   ) where
 
 import Prelude hiding (lookup,map)
 
+import Control.Monad.Primitive (PrimMonad)
 import Control.Monad.ST (ST)
-import Data.Semigroup (Semigroup)
-import Data.Primitive.Types (Prim)
 import Data.Primitive.PrimArray (PrimArray,MutablePrimArray)
-import qualified GHC.Exts as E
-import qualified Data.Semigroup as SG
+import Data.Primitive.Types (Prim)
+import Data.Semigroup (Semigroup)
+import Data.Set.Unboxed.Internal (Set(..))
+import GHC.Exts (inline)
+
 import qualified Data.Map.Internal as I
+import qualified Data.Semigroup as SG
+import qualified GHC.Exts as E
 
 -- | A map from keys @k@ to values @v@. The key type and the value
 --   type must both have 'Prim' instances.
@@ -121,6 +130,25 @@ fromListAppendN :: (Prim k, Ord k, Prim v, Semigroup v)
   -> Map k v
 fromListAppendN n = Map . I.fromListAppendN n
 
+-- | /O(n)/ Build a map from a set. This function is uses the underlying
+-- array that backs the set as the array for the keys. It constructs the
+-- values by apply the given function to each key.
+fromSet :: (Prim k, Prim v)
+  => (k -> v)
+  -> Set k
+  -> Map k v
+fromSet f (Set s) = Map (I.fromSet f s)
+
+-- | /O(n)/ Build a map from a set. This function is uses the underlying
+-- array that backs the set as the array for the keys. It constructs the
+-- values by apply the given function to each key. The function can perform
+-- primitive monadic effects.
+fromSetP :: (PrimMonad m, Prim k, Prim v)
+  => (k -> m v)
+  -> Set k
+  -> m (Map k v)
+fromSetP f (Set s) = fmap Map (I.fromSetP f s)
+
 -- | /O(1)/ The number of elements in the map.
 size :: Prim v => Map k v -> Int
 size (Map m) = I.size m
@@ -146,6 +174,39 @@ mapMaybeWithKey :: (Prim k, Prim v, Prim w)
   -> Map k v
   -> Map k w
 mapMaybeWithKey f (Map m) = Map (I.mapMaybeWithKey f m)
+
+-- | Update the values at any number of keys. This is done
+-- on in a buffer without building intermediate maps. Example use:
+--
+-- > adjustMany
+-- >   (\adjust -> do
+-- >     adjust 2 (\x -> pure (x + 1))
+-- >     adjust 3 (\_ -> pure 42)
+-- >   ) myMap
+--
+-- This increments by 1 the value associated with key 2. Then,
+-- it replaces with 42 the value associated with key 3.
+adjustMany :: (Prim k, Prim v, PrimMonad m, Ord k)
+  => ((k -> (v -> m v) -> m ()) -> m a) -- ^ Modification-applying function
+  -> Map k v -- ^ Map
+  -> m (Map k v, a)
+{-# INLINABLE adjustMany #-}
+adjustMany f (Map m) = do
+  (r,a) <- I.adjustMany f m
+  pure (Map r, a)
+
+-- | This has the same behavior as 'adjustMany'. However, it will be
+--   inlined rather than specialized. The can prevent needless boxing
+--   in the callback. Use @-ddump-simpl@ and standard profiling techniques
+--   to figure out if this function actually helps you.
+adjustManyInline :: (Prim k, Prim v, PrimMonad m, Ord k)
+  => ((k -> (v -> m v) -> m ()) -> m a) -- ^ Modification-applying function
+  -> Map k v -- ^ Map
+  -> m (Map k v, a)
+{-# INLINE adjustManyInline #-}
+adjustManyInline f (Map m) = do
+  (r,a) <- I.adjustManyInline f m
+  pure (Map r, a)
 
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.

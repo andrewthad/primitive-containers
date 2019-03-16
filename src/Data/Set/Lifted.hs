@@ -14,6 +14,7 @@ module Data.Set.Lifted
   , difference
   , (\\)
   , intersection
+  , subset
     -- * Conversion
   , toArray
   , LI.toList
@@ -43,6 +44,10 @@ difference (Set x) (Set y) = Set (I.difference x y)
 -- | The intersection of two sets.
 intersection :: Ord a => Set a -> Set a -> Set a
 intersection (Set x) (Set y) = Set (I.intersection x y)
+
+-- | Is the first argument a subset of the second argument?
+subset :: Ord a => Set a -> Set a -> Bool
+subset (Set x) (Set y) = I.subset x y
 
 -- | The empty set.
 empty :: Set a

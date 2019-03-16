@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE RankNTypes #-}
@@ -15,6 +16,7 @@ module Data.Map.Internal
   , map
   , mapWithKey
   , mapMaybe
+  , mapMaybeP
   , mapMaybeWithKey
     -- * Folds
   , foldrWithKey
@@ -28,6 +30,7 @@ module Data.Map.Internal
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
     -- * Traversals
+  , traverse
   , traverseWithKey_
     -- * Functions
   , append
@@ -36,6 +39,8 @@ module Data.Map.Internal
   , appendRightBiased
   , intersectionWith
   , intersectionsWith
+  , adjustMany
+  , adjustManyInline
   , lookup
   , showsPrec
   , equals
@@ -54,26 +59,29 @@ module Data.Map.Internal
   , fromListAppend
   , fromListAppendN
   , fromSet
+  , fromSetP
     -- * Array Conversion
   , unsafeFreezeZip
   , unsafeZipPresorted
   ) where
 
-import Prelude hiding (compare,showsPrec,lookup,map,concat,null)
+import Prelude hiding (compare,showsPrec,lookup,map,concat,null,traverse)
 
 import Control.Applicative (liftA2)
 import Control.DeepSeq (NFData)
+import Control.Monad.Primitive (PrimMonad,PrimState)
 import Control.Monad.ST (ST,runST)
-import Data.Semigroup (Semigroup)
+import Data.List.NonEmpty (NonEmpty)
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
 import Data.Primitive.Sort (sortUniqueTaggedMutable)
+import Data.Semigroup (Semigroup)
 import Data.Set.Internal (Set(..))
-import Data.List.NonEmpty (NonEmpty)
+
+import qualified Data.Concatenation as C
 import qualified Data.List as L
+import qualified Data.Primitive.Contiguous as I
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
-import qualified Data.Primitive.Contiguous as I
-import qualified Data.Concatenation as C
 
 -- TODO: Do some sneakiness with UnliftedRep
 data Map karr varr k v = Map !(karr k) !(varr v)
@@ -206,7 +214,10 @@ fromAscListWith combine !n !k0 !v0 xs0 = runST $ do
   go 1 k0 n keys0 vals0 xs0
 
 
-map :: (Contiguous varr, Element varr v, Element varr w) => (v -> w) -> Map karr varr k v -> Map karr varr k w
+map :: (Contiguous varr, Contiguous warr, Element varr v, Element warr w)
+  => (v -> w)
+  -> Map karr varr k v
+  -> Map karr warr k w
 map f (Map k v) = Map k (I.map f v)
 
 -- | /O(n)/ Map over the elements with access to their corresponding keys.
@@ -237,7 +248,7 @@ mapMaybe :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous
   => (v -> Maybe w)
   -> Map karr varr k v
   -> Map karr varr k w
-{-# INLINEABLE mapMaybe #-}
+{-# INLINE mapMaybe #-}
 mapMaybe f (Map ks vs) = runST $ do
   let !sz = I.size vs
   !(karr :: Mutable karr s k) <- I.new sz
@@ -246,6 +257,31 @@ mapMaybe f (Map ks vs) = runST $ do
         then do
           a <- I.indexM vs ixSrc
           case f a of
+            Nothing -> go (ixSrc + 1) ixDst
+            Just b -> do
+              I.write varr ixDst b
+              I.write karr ixDst =<< I.indexM ks ixSrc
+              go (ixSrc + 1) (ixDst + 1)
+        else return ixDst
+  dstLen <- go 0 0
+  ksFinal <- I.resize karr dstLen >>= I.unsafeFreeze
+  vsFinal <- I.resize varr dstLen >>= I.unsafeFreeze
+  return (Map ksFinal vsFinal)
+
+-- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
+mapMaybeP :: forall karr varr m k v w. (PrimMonad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+  => (v -> m (Maybe w))
+  -> Map karr varr k v
+  -> m (Map karr varr k w)
+{-# INLINE mapMaybeP #-}
+mapMaybeP f (Map ks vs) = do
+  let !sz = I.size vs
+  !(karr :: Mutable karr (PrimState m) k) <- I.new sz
+  !(varr :: Mutable varr (PrimState m) w) <- I.new sz
+  let go !ixSrc !ixDst = if ixSrc < sz
+        then do
+          a <- I.indexM vs ixSrc
+          f a >>= \case
             Nothing -> go (ixSrc + 1) ixDst
             Just b -> do
               I.write varr ixDst b
@@ -318,6 +354,58 @@ foldMapWithKey f (Map theKeys vals) =
                 !(# v #) = I.index# vals i
              in mappend (f k v) (go (i + 1))
    in go 0
+
+adjustMany :: forall karr varr m k v a. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, PrimMonad m, Ord k)
+  => ((k -> (v -> m v) -> m ()) -> m a) -- Callback that takes a modify function
+  -> Map karr varr k v
+  -> m (Map karr varr k v, a)
+{-# INLINABLE adjustMany #-}
+adjustMany f (Map theKeys theVals) = do
+  mvals <- I.thaw theVals 0 (I.size theVals)
+  let g :: k -> (v -> m v) -> m ()
+      g !k updateVal = 
+        let go !start !end = if end < start
+              then pure ()
+              else
+                let !mid = div (end + start) 2
+                    !(# v #) = I.index# theKeys mid
+                 in case P.compare k v of
+                      LT -> go start (mid - 1)
+                      EQ -> do
+                        r <- I.read mvals mid
+                        r' <- updateVal r
+                        I.write mvals mid r'
+                      GT -> go (mid + 1) end
+         in go 0 (I.size theVals - 1)
+  r <- f g
+  rvals <- I.unsafeFreeze mvals
+  pure (Map theKeys rvals, r)
+
+adjustManyInline :: forall karr varr m k v a. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, PrimMonad m, Ord k)
+  => ((k -> (v -> m v) -> m ()) -> m a) -- Callback that takes a modify function
+  -> Map karr varr k v
+  -> m (Map karr varr k v, a)
+{-# INLINE adjustManyInline #-}
+adjustManyInline f (Map theKeys theVals) = do
+  mvals <- I.thaw theVals 0 (I.size theVals)
+  let g :: k -> (v -> m v) -> m ()
+      g !k updateVal = 
+        let go !start !end = if end < start
+              then pure ()
+              else
+                let !mid = div (end + start) 2
+                    !(# v #) = I.index# theKeys mid
+                 in case P.compare k v of
+                      LT -> go start (mid - 1)
+                      EQ -> do
+                        r <- I.read mvals mid
+                        r' <- updateVal r
+                        I.write mvals mid r'
+                      GT -> go (mid + 1) end
+         in go 0 (I.size theVals - 1)
+  r <- f g
+  rvals <- I.unsafeFreeze mvals
+  pure (Map theKeys rvals, r)
 
 concat :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => [Map karr varr k v] -> Map karr varr k v
 concat = concatWith (SG.<>)
@@ -446,6 +534,7 @@ lookup :: forall karr varr k v.
   => k
   -> Map karr varr k v
   -> Maybe v
+{-# INLINEABLE lookup #-}
 lookup a (Map arr vals) = go 0 (I.size vals - 1) where
   go :: Int -> Int -> Maybe v
   go !start !end = if end < start
@@ -458,7 +547,6 @@ lookup a (Map arr vals) = go 0 (I.size vals - 1) where
             EQ -> case I.index# vals mid of
               (# r #) -> Just r
             GT -> go (mid + 1) end
-{-# INLINEABLE lookup #-}
 
 size :: (Contiguous varr, Element varr v) => Map karr varr k v -> Int
 size (Map _ arr) = I.size arr
@@ -546,6 +634,14 @@ foldlMapWithKeyM' f (Map ks vs) = go 0 mempty
          go (ix + 1) (mappend accl accr)
     else return accl
 {-# INLINEABLE foldlMapWithKeyM' #-}
+
+traverse :: (Applicative m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+  => (v -> m w)
+  -> Map karr varr k v
+  -> m (Map karr varr k w)
+{-# INLINEABLE traverse #-}
+traverse f (Map theKeys theVals) =
+  fmap (Map theKeys) (I.traverse f theVals)
 
 traverseWithKey_ :: forall karr varr k v m b. (Applicative m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   => (k -> v -> m b)
@@ -691,6 +787,14 @@ fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   -> Set karr k
   -> Map karr varr k v
 fromSet f (Set arr) = Map arr (I.map f arr)
+{-# INLINE fromSet #-}
+
+fromSetP :: (PrimMonad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+  => (k -> m v)
+  -> Set karr k
+  -> m (Map karr varr k v)
+fromSetP f (Set arr) = fmap (Map arr) (I.traverseP f arr)
+{-# INLINE fromSetP #-}
 
 keys :: Map karr varr k v -> Set karr k
 keys (Map k _) = Set k

@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name: primitive-containers
-version: 0.3.0
+version: 0.3.1
 synopsis: containers backed by arrays
 description:
   Containers backed by flat arrays. Updates require rebuilding the
@@ -10,6 +10,7 @@ bug-reports: https://github.com/andrewthad/primitive-containers/issues
 author: Andrew Martin
 maintainer: andrew.thaddeus@gmail.com
 copyright: 2018 Andrew Martin
+category: Data Structures
 license: BSD3
 license-file: LICENSE
 build-type: Simple
@@ -46,11 +47,11 @@ library
     , text >= 1.2 && < 1.3
   if flag(checked)
     build-depends: 
-        contiguous-checked >= 0.3.1 && < 0.4
+        contiguous-checked >= 0.3.2 && < 0.4
       , primitive-checked >= 0.6.4.1
   else
     build-depends: 
-        contiguous >= 0.3.1 && < 0.4
+        contiguous >= 0.3.2 && < 0.4
       , primitive >= 0.6.4
   exposed-modules:
     Data.Continuous.Set.Lifted
@@ -106,13 +107,13 @@ test-suite test
   build-depends:
       base
     , HUnit
-    , QuickCheck < 2.12
+    , QuickCheck < 2.13
     , aeson
     , containers >= 0.5.10
     , primitive
     , primitive-containers
     , quantification >= 0.4
-    , quickcheck-classes >= 0.5
+    , quickcheck-classes >= 0.6
     , tasty
     , tasty-hunit
     , tasty-quickcheck

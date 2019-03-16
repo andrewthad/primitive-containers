@@ -28,6 +28,7 @@ module Data.Map.Interval.DBTS.Internal
   , showsPrec
   , concat
   , elems
+  , size
   ) where
 
 import Prelude hiding (pure,lookup,compare,map,showsPrec,concat,traverse,foldMap)
@@ -388,4 +389,3 @@ concat = concatWith mempty mappend
 
 elems :: Map karr varr k v -> varr v
 elems (Map _ v) = v
-
