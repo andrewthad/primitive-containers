@@ -17,6 +17,7 @@ module Data.Set.Internal
   , tripleton
   , difference
   , intersection
+  , intersects
   , append
   , member
   , showsPrec
@@ -147,6 +148,27 @@ difference s1@(Set arr1) s2@(Set arr2)
       dstSz <- go 0 0 0
       dstFrozen <- A.resize dst dstSz >>= A.unsafeFreeze
       return (Set dstFrozen)
+  where
+    !sz1 = size s1
+    !sz2 = size s2
+
+intersects :: forall a arr. (Contiguous arr, Element arr a, Ord a)
+  => Set arr a
+  -> Set arr a
+  -> Bool
+intersects s1@(Set arr1) s2@(Set arr2)
+  | sz1 == 0 = False
+  | sz2 == 0 = False
+  | otherwise = runST $ do
+      let go !ix1 !ix2 = if ix2 < sz2 && ix1 < sz1
+            then do
+              v1 <- A.indexM arr1 ix1
+              v2 <- A.indexM arr2 ix2
+              if v1 == v2
+                then return True
+                else go (ix1 + 1) (ix2 + ix2)
+            else return False 
+      go 0 0
   where
     !sz1 = size s1
     !sz2 = size s2
