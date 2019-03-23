@@ -17,6 +17,7 @@ module Data.Set.Internal
   , tripleton
   , difference
   , intersection
+  , intersects
   , append
   , member
   , showsPrec
@@ -150,6 +151,32 @@ difference s1@(Set arr1) s2@(Set arr2)
   where
     !sz1 = size s1
     !sz2 = size s2
+
+intersects :: forall a arr. (Contiguous arr, Element arr a, Ord a)
+  => Set arr a
+  -> Set arr a
+  -> Bool
+intersects s1 s2
+  | sz1 == 0 = False
+  | sz2 == 0 = False
+  | otherwise =
+      let (smaller@(Set arr1),larger@(Set arr2)) = if sz1 <= sz2
+            then (s1,s2)
+            else (s2,s1)
+          !szSmaller = size smaller
+          go :: Int -> ST s Bool
+          go !ix = if ix < szSmaller
+            then do
+              v <- A.indexM arr1 ix
+              if member v larger
+                then return True
+                else go (ix + 1)
+            else return False
+      in runST (go 0)
+  where
+    !sz1 = size s1
+    !sz2 = size s2
+{-# INLINEABLE intersects #-}
 
 intersection :: forall a arr. (Contiguous arr, Element arr a, Ord a)
   => Set arr a

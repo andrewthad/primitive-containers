@@ -18,6 +18,7 @@ module Data.Set.Unboxed
   , (\\)
   , intersection
   , subset
+  , intersects
   , enumFromTo
     -- * List Conversion
   , S.toList
@@ -64,6 +65,10 @@ difference (Set x) (Set y) = Set (I.difference x y)
 -- | The intersection of two sets.
 intersection :: (Ord a, Prim a) => Set a -> Set a -> Set a
 intersection (Set x) (Set y) = Set (I.intersection x y)
+
+-- | Do the two sets contain any of the same elements?
+intersects :: (Ord a, Prim a) => Set a -> Set a -> Bool
+intersects (Set x) (Set y) = I.intersects x y
 
 -- | Is the first argument a subset of the second argument?
 subset :: (Ord a, Prim a) => Set a -> Set a -> Bool

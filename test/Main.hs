@@ -84,6 +84,7 @@ main = defaultMain $ testGroup "Data"
       , lawsToTest (QCC.isListLaws (Proxy :: Proxy (SU.Set Int16)))
       , TQC.testProperty "member" (memberProp @Int16 E.fromList SU.member)
       , TQC.testProperty "tripleton" setTripletonProp
+      , TQC.testProperty "intersects" intersectsWorksProp
       ]
     , testGroup "Lifted"
       [ lawsToTest (QCC.eqLaws (Proxy :: Proxy (SL.Set Integer)))
@@ -538,6 +539,17 @@ dietValidProp :: QC.Property
 dietValidProp = QC.property $ \(xs :: DMLL.Map Word8 Int) ->
   True === validDietTriples (E.toList xs)
 
+intersectsSet :: Ord a => S.Set a -> S.Set a -> Bool
+intersectsSet s1 s2 =
+  let s3 = s1 <> s2
+  in if length s3 == length s1 + length s2
+    then False
+    else True
+
+intersectsWorksProp :: QC.Property
+intersectsWorksProp = QC.property $ \(xs :: S.Set Int) (ys :: S.Set Int) ->
+  intersectsSet xs ys == SU.intersects (SU.fromList (S.toList xs)) (SU.fromList (S.toList ys))
+
 simpleDoubletonToList :: (Ord k, Enum k, Semigroup v, Eq v) => k -> k -> v -> k -> k -> v -> [(k,k,v)]
 simpleDoubletonToList key1A key2A valA key1B key2B valB =
   let loA = min key1A key2A
@@ -963,4 +975,5 @@ instance PrimForall UnboxedKey where
   writeOffAddrForall# = writeOffAddr#
   indexOffAddrForall# = indexOffAddr#
   setOffAddrForall# = setOffAddr#
+
 

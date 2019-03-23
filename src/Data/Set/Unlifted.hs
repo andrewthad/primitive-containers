@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -O2 #-}
+
 module Data.Set.Unlifted
   ( S.Set
   , empty
@@ -14,6 +15,8 @@ module Data.Set.Unlifted
   , size
   , difference
   , intersection
+  , intersects
+  , subset
   , enumFromTo
     -- * Conversion
   , toArray
@@ -65,6 +68,14 @@ difference (Set x) (Set y) = Set (I.difference x y)
 -- | The intersection of two sets.
 intersection :: (Ord a, PrimUnlifted a) => Set a -> Set a -> Set a
 intersection (Set x) (Set y) = Set (I.intersection x y)
+
+-- | Do the two sets contain any of the same elements?
+intersects :: (Ord a, PrimUnlifted a) => Set a -> Set a -> Bool
+intersects (Set x) (Set y) = I.intersects x y
+
+-- | Is the first argument a subset of the second argument?
+subset :: (Ord a, PrimUnlifted a) => Set a -> Set a -> Bool
+subset (Set x) (Set y) = I.subset x y
 
 -- | The set that includes all elements from the lower bound to the
 -- upper bound.
