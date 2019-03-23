@@ -156,19 +156,23 @@ intersects :: forall a arr. (Contiguous arr, Element arr a, Ord a)
   => Set arr a
   -> Set arr a
   -> Bool
-intersects s1@(Set arr1) s2@(Set arr2)
+intersects s1 s2
   | sz1 == 0 = False
   | sz2 == 0 = False
-  | otherwise = runST $ do
-      let go !ix1 !ix2 = if ix2 < sz2 && ix1 < sz1
+  | otherwise =
+      let (smaller@(Set arr1),larger@(Set arr2)) = if sz1 <= sz2
+            then (s1,s2)
+            else (s2,s1)
+          !szSmaller = size smaller
+          go :: Int -> ST s Bool
+          go !ix = if ix < szSmaller
             then do
-              v1 <- A.indexM arr1 ix1
-              v2 <- A.indexM arr2 ix2
-              if v1 == v2
+              v <- A.indexM arr1 ix
+              if member v larger
                 then return True
-                else go (ix1 + 1) (ix2 + ix2)
-            else return False 
-      go 0 0
+                else go (ix + 1)
+            else return False
+      in runST (go 0)
   where
     !sz1 = size s1
     !sz2 = size s2
