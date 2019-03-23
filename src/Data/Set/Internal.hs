@@ -176,6 +176,7 @@ intersects s1 s2
   where
     !sz1 = size s1
     !sz2 = size s2
+{-# INLINEABLE intersects #-}
 
 intersection :: forall a arr. (Contiguous arr, Element arr a, Ord a)
   => Set arr a
