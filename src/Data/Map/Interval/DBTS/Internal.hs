@@ -65,7 +65,7 @@ size (Map _ v) = I.size v
 -- compare (Map k1 v1) (Map k2 v2) = mappend (I.compare k1 k2) (I.compare v1 v2)
 
 -- Note: this is only correct when the function is a bijection.
-mapBijection :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+mapBijection :: (Contiguous varr, Element varr v, Element varr w)
   => (v -> w) -> Map karr varr k v -> Map karr varr k w
 mapBijection f (Map k v) = Map k (I.map f v)
 
@@ -115,12 +115,12 @@ map f (Map keys vals) = runST action where
         
 
 -- Note: this is only correct when the function is a bijection.
-traverseP :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w, PrimMonad m)
+traverseP :: (Contiguous varr, Element varr v, Element varr w, PrimMonad m)
   => (v -> m w) -> Map karr varr k v -> m (Map karr varr k w)
 traverseP f (Map k v) = fmap (Map k) (I.traverseP f v)
 
 -- Note: this is only correct when the function is a bijection.
-traverse :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w, Applicative m)
+traverse :: (Contiguous varr, Element varr v, Element varr w, Applicative m)
   => (v -> m w) -> Map karr varr k v -> m (Map karr varr k w)
 traverse f (Map k v) = fmap (Map k) (I.traverse f v)
 

@@ -83,6 +83,7 @@ library
     Data.Dependent.Map.Unlifted.Lifted
     Data.Dependent.Map.Unboxed.Lifted
     Data.Map.Interval.DBTSLL
+    Data.Map.Interval.DBTSUL
   other-modules:
     Data.Concatenation
     Data.Diet.Map.Strict.Internal
