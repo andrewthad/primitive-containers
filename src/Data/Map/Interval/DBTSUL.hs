@@ -30,6 +30,7 @@ module Data.Map.Interval.DBTSUL
     -- * Conversion
   , elems
   , toList
+  , fromLiftedLifted
   ) where
 
 import Prelude hiding (lookup,map,pure,foldMap)
@@ -41,6 +42,7 @@ import Data.Primitive.Types (Prim)
 import Control.Monad.Primitive (PrimMonad)
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Interval.DBTS.Internal as I
+import qualified Data.Map.Interval.DBTSLL as DBTSLL
 import qualified GHC.Exts as E
 
 -- | A total interval map from keys @k@ to values @v@. The key type must be discrete
@@ -166,3 +168,6 @@ elems (Map m) = I.elems m
 
 toList :: (Bounded k, Enum k, Prim k) => Map k v -> [(k,k,v)]
 toList (Map m) = I.toList m
+
+fromLiftedLifted :: Prim k => DBTSLL.Map k v -> Map k v
+fromLiftedLifted (DBTSLL.Map m) = Map (I.convertKeys m)

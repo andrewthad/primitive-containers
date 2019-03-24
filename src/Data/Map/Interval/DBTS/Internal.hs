@@ -29,6 +29,7 @@ module Data.Map.Interval.DBTS.Internal
   , concat
   , elems
   , size
+  , convertKeys
   ) where
 
 import Prelude hiding (pure,lookup,compare,map,showsPrec,concat,traverse,foldMap)
@@ -198,20 +199,29 @@ singleton def lo hi v = if lo <= hi && def /= v
   else pure def
 
 lookup :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => k -> Map karr varr k v -> v
-lookup a (Map keys vals) = go 0 (I.size vals - 1) where
+lookup a (Map keys vals) = go 0 (I.size vals - 1)
+  where
   go :: Int -> Int -> v
-  go !start !end = if end == start
-    then
-      let !(# v #) = I.index# vals start
-       in v
-    else
-      let !mid = div (end + start) 2
-          !valHi = I.index keys mid
-       in case P.compare a valHi of
-            LT -> go start mid
-            EQ -> case I.index# vals mid of
-              (# v #) -> v
-            GT -> go (mid + 1) end
+  go !start !end
+    -- The threshold used here could be any nonnegative number.
+    -- This algorithm will be correct regardless. Switching from
+    -- a divide-and-conquer approach to a simple scan when the map
+    -- is small improves performance.
+    | delta > 8 =
+        let !mid = div (end + start) 2
+            !valHi = I.index keys mid
+         in case P.compare a valHi of
+              LT -> go start mid
+              EQ -> let !(# v #) = I.index# vals mid in v
+              GT -> go (mid + 1) end
+    | otherwise = finish start end
+    where !delta = end - start
+  finish :: Int -> Int -> v
+  finish !start !end =
+    let !(# val #) = I.index# keys start
+     in if a > val
+          then finish (start + 1) end
+          else let !(# v #) = I.index# vals start in v
 {-# INLINEABLE lookup #-}
 
 union :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Eq v, Semigroup v)
@@ -389,3 +399,9 @@ concat = concatWith mempty mappend
 
 elems :: Map karr varr k v -> varr v
 elems (Map _ v) = v
+
+-- TODO: use convert instead of map once that function
+-- is released in a version of contiguous.
+convertKeys :: (Contiguous karr, Element karr k, Contiguous jarr, Element jarr k)
+  => Map karr varr k v -> Map jarr varr k v
+convertKeys (Map ks vs) = Map (I.map id ks) vs

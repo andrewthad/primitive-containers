@@ -6,7 +6,7 @@
 {-# LANGUAGE UnboxedTuples #-}
 
 module Data.Map.Interval.DBTSLL
-  ( Map
+  ( Map(..) -- data constructor exposed as a hack
   , pure
   , singleton
   , lookup
