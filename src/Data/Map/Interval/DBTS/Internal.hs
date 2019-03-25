@@ -1,8 +1,12 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE GADTSyntax #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UnboxedTuples #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Data.Map.Interval.DBTS.Internal
   ( Map
@@ -30,14 +34,17 @@ module Data.Map.Interval.DBTS.Internal
   , elems
   , size
   , convertKeys
+  , convertKeysValues
   ) where
 
 import Prelude hiding (pure,lookup,compare,map,showsPrec,concat,traverse,foldMap)
 
 import Control.Monad.ST (ST,runST)
 import Control.Monad.Primitive (PrimMonad)
+import Data.Kind (Type)
 import Data.Primitive (PrimArray)
 import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
+import GHC.Exts (ArrayArray#)
 import qualified Data.Concatenation as C
 import qualified Data.Primitive.Contiguous as I
 import qualified Prelude as P
@@ -52,7 +59,34 @@ import qualified Prelude as P
 --   Would be represented by the keys:
 --   
 --   > 5,17,20,65536
-data Map karr varr k v = Map !(karr k) !(varr v)
+data Map :: (Type -> Type) -> (Type -> Type) -> Type -> Type -> Type where
+  MapInternal :: ArrayArray# -> ArrayArray# -> Map karr varr k v
+  -- Map !(karr k) !(varr v)
+
+typedArrays :: (Contiguous karr, Contiguous varr) => Map karr varr k v -> (karr k, varr v)
+typedArrays (MapInternal ks vs) = (I.lift ks, I.lift vs)
+
+typedValues :: Contiguous varr => Map karr varr k v -> (# ArrayArray#, varr v #)
+typedValues (MapInternal ks vs) = (# ks, I.lift vs #)
+
+typedKeys :: Contiguous karr => Map karr varr k v -> (# karr k, ArrayArray# #)
+typedKeys (MapInternal ks vs) = (# I.lift ks, vs #)
+
+pattern Map :: (Contiguous karr, Contiguous varr) => () => karr k -> varr v -> Map karr varr k v
+pattern Map ks vs <- (typedArrays -> (ks,vs)) where
+  Map xs ys = MapInternal (I.unlift xs) (I.unlift ys)
+
+pattern MapValues :: Contiguous varr => () => ArrayArray# -> varr v -> Map karr varr k v
+pattern MapValues ks vs <- (typedValues -> (# ks, vs #)) where
+  MapValues xs ys = MapInternal xs (I.unlift ys)
+
+pattern MapKeys :: Contiguous karr => () => karr k -> ArrayArray# -> Map karr varr k v
+pattern MapKeys ks vs <- (typedKeys -> (# ks, vs #)) where
+  MapKeys xs ys = MapInternal (I.unlift xs) ys
+
+{-# COMPLETE Map #-}
+{-# COMPLETE MapValues #-}
+{-# COMPLETE MapKeys #-}
 
 equals :: (Contiguous karr, Element karr k, Eq k, Contiguous varr, Element varr v, Eq v) => Map karr varr k v -> Map karr varr k v -> Bool
 equals (Map k1 v1) (Map k2 v2) = I.equals k1 k2 && I.equals v1 v2
@@ -60,7 +94,7 @@ equals (Map k1 v1) (Map k2 v2) = I.equals k1 k2 && I.equals v1 v2
 size :: (Contiguous varr, Element varr v)
   => Map karr varr k v
   -> Int
-size (Map _ v) = I.size v
+size (MapValues _ v) = I.size v
 
 -- compare :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Ord v) => Map karr varr k v -> Map karr varr k v -> Bool
 -- compare (Map k1 v1) (Map k2 v2) = mappend (I.compare k1 k2) (I.compare v1 v2)
@@ -68,7 +102,7 @@ size (Map _ v) = I.size v
 -- Note: this is only correct when the function is a bijection.
 mapBijection :: (Contiguous varr, Element varr v, Element varr w)
   => (v -> w) -> Map karr varr k v -> Map karr varr k w
-mapBijection f (Map k v) = Map k (I.map f v)
+mapBijection f (MapValues k v) = MapValues k (I.map f v)
 
 -- The function does not need to be a bijection. It may cause adjacent
 -- keys to collapse if their values become the same.
@@ -118,16 +152,16 @@ map f (Map keys vals) = runST action where
 -- Note: this is only correct when the function is a bijection.
 traverseP :: (Contiguous varr, Element varr v, Element varr w, PrimMonad m)
   => (v -> m w) -> Map karr varr k v -> m (Map karr varr k w)
-traverseP f (Map k v) = fmap (Map k) (I.traverseP f v)
+traverseP f (MapValues k v) = fmap (MapValues k) (I.traverseP f v)
 
 -- Note: this is only correct when the function is a bijection.
 traverse :: (Contiguous varr, Element varr v, Element varr w, Applicative m)
   => (v -> m w) -> Map karr varr k v -> m (Map karr varr k w)
-traverse f (Map k v) = fmap (Map k) (I.traverse f v)
+traverse f (MapValues k v) = fmap (MapValues k) (I.traverse f v)
 
-traverse_ :: (Contiguous varr, Element varr v, Element varr w, Applicative m)
+traverse_ :: (Contiguous varr, Element varr v, Applicative m)
   => (v -> m w) -> Map karr varr k v -> m ()
-traverse_ f (Map _ v) = I.traverse_ f v
+traverse_ f (MapValues _ v) = I.traverse_ f v
 
 pure :: (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k) => v -> Map karr varr k v
 pure v = Map
@@ -198,7 +232,8 @@ singleton def lo hi v = if lo <= hi && def /= v
       else pure v
   else pure def
 
-lookup :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => k -> Map karr varr k v -> v
+lookup :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+  => k -> Map karr varr k v -> v
 lookup a (Map keys vals) = go 0 (I.size vals - 1)
   where
   go :: Int -> Int -> v
@@ -356,20 +391,20 @@ foldl' :: (Contiguous varr, Element varr v)
   -> b
   -> Map karr varr k v
   -> b
-foldl' f b0 (Map _ vals) = I.foldl' f b0 vals
+foldl' f b0 (MapValues _ vals) = I.foldl' f b0 vals
 
 foldlM' :: (Contiguous varr, Element varr v, Monad m)
   => (b -> v -> m b)
   -> b
   -> Map karr varr k v
   -> m b
-foldlM' f b0 (Map _ vals) = I.foldlM' f b0 vals
+foldlM' f b0 (MapValues _ vals) = I.foldlM' f b0 vals
 
 foldMap :: (Contiguous varr, Element varr v, Monoid m)
   => (v -> m)
   -> Map karr varr k v
   -> m
-foldMap f (Map _ vals) = I.foldMap f vals
+foldMap f (MapValues _ vals) = I.foldMap f vals
 
 toList :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Bounded k, Enum k)
   => Map karr varr k v
@@ -397,11 +432,18 @@ concat :: (Contiguous karr, Bounded k, Element karr k, Ord k, Contiguous varr, E
   -> Map karr varr k v
 concat = concatWith mempty mappend
 
-elems :: Map karr varr k v -> varr v
-elems (Map _ v) = v
+elems :: Contiguous varr => Map karr varr k v -> varr v
+elems (MapValues _ v) = v
 
 -- TODO: use convert instead of map once that function
 -- is released in a version of contiguous.
 convertKeys :: (Contiguous karr, Element karr k, Contiguous jarr, Element jarr k)
   => Map karr varr k v -> Map jarr varr k v
-convertKeys (Map ks vs) = Map (I.map id ks) vs
+convertKeys (MapKeys ks vs) = MapKeys (I.map id ks) vs
+
+-- TODO: use convert instead of map once that function
+-- is released in a version of contiguous.
+convertKeysValues :: (Contiguous karr, Element karr k, Contiguous jarr, Element jarr k, Contiguous varr, Element varr v, Contiguous warr, Element warr v)
+  => Map karr varr k v -> Map jarr warr k v
+convertKeysValues (Map ks vs) = Map (I.map id ks) (I.map id vs)
+
