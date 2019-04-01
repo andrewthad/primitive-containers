@@ -26,6 +26,8 @@ module Data.Map.Unboxed.Unboxed
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
     -- * Traversals
+  , traverse
+  , traverseWithKey
   , traverseWithKey_
     -- * List Conversion
   , toList
@@ -39,7 +41,7 @@ module Data.Map.Unboxed.Unboxed
   , unsafeFreezeZip
   ) where
 
-import Prelude hiding (lookup,map)
+import Prelude hiding (lookup,map,traverse)
 
 import Control.Monad.Primitive (PrimMonad)
 import Control.Monad.ST (ST)
@@ -47,7 +49,6 @@ import Data.Primitive.PrimArray (PrimArray,MutablePrimArray)
 import Data.Primitive.Types (Prim)
 import Data.Semigroup (Semigroup)
 import Data.Set.Unboxed.Internal (Set(..))
-import GHC.Exts (inline)
 
 import qualified Data.Map.Internal as I
 import qualified Data.Semigroup as SG
@@ -243,6 +244,20 @@ foldrMapWithKeyM' :: (Monad m, Monoid b, Prim k, Prim v)
   -> Map k v -- ^ map
   -> m b
 foldrMapWithKeyM' f (Map m) = I.foldrMapWithKeyM' f m
+
+-- | /O(n)/ traversal over the values in the map.
+traverse :: (Applicative f, Prim k, Prim v, Prim b)
+  => (v -> f b)
+  -> Map k v
+  -> f (Map k b)
+traverse f (Map m) = Map <$> I.traverse f m
+
+-- | /O(n)/ traversal over the values in the map, using the keys.
+traverseWithKey :: (Applicative f, Prim k, Prim v, Prim b)
+  => (k -> v -> f b)
+  -> Map k v
+  -> f (Map k b)
+traverseWithKey f (Map m) = Map <$> I.traverseWithKey f m
 
 -- | /O(n)/ Traverse the keys and values of the map from left to right.
 traverseWithKey_ :: (Monad m, Prim k, Prim v)

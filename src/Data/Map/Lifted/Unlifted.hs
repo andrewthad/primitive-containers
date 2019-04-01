@@ -24,6 +24,10 @@ module Data.Map.Lifted.Unlifted
   , foldrWithKeyM'
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
+    -- * Traversals
+  , traverse
+  , traverseWithKey
+  , traverseWithKey_
     -- * List Conversion
   , toList
   , fromList
@@ -34,7 +38,7 @@ module Data.Map.Lifted.Unlifted
   , elems
   ) where
 
-import Prelude hiding (lookup,map)
+import Prelude hiding (lookup,map,traverse)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive (Array,UnliftedArray,PrimUnlifted)
@@ -160,6 +164,27 @@ appendWithKey :: (Ord k, PrimUnlifted v)
   -> Map k v
   -> Map k v
 appendWithKey f (Map m) (Map n) = Map (I.appendWithKey f m n)
+
+-- | /O(n)/ traversal over the values in the map.
+traverse :: (Applicative f, PrimUnlifted v, PrimUnlifted b)
+  => (v -> f b)
+  -> Map k v
+  -> f (Map k b)
+traverse f (Map m) = Map <$> I.traverse f m
+
+-- | /O(n)/ traversal over the values in the map, using the keys.
+traverseWithKey :: (Applicative f, PrimUnlifted v, PrimUnlifted b)
+  => (k -> v -> f b)
+  -> Map k v
+  -> f (Map k b)
+traverseWithKey f (Map m) = Map <$> I.traverseWithKey f m
+
+-- | /O(n)/ like 'traverseWithKey', but discards the results.
+traverseWithKey_ :: (Applicative f, PrimUnlifted v, PrimUnlifted b)
+  => (k -> v -> f b)
+  -> Map k v
+  -> f ()
+traverseWithKey_ f (Map m) = I.traverseWithKey_ f m
 
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.

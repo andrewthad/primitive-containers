@@ -31,6 +31,7 @@ module Data.Map.Internal
   , foldrMapWithKeyM'
     -- * Traversals
   , traverse
+  , traverseWithKey
   , traverseWithKey_
     -- * Functions
   , append
@@ -78,7 +79,6 @@ import Data.Semigroup (Semigroup)
 import Data.Set.Internal (Set(..))
 
 import qualified Data.Concatenation as C
-import qualified Data.List as L
 import qualified Data.Primitive.Contiguous as I
 import qualified Data.Semigroup as SG
 import qualified Prelude as P
@@ -318,6 +318,11 @@ mapMaybeWithKey f (Map ks vs) = runST $ do
   ksFinal <- I.resize karr dstLen >>= I.unsafeFreeze
   vsFinal <- I.resize varr dstLen >>= I.unsafeFreeze
   return (Map ksFinal vsFinal)
+
+newtype STA arr a = STA { _runSTA :: forall s. Mutable arr s a -> ST s (arr a) }
+
+runSTA :: (Contiguous arr, Element arr a) => Int -> STA arr a -> arr a
+runSTA !sz (STA m) = runST $ I.new sz >>= \arr -> m arr
 
 showsPrec :: (Contiguous karr, Element karr k, Show k, Contiguous varr, Element varr v, Show v) => Int -> Map karr varr k v -> ShowS
 showsPrec p xs = showParen (p > 10) $
@@ -642,6 +647,14 @@ traverse :: (Applicative m, Contiguous karr, Element karr k, Contiguous varr, El
 {-# INLINEABLE traverse #-}
 traverse f (Map theKeys theVals) =
   fmap (Map theKeys) (I.traverse f theVals)
+
+traverseWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr v', Applicative f)
+  => (k -> v -> f v')
+  -> Map karr varr k v
+  -> f (Map karr varr k v')
+{-# INLINEABLE traverseWithKey #-}
+traverseWithKey f (Map theKeys theVals) = fmap (Map theKeys)
+  $ I.itraverse (\i v -> f (I.index theKeys i) v) theVals
 
 traverseWithKey_ :: forall karr varr k v m b. (Applicative m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
   => (k -> v -> m b)
