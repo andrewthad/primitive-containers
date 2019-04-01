@@ -30,6 +30,10 @@ module Data.Map.Unboxed.Lifted
   , foldrWithKeyM'
   , foldlMapWithKeyM'
   , foldrMapWithKeyM'
+    -- * Traversals
+  , traverse
+  , traverseWithKey
+  , traverseWithKey_
     -- * List Conversion
   , toList
   , fromList
@@ -42,7 +46,7 @@ module Data.Map.Unboxed.Lifted
   , unsafeFreezeZip
   ) where
 
-import Prelude hiding (lookup,map)
+import Prelude hiding (lookup,map,traverse)
 
 import Control.DeepSeq (NFData)
 import Control.Monad.ST (ST)
@@ -189,6 +193,27 @@ appendWithKey :: (Prim k, Ord k)
   -> Map k v
   -> Map k v
 appendWithKey f (Map m) (Map n) = Map (I.appendWithKey f m n)
+
+-- | /O(n)/ traversal over the values in the map.
+traverse :: (Applicative f, Prim k)
+  => (v -> f b)
+  -> Map k v
+  -> f (Map k b)
+traverse f (Map m) = Map <$> I.traverse f m
+
+-- | /O(n)/ traversal over the values in the map, using the keys.
+traverseWithKey :: (Applicative f, Prim k)
+  => (k -> v -> f b)
+  -> Map k v
+  -> f (Map k b)
+traverseWithKey f (Map m) = Map <$> I.traverseWithKey f m
+
+-- | /O(n)/ like 'traverseWithKey', but discards the results.
+traverseWithKey_ :: (Applicative f, Prim k)
+  => (k -> v -> f b)
+  -> Map k v
+  -> f ()
+traverseWithKey_ f (Map m) = I.traverseWithKey_ f m
 
 -- | /O(n)/ Left monadic fold over the keys and values of the map. This fold
 -- is strict in the accumulator.
