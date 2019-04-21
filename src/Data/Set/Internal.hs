@@ -20,6 +20,7 @@ module Data.Set.Internal
   , intersects
   , append
   , member
+  , lookupIndex
   , showsPrec
   , equals
   , compare
@@ -261,6 +262,20 @@ member a (Set arr) = go 0 (A.size arr - 1) where
             EQ -> True
             GT -> go (mid + 1) end
 {-# INLINEABLE member #-}
+
+lookupIndex :: forall arr a. (Contiguous arr, Element arr a, Ord a) => a -> Set arr a -> Maybe Int
+lookupIndex a (Set arr) = go 0 (A.size arr - 1) where
+  go :: Int -> Int -> Maybe Int
+  go !start !end = if end < start
+    then Nothing
+    else
+      let !mid = div (end + start) 2
+          !v = A.index arr mid
+       in case P.compare a v of
+            LT -> go start (mid - 1)
+            EQ -> Just mid
+            GT -> go (mid + 1) end
+{-# INLINEABLE lookupIndex #-}
 
 concat :: forall arr a. (Contiguous arr, Element arr a, Ord a) => [Set arr a] -> Set arr a
 concat = C.concatSized size empty append

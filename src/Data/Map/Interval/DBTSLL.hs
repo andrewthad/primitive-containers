@@ -38,6 +38,7 @@ import Data.Semigroup (Semigroup)
 import Data.Primitive.Array (Array)
 import Control.Monad.Primitive (PrimMonad)
 import qualified Data.Semigroup as SG
+import qualified Data.Foldable as F
 import qualified Data.Map.Interval.DBTS.Internal as I
 import qualified GHC.Exts as E
 
@@ -67,6 +68,12 @@ instance (Bounded k, Enum k, Ord k, Eq v, Monoid v) => E.IsList (Map k v) where
   type Item (Map k v) = (k,k,v)
   fromList xs = Map (I.fromList mempty xs)
   toList (Map m) = I.toList m
+
+instance Foldable (Map k) where
+  foldr f b (Map m) = F.foldr f b (I.elems m)
+  foldl' f b (Map m) = F.foldl' f b (I.elems m)
+  toList (Map m) = F.toList (I.elems m)
+  length (Map m) = F.length (I.elems m)
 
 pure :: Bounded k => v -> Map k v
 pure = Map . I.pure 

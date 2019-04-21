@@ -10,6 +10,7 @@ module Data.Set.Lifted
   , singleton
   , null
   , member
+  , lookupIndex
   , size
   , difference
   , (\\)
@@ -69,6 +70,11 @@ null (Set s) = I.null s
 -- | Test whether or not an element is present in a set.
 member :: Ord a => a -> Set a -> Bool
 member a (Set s) = I.member a s
+
+-- | /O(log n)/. Lookup the /index/ of an element, which is
+-- its zero-based index in the sorted sequence of elements. 
+lookupIndex :: Ord a => a -> Set a -> Maybe Int
+lookupIndex a (Set s) = I.lookupIndex a s
 
 -- | Construct a set with a single element.
 singleton :: a -> Set a
