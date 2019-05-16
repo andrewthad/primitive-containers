@@ -89,18 +89,18 @@ singleton :: (Contiguous arr, Element arr a, Ord a)
   -> Set arr a
 singleton Nothing Nothing = universe
 singleton Nothing (Just (incHi,hi)) = runST $ do
-  keys <- I.replicateM 1 hi >>= I.unsafeFreeze
-  incs <- I.replicateM 1 (edgePairToWord8 (inclusivityToEdge incHi) EdgeAbsent) >>= I.unsafeFreeze
+  keys <- I.replicateMutable 1 hi >>= I.unsafeFreeze
+  incs <- I.replicateMutable 1 (edgePairToWord8 (inclusivityToEdge incHi) EdgeAbsent) >>= I.unsafeFreeze
   return (Set keys incs)
 singleton (Just (incLo,lo)) Nothing = runST $ do
-  keys <- I.replicateM 1 lo >>= I.unsafeFreeze
-  incs <- I.replicateM 1 (edgePairToWord8 EdgeAbsent (inclusivityToEdge incLo)) >>= I.unsafeFreeze
+  keys <- I.replicateMutable 1 lo >>= I.unsafeFreeze
+  incs <- I.replicateMutable 1 (edgePairToWord8 EdgeAbsent (inclusivityToEdge incLo)) >>= I.unsafeFreeze
   return (Set keys incs)
 singleton (Just (incLo,lo)) (Just (incHi,hi)) = case compare lo hi of
   GT -> empty
   EQ -> if incLo == Inclusive && incHi == Inclusive
     then runST $ do
-      keys <- I.replicateM 2 lo >>= I.unsafeFreeze
+      keys <- I.replicateMutable 2 lo >>= I.unsafeFreeze
       incsMut <- I.new 2
       I.write incsMut 0 (inclusivityPairToWord8 Inclusive Inclusive)
       I.write incsMut 1 (edgePairToWord8 EdgeAbsent EdgeAbsent)
@@ -112,7 +112,7 @@ singleton (Just (incLo,lo)) (Just (incHi,hi)) = case compare lo hi of
 -- the caller must ensure that lo is less than hi
 unsafeSingleton :: (Contiguous arr, Element arr a) => Inclusivity -> a -> Inclusivity -> a -> Set arr a
 unsafeSingleton incLo lo incHi hi = runST $ do
-  keysMut <- I.replicateM 2 lo
+  keysMut <- I.replicateMutable 2 lo
   I.write keysMut 1 hi
   keys <- I.unsafeFreeze keysMut
   incsMut <- I.new 2
@@ -123,7 +123,7 @@ unsafeSingleton incLo lo incHi hi = runST $ do
 
 except :: (Contiguous arr, Element arr a) => a -> Set arr a
 except x = Set keys incs where
-  keys = runST $ I.replicateM 2 x >>= I.unsafeFreeze
+  keys = runST $ I.replicateMutable 2 x >>= I.unsafeFreeze
   incs = runST $ do
     m <- I.new 1
     I.write m 0 (edgePairToWord8 EdgeExclusive EdgeExclusive)
@@ -147,7 +147,7 @@ infinities negInfHiInc negInfHi posInfLoInc posInfLo =
 -- less than the lower bound for pos inf
 unsafeInfinities :: (Contiguous arr, Element arr a) => Inclusivity -> a -> Inclusivity -> a -> Set arr a
 unsafeInfinities negInfHiInc negInfHi posInfLoInc posInfLo = runST $ do
-  keysMut <- I.replicateM 2 negInfHi
+  keysMut <- I.replicateMutable 2 negInfHi
   I.write keysMut 1 posInfLo
   keys <- I.unsafeFreeze keysMut
   incsMut <- I.new 1
