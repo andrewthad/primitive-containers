@@ -26,7 +26,7 @@ import Data.Map.Subset.Lazy.Internal (Map)
 import Data.Set.Unlifted.Internal (Set(..))
 import Data.Bifunctor (first)
 import Data.Semigroup (Semigroup)
-import Data.Primitive (PrimUnlifted)
+import Data.Primitive.Unlifted.Class (PrimUnlifted)
 
 import qualified Data.Map.Unlifted.Lifted as M
 import qualified Data.Map.Subset.Lazy.Internal as I

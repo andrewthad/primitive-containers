@@ -35,7 +35,8 @@ module Data.Set.Unlifted
 
 import Prelude hiding (foldr,foldMap,null,enumFromTo)
 
-import Data.Primitive.UnliftedArray (UnliftedArray, PrimUnlifted(..))
+import Data.Primitive.Unlifted.Array (UnliftedArray)
+import Data.Primitive.Unlifted.Class (PrimUnlifted)
 import Data.Semigroup (Semigroup)
 import Data.Set.Unlifted.Internal (Set(..))
 import qualified Data.Set.Internal as I

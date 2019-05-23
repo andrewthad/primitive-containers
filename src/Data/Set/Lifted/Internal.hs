@@ -15,7 +15,6 @@ module Data.Set.Lifted.Internal
 
 import Prelude hiding (foldr)
 
-import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Functor.Classes (Eq1(liftEq),Show1(liftShowsPrec))
 import Data.Hashable (Hashable)
 import Data.Hashable.Lifted (Hashable1)
@@ -36,10 +35,6 @@ instance F.Foldable Set where
   foldr = foldr
   foldl' = foldl'
   foldr' = foldr'
-
-instance PrimUnlifted (Set a) where
-  toArrayArray# (Set x) = toArrayArray# x
-  fromArrayArray# y = Set (fromArrayArray# y)
 
 instance Ord a => Semigroup (Set a) where
   Set x <> Set y = Set (I.append x y)

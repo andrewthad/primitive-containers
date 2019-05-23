@@ -37,6 +37,10 @@ module Data.Map.Interval.DBTS.Internal
   , convertKeysValues
   ) where
 
+-- TODO: In very unusual situation where the keys or values
+-- are passed to the FFI, the approach used here can lead to
+-- unsoundness. This will be addressed in GHC 8.10.
+
 import Prelude hiding (pure,lookup,compare,map,showsPrec,concat,traverse,foldMap)
 
 import Control.Monad.ST (ST,runST)

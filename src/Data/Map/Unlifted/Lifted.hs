@@ -35,7 +35,8 @@ import Prelude hiding (lookup,map)
 
 import Control.Monad.ST (ST)
 import Data.Semigroup (Semigroup)
-import Data.Primitive.UnliftedArray (PrimUnlifted,UnliftedArray,MutableUnliftedArray)
+import Data.Primitive.Unlifted.Array (UnliftedArray,MutableUnliftedArray)
+import Data.Primitive.Unlifted.Class (PrimUnlifted)
 import Data.Primitive (Array,MutableArray)
 import Data.Set.Unlifted.Internal (Set(..))
 import qualified GHC.Exts as E

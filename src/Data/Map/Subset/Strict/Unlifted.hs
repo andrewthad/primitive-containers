@@ -20,7 +20,7 @@ import Data.Map.Subset.Strict.Internal (Map)
 import Data.Set.Unlifted.Internal (Set(..))
 import Data.Bifunctor (first)
 import Data.Semigroup (Semigroup)
-import Data.Primitive (PrimUnlifted)
+import Data.Primitive.Unlifted.Class (PrimUnlifted)
 
 import qualified Data.Map.Subset.Strict.Internal as I
 

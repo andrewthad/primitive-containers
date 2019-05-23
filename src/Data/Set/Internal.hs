@@ -50,17 +50,12 @@ import Prelude hiding (compare,showsPrec,concat,foldr,foldMap,null,map,enumFromT
 
 import Control.Monad.ST (ST,runST)
 import Data.Hashable (Hashable)
-import Data.Primitive.UnliftedArray (PrimUnlifted(..))
 import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as A
 import qualified Data.Concatenation as C
 
 newtype Set arr a = Set (arr a)
-
-instance Contiguous arr => PrimUnlifted (Set arr a) where
-  toArrayArray# (Set a) = A.unlift a
-  fromArrayArray# a = Set (A.lift a)
 
 append :: (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
 append (Set x) (Set y) = Set (unionArr x y)

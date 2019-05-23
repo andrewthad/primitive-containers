@@ -37,7 +37,9 @@ module Data.Map.Lifted.Unlifted
 import Prelude hiding (lookup,map)
 
 import Data.Semigroup (Semigroup)
-import Data.Primitive (Array,UnliftedArray,PrimUnlifted)
+import Data.Primitive (Array)
+import Data.Primitive.Unlifted.Array (UnliftedArray)
+import Data.Primitive.Unlifted.Class (PrimUnlifted)
 import Data.Set.Lifted.Internal (Set(..))
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG

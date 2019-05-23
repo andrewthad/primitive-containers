@@ -13,7 +13,7 @@ module Data.Set.Unboxed.Internal
 import Prelude hiding (foldr)
 
 import Data.Hashable (Hashable)
-import Data.Primitive (Prim,PrimArray,Array,PrimUnlifted(..))
+import Data.Primitive (Prim,PrimArray,Array)
 import Data.Semigroup (Semigroup)
 import Text.Show (showListWith)
 
@@ -25,10 +25,6 @@ import qualified GHC.Exts as E
 
 -- | A set of elements.
 newtype Set a = Set (I.Set PrimArray a)
-
-instance PrimUnlifted (Set a) where
-  toArrayArray# (Set x) = toArrayArray# x
-  fromArrayArray# y = Set (fromArrayArray# y)
 
 instance (Prim a, Ord a) => Semigroup (Set a) where
   Set x <> Set y = Set (I.append x y)

@@ -40,7 +40,7 @@ import Prelude hiding (foldr,foldMap,null,enumFromTo)
 import Data.Hashable (Hashable)
 import Data.Primitive.PrimArray (PrimArray)
 import Data.Primitive.Types (Prim)
-import Data.Primitive.UnliftedArray (PrimUnlifted(..))
+import Data.Primitive.Unlifted.Class (PrimUnlifted(..))
 import Data.Semigroup (Semigroup)
 import Data.Set.Unboxed.Internal (Set(..))
 import qualified Data.Foldable as F

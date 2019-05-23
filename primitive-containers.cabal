@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name: primitive-containers
-version: 0.3.3
+version: 0.4.0
 synopsis: containers backed by arrays
 description:
   Containers backed by flat arrays. Updates require rebuilding the
@@ -39,12 +39,7 @@ library
     , primitive-sort >= 0.1 && < 0.2
     , hashable >= 1.2.5
     , deepseq >= 1.4
-      -- move these five out when we kick out dependent maps 
-    , quantification >= 0.5.0 && < 0.6
-    , aeson >= 1.0 && < 1.5
-    , unordered-containers >= 0.2.8.0
-    , vector >= 0.11 && < 0.13
-    , text >= 1.2 && < 1.3
+    , primitive-unlifted >= 0.1 && <0.2
   if flag(checked)
     build-depends: 
         contiguous-checked >= 0.4 && < 0.5
@@ -77,11 +72,6 @@ library
     Data.Map.Subset.Strict.Unlifted
     Data.Map.Subset.Lazy.Lifted
     Data.Map.Subset.Lazy.Unlifted
-    Data.Dependent.Map.Class
-    Data.Dependent.Map.Internal
-    Data.Dependent.Map.Lifted.Lifted
-    Data.Dependent.Map.Unlifted.Lifted
-    Data.Dependent.Map.Unboxed.Lifted
     Data.Map.Interval.DBTSLL
     Data.Map.Interval.DBTSUL
     Data.Map.Interval.DBTSUU
@@ -109,13 +99,12 @@ test-suite test
   build-depends:
       base
     , HUnit
-    , QuickCheck < 2.13
-    , aeson
+    , QuickCheck
     , containers >= 0.5.10
     , primitive
     , primitive-containers
-    , quantification >= 0.4
-    , quickcheck-classes >= 0.6
+    , primitive-unlifted
+    , quickcheck-classes >= 0.6.2
     , tasty
     , tasty-hunit
     , tasty-quickcheck
@@ -133,6 +122,7 @@ benchmark gauge
   build-depends:
       base >= 4.8 && < 4.12
     , primitive
+    , primitive-unlifted >= 0.1.1
     , primitive-containers
     , ghc-prim
     , gauge
