@@ -103,7 +103,7 @@ test-suite test
     , containers >= 0.5.10
     , primitive
     , primitive-containers
-    , primitive-unlifted
+    , primitive-unlifted >= 0.1.1
     , quickcheck-classes >= 0.6.2
     , tasty
     , tasty-hunit
