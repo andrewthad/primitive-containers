@@ -172,7 +172,7 @@ main = defaultMain $ testGroup "Data"
   , testGroup "Continuous"
     [ testGroup "Set"
       [ testGroup "Lifted"
-        [ testGroup "Unit" 
+        [ testGroup "Unit"
           [ testCase "A" $ do
               let s = CSL.singleton Nothing (Just (Inclusive,55 :: Integer))
                       <>
@@ -216,6 +216,7 @@ main = defaultMain $ testGroup "Data"
         , lawsToTest (QCC.commutativeMonoidLaws (Proxy :: Proxy (DSL.Set Word16)))
         , lawsToTest (QCC.isListLaws (Proxy :: Proxy (DSL.Set Word16)))
         , TQC.testProperty "member" (dietMemberProp @Word8 E.fromList DSL.member)
+        -- DIET SETS
         , TQC.testProperty "difference" dietSetDifferenceProp
         , TQC.testProperty "intersection" dietSetIntersectionProp
         , TQC.testProperty "negate" dietSetNegateProp
@@ -229,6 +230,21 @@ main = defaultMain $ testGroup "Data"
           [ TQC.testProperty "basic" dietSetBetweenProp
           , TQC.testProperty "border" dietSetBetweenBorderProp
           , TQC.testProperty "inside" dietSetBetweenBorderNearProp
+          ]
+        -- S (newtype)
+        , TQC.testProperty "difference" dietSetDifferenceProp'
+        , TQC.testProperty "intersection" dietSetIntersectionProp'
+        , TQC.testProperty "negate" dietSetNegateProp'
+        , TQC.testProperty "aboveInclusive" dietSetAboveProp'
+        , testGroup "belowInclusive"
+          [ TQC.testProperty "basic" dietSetBelowProp'
+          , TQC.testProperty "lowest" dietSetBelowLowestProp'
+          , TQC.testProperty "highest" dietSetBelowHighestProp'
+          ]
+        , testGroup "betweenInclusive"
+          [ TQC.testProperty "basic" dietSetBetweenProp'
+          , TQC.testProperty "border" dietSetBetweenBorderProp'
+          , TQC.testProperty "inside" dietSetBetweenBorderNearProp'
           ]
         ]
       ]
@@ -283,8 +299,20 @@ dietSetDifferenceProp = QC.property $ \(xs :: DSL.Set Word8) (ys :: DSL.Set Word
       ys' = dietSetToSet ys
    in DSL.difference xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.difference xs' ys')))
 
+dietSetDifferenceProp' :: QC.Property
+dietSetDifferenceProp' = QC.property $ \(S xs :: S Word8) (S ys :: S Word8) ->
+  let xs' = dietSetToSet xs
+      ys' = dietSetToSet ys
+   in DSL.difference xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.difference xs' ys')))
+
 dietSetIntersectionProp :: QC.Property
 dietSetIntersectionProp = QC.property $ \(xs :: DSL.Set Word8) (ys :: DSL.Set Word8) ->
+  let xs' = dietSetToSet xs
+      ys' = dietSetToSet ys
+   in DSL.intersection xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.intersection xs' ys')))
+
+dietSetIntersectionProp' :: QC.Property
+dietSetIntersectionProp' = QC.property $ \(S xs :: S Word8) (S ys :: S Word8) ->
   let xs' = dietSetToSet xs
       ys' = dietSetToSet ys
    in DSL.intersection xs ys === DSL.fromList (map (\x -> (x,x)) (S.toList (S.intersection xs' ys')))
@@ -295,8 +323,21 @@ dietSetNegateProp = QC.property $ \(xs :: DSL.Set Word8) ->
       expected = foldMap (\n -> bool (S.singleton n) mempty (S.member n xs')) [minBound..maxBound]
    in DSL.negate xs === mconcat (map (\x -> DSL.singleton x x) (F.toList expected))
 
+dietSetNegateProp' :: QC.Property
+dietSetNegateProp' = QC.property $ \(S xs :: S Word8) ->
+  let xs' = dietSetToSet xs
+      expected = foldMap (\n -> bool (S.singleton n) mempty (S.member n xs')) [minBound..maxBound]
+   in DSL.negate xs === mconcat (map (\x -> DSL.singleton x x) (F.toList expected))
+
 dietSetAboveProp :: QC.Property
 dietSetAboveProp = QC.property $ \(y :: Word8) (ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+      (_,isMember,c) = S.splitMember y ys'
+      r = if isMember then S.insert y c else c
+   in DSL.aboveInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r))
+
+dietSetAboveProp' :: QC.Property
+dietSetAboveProp' = QC.property $ \(y :: Word8) (S ys :: S Word8) ->
   let ys' = dietSetToSet ys
       (_,isMember,c) = S.splitMember y ys'
       r = if isMember then S.insert y c else c
@@ -309,12 +350,29 @@ dietSetBelowProp = QC.property $ \(y :: Word8) (ys :: DSL.Set Word8) ->
       r = if isMember then S.insert y c else c
    in DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r))
 
+dietSetBelowProp' :: QC.Property
+dietSetBelowProp' = QC.property $ \(y :: Word8) (S ys :: S Word8) ->
+  let ys' = dietSetToSet ys
+      (c,isMember,_) = S.splitMember y ys'
+      r = if isMember then S.insert y c else c
+   in DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r))
+
 dietSetBelowLowestProp :: QC.Property
 dietSetBelowLowestProp = QC.property $ \(ys :: DSL.Set Word8) ->
   let ys' = dietSetToSet ys
    in case S.lookupMin ys' of
         Nothing -> QC.property QC.Discard
-        Just y -> 
+        Just y ->
+          let (c,isMember,_) = S.splitMember y ys'
+              r = if isMember then S.insert y c else c
+           in QC.property (DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r)))
+
+dietSetBelowLowestProp' :: QC.Property
+dietSetBelowLowestProp' = QC.property $ \(S ys :: S Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMin ys' of
+        Nothing -> QC.property QC.Discard
+        Just y ->
           let (c,isMember,_) = S.splitMember y ys'
               r = if isMember then S.insert y c else c
            in QC.property (DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r)))
@@ -324,7 +382,17 @@ dietSetBelowHighestProp = QC.property $ \(ys :: DSL.Set Word8) ->
   let ys' = dietSetToSet ys
    in case S.lookupMax ys' of
         Nothing -> QC.property QC.Discard
-        Just y -> 
+        Just y ->
+          let (c,isMember,_) = S.splitMember y ys'
+              r = if isMember then S.insert y c else c
+           in QC.property (DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r)))
+
+dietSetBelowHighestProp' :: QC.Property
+dietSetBelowHighestProp' = QC.property $ \(S ys :: S Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMax ys' of
+        Nothing -> QC.property QC.Discard
+        Just y ->
           let (c,isMember,_) = S.splitMember y ys'
               r = if isMember then S.insert y c else c
            in QC.property (DSL.belowInclusive y ys === DSL.fromList (map (\x -> (x,x)) (S.toList r)))
@@ -332,7 +400,16 @@ dietSetBelowHighestProp = QC.property $ \(ys :: DSL.Set Word8) ->
 dietSetBetweenProp :: QC.Property
 dietSetBetweenProp = QC.property $ \(x :: Word8) (y :: Word8) (ys :: DSL.Set Word8) ->
   (x <= y)
-  ==> 
+  ==>
+  ( let ys' = dietSetToSet ys
+        r = S.filter (\e -> e >= x && e <= y) ys'
+     in DSL.betweenInclusive x y ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+  )
+
+dietSetBetweenProp' :: QC.Property
+dietSetBetweenProp' = QC.property $ \(x :: Word8) (y :: Word8) (S ys :: S Word8) ->
+  (x <= y)
+  ==>
   ( let ys' = dietSetToSet ys
         r = S.filter (\e -> e >= x && e <= y) ys'
      in DSL.betweenInclusive x y ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
@@ -345,12 +422,35 @@ dietSetBetweenBorderProp = QC.property $ \(ys :: DSL.Set Word8) ->
         Nothing -> QC.property QC.Discard
         Just hi -> case S.lookupMin ys' of
           Nothing -> QC.property QC.Discard
-          Just lo -> 
+          Just lo ->
+            let r = S.filter (\e -> e >= lo && e <= hi) ys'
+             in DSL.betweenInclusive lo hi ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+
+dietSetBetweenBorderProp' :: QC.Property
+dietSetBetweenBorderProp' = QC.property $ \(S ys :: S Word8) ->
+  let ys' = dietSetToSet ys
+   in case S.lookupMax ys' of
+        Nothing -> QC.property QC.Discard
+        Just hi -> case S.lookupMin ys' of
+          Nothing -> QC.property QC.Discard
+          Just lo ->
             let r = S.filter (\e -> e >= lo && e <= hi) ys'
              in DSL.betweenInclusive lo hi ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
 
 dietSetBetweenBorderNearProp :: QC.Property
 dietSetBetweenBorderNearProp = QC.property $ \(ys :: DSL.Set Word8) ->
+  let ys' = dietSetToSet ys
+   in ( S.size ys' > 1
+        ==>
+        ( let hi = pred (S.findMax ys')
+              lo = succ (S.findMin ys')
+              r = S.filter (\e -> e >= lo && e <= hi) ys'
+           in DSL.betweenInclusive lo hi ys === DSL.fromList (map (\z -> (z,z)) (S.toList r))
+        )
+      )
+
+dietSetBetweenBorderNearProp' :: QC.Property
+dietSetBetweenBorderNearProp' = QC.property $ \(S ys :: S Word8) ->
   let ys' = dietSetToSet ys
    in ( S.size ys' > 1
         ==>
@@ -410,14 +510,14 @@ mapWithKeyProp = QC.property $ \(xs :: M.Map Word8 Word8) ->
 appendWithKeyUnboxedLiftedProp :: QC.Property
 appendWithKeyUnboxedLiftedProp = QC.property $ \(xs :: M.Map Word8 Word8) ys ->
   let xs' = MUL.fromList (M.toList xs)
-      ys' = MUL.fromList (M.toList ys) 
+      ys' = MUL.fromList (M.toList ys)
       func k x y = k + 2 * x + 3 * y
    in MUL.toList (MUL.appendWithKey func xs' ys') === M.toList (M.unionWithKey func xs ys)
 
 appendWithKeyLiftedLiftedProp :: QC.Property
 appendWithKeyLiftedLiftedProp = QC.property $ \(xs :: M.Map Word8 Word8) ys ->
   let xs' = MLL.fromList (M.toList xs)
-      ys' = MLL.fromList (M.toList ys) 
+      ys' = MLL.fromList (M.toList ys)
       func k x y = k + 2 * x + 3 * y
    in MLL.toList (MLL.appendWithKey func xs' ys') === M.toList (M.unionWithKey func xs ys)
 
@@ -593,7 +693,7 @@ instance (Arbitrary k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup v, Eq v)
 
 instance (Ord k, Enum k, Eq v, Bounded k, Arbitrary k, Arbitrary v) => Arbitrary (MIDBTS.Map k v) where
   arbitrary = liftA2 MIDBTS.fromList QC.arbitrary (QC.vectorOf 10 arbitraryOrderedPairValue)
-    
+
 instance (Arbitrary k, Ord k, Arbitrary v, Eq v, Semigroup v) => Arbitrary (MSL.Map k v) where
   arbitrary = do
     len <- QC.choose (0,4)
@@ -618,7 +718,18 @@ instance (Arbitrary k, Prim k, Ord k, Enum k, Bounded k, Arbitrary v, Semigroup 
       return (lo,hi,v)
     return (DMUL.fromListAppend ys)
   shrink x = map E.fromList (QC.shrink (E.toList x))
-    
+
+newtype S a = S (DSL.Set a)
+  deriving (Eq, Show)
+
+instance (Arbitrary a, Ord a, Enum a, Bounded a) => Arbitrary (S a) where
+  arbitrary = do
+    sz <- QC.choose (200, 400)
+    k <- QC.arbitrary
+    xs <- increasingOrderedPairsHelper sz k
+    pure $ S $ DSL.fromList xs
+  shrink (S x) = map (S . E.fromList) (QC.shrink (E.toList x))
+
 instance (Arbitrary a, Ord a, Enum a, Bounded a) => Arbitrary (DSL.Set a) where
   arbitrary = DSL.fromList <$> QC.vectorOf 7 arbitraryOrderedPair
   shrink x = map E.fromList (QC.shrink (E.toList x))
@@ -628,7 +739,7 @@ instance (Arbitrary a, Ord a, Enum a, Bounded a) => Arbitrary (DUSL.Set a) where
     sz <- QC.choose (0,7)
     k <- QC.arbitrary
     foldMap (\(lo,hi) -> DUSL.singleton (Just lo) (Just hi)) <$> increasingOrderedPairsHelper sz k
-    
+
 increasingOrderedPairsHelper :: (Ord k, Enum k, Bounded k) => Int -> k -> Gen [(k,k)]
 increasingOrderedPairsHelper n k = if n > 0
   then case atLeastTwoGreaterThan k of
@@ -685,7 +796,7 @@ instance SG.Semigroup Int where
 instance Monoid Int where
   mempty = 0
   mappend = (SG.<>)
-  
+
 instance SG.Semigroup Integer where
   (<>) = (+)
 
