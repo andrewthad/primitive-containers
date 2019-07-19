@@ -24,15 +24,12 @@ module Data.Continuous.Set.Internal
 import Prelude hiding (lookup,showsPrec,concat,map,foldr,negate,null)
 
 import Control.Monad.ST (ST,runST)
-import Data.Bool (bool)
 import Data.Word (Word8)
 import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
 import Data.Primitive (PrimArray,MutablePrimArray)
 import Data.Bits (unsafeShiftL,unsafeShiftR,(.|.),(.&.))
-import qualified Data.Foldable as F
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as I
-import qualified Data.Concatenation as C
 
 -- Although the data constructor for this type is exported,
 -- it isn't needed by anything in the continuous Set modules. It is needed
@@ -245,13 +242,13 @@ combineNegativeInfinities (Just (xinc,x)) (Just (yinc,y)) = case compare x y of
   GT -> Just (xinc,x)
   LT -> Just (yinc,y)
   EQ -> Just (max xinc yinc,y)
-      
+
 eatFromPositiveInfinity ::
      Inclusivity -- inclusivity for positive infinity
   -> a -- lower bound for positive infinity
   -> arr a -- set 1
   -> PrimArray Word8
-  -> Int -- pairs in set 1 
+  -> Int -- pairs in set 1
   -> arr a -- set 2
   -> PrimArray Word8
   -> Int -- pairs in set 2
@@ -263,7 +260,7 @@ eatFromNegativeInfinity :: (Contiguous arr, Element arr a, Ord a)
   -> a -- upper bound for negative infinity
   -> arr a -- set 1
   -> PrimArray Word8
-  -> Int -- pairs in set 1 
+  -> Int -- pairs in set 1
   -> arr a -- set 2
   -> PrimArray Word8
   -> Int -- pairs in set 2
@@ -391,7 +388,7 @@ member val (Set keys incs) = case edges keys incs of
   where
   go !start !end = if end <= start
     then if end == start
-      then 
+      then
         let !(# valLo #) = I.index# keys (2 * start)
             !(# valHi #) = I.index# keys (2 * start + 1)
          in case indexInclusivityPair incs start of
