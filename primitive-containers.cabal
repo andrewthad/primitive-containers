@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name: primitive-containers
-version: 0.4.0
+version: 0.4.1
 synopsis: containers backed by arrays
 description:
   Containers backed by flat arrays. Updates require rebuilding the
@@ -41,11 +41,11 @@ library
     , deepseq >= 1.4
     , primitive-unlifted >= 0.1 && <0.2
   if flag(checked)
-    build-depends: 
+    build-depends:
         contiguous-checked >= 0.4 && < 0.5
       , primitive-checked >= 0.6.4.1
   else
-    build-depends: 
+    build-depends:
         contiguous >= 0.4 && < 0.5
       , primitive >= 0.6.4
   exposed-modules:
