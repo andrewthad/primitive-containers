@@ -42,12 +42,12 @@ library
     , primitive-unlifted >= 0.1 && <0.2
   if flag(checked)
     build-depends:
-        contiguous-checked >= 0.4 && < 0.5
-      , primitive-checked >= 0.6.4.1
+        contiguous-checked >= 0.4 && < 0.6
+      , primitive-checked >= 0.6.4.1 && < 0.8
   else
     build-depends:
-        contiguous >= 0.4 && < 0.5
-      , primitive >= 0.6.4
+        contiguous >= 0.4 && < 0.6
+      , primitive >= 0.6.4 && < 0.8
   exposed-modules:
     Data.Continuous.Set.Lifted
     Data.Diet.Map.Strict.Lifted.Lifted
