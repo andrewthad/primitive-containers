@@ -24,3 +24,4 @@ cabal.project.local~
 dump.txt
 dump2.txt
 *.swp
+result/
