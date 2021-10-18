@@ -34,7 +34,7 @@ import Control.Monad.ST (ST,runST)
 import Data.Semigroup (Semigroup)
 import Data.Foldable (foldl')
 import Text.Show (showListWith)
-import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
+import Data.Primitive.Contiguous (Contiguous,ContiguousU,Element,Mutable)
 import Data.Diet.Set.Internal (Set(..))
 import qualified Data.List as L
 import qualified Data.Semigroup as SG
@@ -57,23 +57,23 @@ map f (Map k v) = Map k (I.map f v)
 equals :: (Contiguous karr, Element karr k, Eq k, Contiguous varr, Element varr v, Eq v) => Map karr varr k v -> Map karr varr k v -> Bool
 equals (Map k1 v1) (Map k2 v2) = I.equals k1 k2 && I.equals v1 v2
 
-fromListN :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v) => Int -> [(k,k,v)] -> Map karr varr k v
+fromListN :: (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Eq v) => Int -> [(k,k,v)] -> Map karr varr k v
 fromListN = fromListWithN (\_ a -> a)
 
-fromList :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v) => [(k,k,v)] -> Map karr varr k v
+fromList :: (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Eq v) => [(k,k,v)] -> Map karr varr k v
 fromList = fromListN 1
 
-fromListAppendN :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Semigroup v, Eq v) => Int -> [(k,k,v)] -> Map karr varr k v
+fromListAppendN :: (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Semigroup v, Eq v) => Int -> [(k,k,v)] -> Map karr varr k v
 fromListAppendN = fromListWithN (SG.<>)
 
-fromListAppend :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Semigroup v, Eq v) => [(k,k,v)] -> Map karr varr k v
+fromListAppend :: (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Semigroup v, Eq v) => [(k,k,v)] -> Map karr varr k v
 fromListAppend = fromListAppendN 1
 
-fromListWithN :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v) => (v -> v -> v) -> Int -> [(k,k,v)] -> Map karr varr k v
+fromListWithN :: (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Eq v) => (v -> v -> v) -> Int -> [(k,k,v)] -> Map karr varr k v
 fromListWithN combine _ xs =
   concatWith combine (P.map (\(lo,hi,v) -> singleton lo hi v) xs)
 
-concat :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Semigroup v, Eq v) => [Map karr varr k v] -> Map karr varr k v
+concat :: (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Semigroup v, Eq v) => [Map karr varr k v] -> Map karr varr k v
 concat = concatWith (SG.<>)
 
 singleton :: forall karr varr k v. (Contiguous karr, Element karr k,Ord k,Contiguous varr, Element varr v) => k -> k -> v -> Map karr varr k v
@@ -116,18 +116,18 @@ lookup a (Map keys vals) = go 0 (I.size vals - 1) where
 {-# INLINEABLE lookup #-}
 
 
-append :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Semigroup v, Eq v) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
+append :: (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Semigroup v, Eq v) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 append (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith (SG.<>) ksA vsA ksB vsB of
     (k,v) -> Map k v
 
-appendWith :: (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v) => (v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
+appendWith :: (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Eq v) => (v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendWith combine (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith combine ksA vsA ksB vsB of
     (k,v) -> Map k v
   
   
-unionArrWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v)
+unionArrWith :: forall karr varr k v. (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Eq v)
   => (v -> v -> v)
   -> karr k -- keys a
   -> varr v -- values a
@@ -277,8 +277,8 @@ unionArrWith combine keysA valsA keysB valsB
               return (ixDst + 1)
           let ixB' = ixB + 1
               remaining = szB - ixB'
-          I.copy keysDst (ixDst' * 2) keysB (ixB' * 2) (remaining * 2)
-          I.copy valsDst ixDst' valsB ixB' remaining
+          I.copy keysDst (ixDst' * 2) (I.slice keysB (ixB' * 2) (remaining * 2))
+          I.copy valsDst ixDst' (I.slice valsB ixB' remaining)
           return (ixDst' + remaining)
         copyA :: Int -> k -> k -> v -> Int -> ST s Int
         copyA !ixA !loA !hiA !valA !ixDst = do
@@ -294,8 +294,8 @@ unionArrWith combine keysA valsA keysB valsB
               return (ixDst + 1)
           let ixA' = ixA + 1
               remaining = szA - ixA'
-          I.copy keysDst (ixDst' * 2) keysA (ixA' * 2) (remaining * 2)
-          I.copy valsDst ixDst' valsA ixA' remaining
+          I.copy keysDst (ixDst' * 2) (I.slice keysA (ixA' * 2) (remaining * 2))
+          I.copy valsDst ixDst' (I.slice valsA ixA' remaining)
           return (ixDst' + remaining)
     let !loA0 = indexLoKeyA 0
         !loB0 = indexLoKeyB 0
@@ -356,7 +356,7 @@ unionArrWith combine keysA valsA keysB valsB
     !valsFinal <- I.resize valsDst total
     liftA2 (,) (I.unsafeFreeze keysFinal) (I.unsafeFreeze valsFinal)
 
-concatWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Enum k, Contiguous varr, Element varr v, Eq v)
+concatWith :: forall karr varr k v. (ContiguousU karr, Element karr k, Ord k, Enum k, ContiguousU varr, Element varr v, Eq v)
   => (v -> v -> v)
   -> [Map karr varr k v]
   -> Map karr varr k v

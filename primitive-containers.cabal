@@ -36,7 +36,7 @@ library
       src
   build-depends:
       base >=4.9 && <5
-    , primitive-sort >= 0.1 && < 0.2
+    , primitive-sort >= 0.1.1 && < 0.2
     , hashable >= 1.2.5
     , deepseq >= 1.4
     , primitive-unlifted >= 0.1 && <0.2
@@ -46,7 +46,7 @@ library
       , primitive-checked >= 0.6.4.1 && < 0.8
   else
     build-depends:
-        contiguous >= 0.4 && < 0.6
+        contiguous >= 0.4 && < 0.7
       , primitive >= 0.6.4 && < 0.8
   exposed-modules:
     Data.Continuous.Set.Lifted

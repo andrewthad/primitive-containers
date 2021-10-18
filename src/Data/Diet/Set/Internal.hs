@@ -41,7 +41,7 @@ import Prelude hiding (lookup,showsPrec,concat,map,foldr,negate)
 
 import Control.Monad.ST (ST,runST)
 import Data.Bool (bool)
-import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
+import Data.Primitive.Contiguous (Contiguous,ContiguousU,Element,Mutable)
 import qualified Data.Foldable as F
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as I
@@ -58,13 +58,13 @@ empty = Set I.empty
 equals :: (Contiguous arr, Element arr a, Eq a) => Set arr a -> Set arr a -> Bool
 equals (Set x) (Set y) = I.equals x y
 
-fromListN :: (Contiguous arr, Element arr a, Ord a, Enum a) => Int -> [(a,a)] -> Set arr a
+fromListN :: (ContiguousU arr, Element arr a, Ord a, Enum a) => Int -> [(a,a)] -> Set arr a
 fromListN _ xs = concat (P.map (uncurry singleton) xs)
 
-fromList :: (Contiguous arr, Element arr a, Ord a, Enum a) => [(a,a)] -> Set arr a
+fromList :: (ContiguousU arr, Element arr a, Ord a, Enum a) => [(a,a)] -> Set arr a
 fromList = fromListN 1
 
-concat :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
+concat :: forall arr a. (ContiguousU arr, Element arr a, Ord a, Enum a)
   => [Set arr a]
   -> Set arr a
 concat = C.concatSized size empty append
@@ -132,7 +132,7 @@ slice :: (Contiguous arr, Element arr a)
   -> Int -- inclusive high index
   -> Set arr a
   -> Set arr a
-slice loIx hiIx (Set arr) = Set (I.clone arr (loIx * 2) ((hiIx - loIx + 1) * 2))
+slice loIx hiIx (Set arr) = Set (I.clone (I.slice arr (loIx * 2) ((hiIx - loIx + 1) * 2)))
 
 -- This is exported for use in Unbounded Diet Sets, but it should
 -- be considered an internal function since it provided an index
@@ -176,12 +176,12 @@ betweenInclusive lo hi (Set arr)
   | I.size arr > 0 && I.index arr 0 >= lo && I.index arr (I.size arr - 1) <= hi = Set arr
   | otherwise = case locate lo (Set arr) of
       Left ixLo -> case locate hi (Set arr) of
-        Left ixHi -> Set (I.clone arr (ixLo * 2) ((ixHi - ixLo) * 2))
+        Left ixHi -> Set (I.clone (I.slice arr (ixLo * 2) ((ixHi - ixLo) * 2)))
         Right ixHi -> runST $ do
           let len = ixHi - ixLo + 1
           res <- I.new (len * 2)
           rightLo <- I.indexM arr (ixHi * 2)
-          I.copy res 0 arr (ixLo * 2) (len * 2 - 2)
+          I.copy res 0 (I.slice arr (ixLo * 2) (len * 2 - 2))
           I.write res (len * 2 - 2) rightLo
           I.write res (len * 2 - 1) hi
           r <- I.unsafeFreeze res
@@ -193,7 +193,7 @@ betweenInclusive lo hi (Set arr)
           leftHi <- I.indexM arr (ixLo * 2 + 1)
           I.write res 0 lo
           I.write res 1 leftHi
-          I.copy res 2 arr (ixLo * 2 + 2) (len * 2 - 2)
+          I.copy res 2 (I.slice arr (ixLo * 2 + 2) (len * 2 - 2))
           r <- I.unsafeFreeze res
           return (Set r)
         Right ixHi -> if ixLo == ixHi
@@ -204,7 +204,7 @@ betweenInclusive lo hi (Set arr)
             leftHi <- I.indexM arr (ixLo * 2 + 1)
             I.write res 0 lo
             I.write res 1 leftHi
-            I.copy res 2 arr (ixLo * 2 + 2) (len * 2 - 4)
+            I.copy res 2 (I.slice arr (ixLo * 2 + 2) (len * 2 - 4))
             rightLo <- I.indexM arr (ixHi * 2)
             I.write res (len * 2 - 2) rightLo
             I.write res (len * 2 - 1) hi
@@ -219,19 +219,19 @@ aboveInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
 aboveInclusive x (Set arr) = case locate x (Set arr) of
   Left ix -> if ix == 0
     then Set arr
-    else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+    else Set (I.clone (I.slice arr (ix * 2) (I.size arr - ix * 2)))
   Right ix ->
     let lo = I.index arr (ix * 2)
         hi = I.index arr (ix * 2 + 1)
      in if lo == x
           then if ix == 0
             then Set arr
-            else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+            else Set (I.clone (I.slice arr (ix * 2) (I.size arr - ix * 2)))
           else runST $ do
             (result :: Mutable arr s a) <- I.new (I.size arr - ix * 2)
             I.write result 0 x
             I.write result 1 hi
-            I.copy result 2 arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2)
+            I.copy result 2 (I.slice arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2))
             r <- I.unsafeFreeze result
             return (Set r)
 
@@ -242,16 +242,16 @@ aboveExclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
 aboveExclusive x (Set arr) = case locate x (Set arr) of
   Left ix -> if ix == 0
     then Set arr
-    else Set (I.clone arr (ix * 2) (I.size arr - ix * 2))
+    else Set (I.clone (I.slice arr (ix * 2) (I.size arr - ix * 2)))
   Right ix ->
     let hi = I.index arr (ix * 2 + 1)
      in if hi == x
-          then Set (I.clone arr ((ix + 1) * 2) (I.size arr - (ix + 1) * 2))
+          then Set (I.clone (I.slice arr ((ix + 1) * 2) (I.size arr - (ix + 1) * 2)))
           else runST $ do
             (result :: Mutable arr s a) <- I.new (I.size arr - ix * 2)
             I.write result 0 (succ x)
             I.write result 1 hi
-            I.copy result 2 arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2)
+            I.copy result 2 (I.slice arr ((ix + 1) * 2) (I.size arr - ix * 2 - 2))
             r <- I.unsafeFreeze result
             return (Set r)
 
@@ -263,17 +263,17 @@ belowInclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a)
 belowInclusive x (Set arr) = case locate x (Set arr) of
   Left ix -> if ix * 2 == I.size arr
     then Set arr
-    else Set (I.clone arr 0 (ix * 2))
+    else Set (I.clone (I.slice arr 0 (ix * 2)))
   Right ix ->
     let lo = I.index arr (ix * 2)
         hi = I.index arr (ix * 2 + 1)
      in if hi == x
           then if ix * 2 == I.size arr - 2
             then Set arr
-            else Set (I.clone arr 0 ((ix + 1) * 2))
+            else Set (I.clone (I.slice arr 0 ((ix + 1) * 2)))
           else runST $ do
             result <- I.new ((ix + 1) * 2)
-            I.copy result 0 arr 0 (ix * 2)
+            I.copy result 0 (I.slice arr 0 (ix * 2))
             I.write result (ix * 2) lo
             I.write result (ix * 2 + 1) x
             r <- I.unsafeFreeze result
@@ -286,20 +286,20 @@ belowExclusive :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
 belowExclusive x (Set arr) = case locate x (Set arr) of
   Left ix -> if ix * 2 == I.size arr
     then Set arr
-    else Set (I.clone arr 0 (ix * 2))
+    else Set (I.clone (I.slice arr 0 (ix * 2)))
   Right ix ->
     let lo = I.index arr (ix * 2)
      in if lo == x
-          then Set (I.clone arr 0 (ix * 2))
+          then Set (I.clone (I.slice arr 0 (ix * 2)))
           else runST $ do
             result <- I.new ((ix + 1) * 2)
-            I.copy result 0 arr 0 (ix * 2)
+            I.copy result 0 (I.slice arr 0 (ix * 2))
             I.write result (ix * 2) lo
             I.write result (ix * 2 + 1) (pred x)
             r <- I.unsafeFreeze result
             return (Set r)
 
-append :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
+append :: forall arr a. (ContiguousU arr, Element arr a, Ord a, Enum a)
   => Set arr a
   -> Set arr a
   -> Set arr a
@@ -428,7 +428,7 @@ append (Set keysA) (Set keysB)
               return (ixDst + 1)
           let ixB' = ixB + 1
               remaining = szB - ixB'
-          I.copy keysDst (ixDst' * 2) keysB (ixB' * 2) (remaining * 2)
+          I.copy keysDst (ixDst' * 2) (I.slice keysB (ixB' * 2) (remaining * 2))
           return (ixDst' + remaining)
         copyA :: Int -> a -> a -> Int -> ST s Int
         copyA !ixA !loA !hiA !ixDst = do
@@ -442,7 +442,7 @@ append (Set keysA) (Set keysB)
               return (ixDst + 1)
           let ixA' = ixA + 1
               remaining = szA - ixA'
-          I.copy keysDst (ixDst' * 2) keysA (ixA' * 2) (remaining * 2)
+          I.copy keysDst (ixDst' * 2) (I.slice keysA (ixA' * 2) (remaining * 2))
           return (ixDst' + remaining)
     let !loA0 = indexLoKeyA 0
         !loB0 = indexLoKeyB 0
@@ -495,7 +495,7 @@ append (Set keysA) (Set keysB)
 
 -- The element type must have a Bounded instance for
 -- this to work.
-negate :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a, Bounded a)
+negate :: forall arr a. (ContiguousU arr, Element arr a, Ord a, Enum a, Bounded a)
   => Set arr a
   -> Set arr a
 negate set@(Set arr)
@@ -548,7 +548,7 @@ negate set@(Set arr)
 -- building any intermediate artifacts. Additionally, the better solution
 -- should not need an Enum constraint. If anyone can figure out the better
 -- way to do this, I would gladly take a PR for it.
-difference :: forall a arr. (Contiguous arr, Element arr a, Ord a, Enum a)
+difference :: forall a arr. (ContiguousU arr, Element arr a, Ord a, Enum a)
   => Set arr a
   -> Set arr a
   -> Set arr a
@@ -587,7 +587,7 @@ difference setA@(Set arrA) setB@(Set arrB)
 -- negate the diet set. This means we do not have to do the weirdness with
 -- treating the first and last elements specially and the weirdness with
 -- straddling ranges as we walk the second diet set.
-intersection :: forall a arr. (Contiguous arr, Element arr a, Ord a, Enum a)
+intersection :: forall a arr. (ContiguousU arr, Element arr a, Ord a, Enum a)
   => Set arr a
   -> Set arr a
   -> Set arr a

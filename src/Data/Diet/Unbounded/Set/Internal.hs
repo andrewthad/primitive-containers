@@ -19,7 +19,7 @@ module Data.Diet.Unbounded.Set.Internal
 
 import Prelude hiding (showsPrec)
 
-import Data.Primitive.Contiguous (Contiguous,Element,Mutable)
+import Data.Primitive.Contiguous (Contiguous,ContiguousU,Element,Mutable)
 
 import qualified Data.Diet.Set.Internal as S
 import qualified Data.Primitive.Contiguous as I
@@ -62,7 +62,7 @@ singleton Nothing (Just hi) = SetSome (Just hi) S.empty Nothing
 singleton (Just lo) Nothing = SetSome Nothing S.empty (Just lo)
 singleton (Just lo) (Just hi) = SetSome Nothing (S.singleton lo hi) Nothing
 
-append :: forall arr a. (Contiguous arr, Element arr a, Ord a, Enum a)
+append :: forall arr a. (ContiguousU arr, Element arr a, Ord a, Enum a)
   => Set arr a
   -> Set arr a
   -> Set arr a
@@ -123,7 +123,7 @@ append (SetSome Nothing a (Just infLoA)) (SetSome (Just infHiB) b Nothing) =
 append (SetSome (Just infHiA) a Nothing) (SetSome Nothing b (Just infLoB)) =
   generalAppend infHiA infLoB a b
 
-generalAppend :: (Contiguous arr, Ord a, Enum a, Element arr a)
+generalAppend :: (ContiguousU arr, Ord a, Enum a, Element arr a)
   => a -> a -> S.Set arr a -> S.Set arr a -> Set arr a
 generalAppend infHiX infLoX a b =
   case establishInfinityBoth infHiX infLoX (S.append a b) of

@@ -170,11 +170,11 @@ traverse_ f (MapValues _ v) = I.traverse_ f v
 pure :: (Contiguous karr, Contiguous varr, Element karr k, Element varr v, Bounded k) => v -> Map karr varr k v
 pure v = Map
   (runST $ do
-     !(arr :: Mutable karr s k) <- I.replicateMutable 1 maxBound
+     !(arr :: Mutable karr s k) <- I.replicateMut 1 maxBound
      I.unsafeFreeze arr
   )
   (runST $ do
-     !(arr :: Mutable varr s v) <- I.replicateMutable 1 v
+     !(arr :: Mutable varr s v) <- I.replicateMut 1 v
      I.unsafeFreeze arr
   )
 
