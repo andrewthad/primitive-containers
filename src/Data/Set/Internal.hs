@@ -50,14 +50,14 @@ import Prelude hiding (compare,showsPrec,concat,foldr,foldMap,null,map,enumFromT
 
 import Control.Monad.ST (ST,runST)
 import Data.Hashable (Hashable)
-import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
+import Data.Primitive.Contiguous (ContiguousU,Contiguous,Mutable,Element)
 import qualified Prelude as P
 import qualified Data.Primitive.Contiguous as A
 import qualified Data.Concatenation as C
 
 newtype Set arr a = Set (arr a)
 
-append :: (Contiguous arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
+append :: (ContiguousU arr, Element arr a, Ord a) => Set arr a -> Set arr a -> Set arr a
 append (Set x) (Set y) = Set (unionArr x y)
   
 null :: Contiguous arr => Set arr a -> Bool
@@ -76,7 +76,7 @@ compare (Set x) (Set y) = compareArr x y
 map :: (Contiguous arr, Element arr a, Element arr b) => (a -> b) -> Set arr a -> Set arr b
 map f (Set x) = Set (A.map f x)
 
-fromListN :: (Contiguous arr, Element arr a, Ord a) => Int -> [a] -> Set arr a
+fromListN :: (ContiguousU arr, Element arr a, Ord a) => Int -> [a] -> Set arr a
 fromListN n xs = -- fromList xs
   case xs of
     [] -> empty
@@ -84,7 +84,7 @@ fromListN n xs = -- fromList xs
       let (leftovers, result) = fromAscList (max 1 n) y ys
        in concat (result : P.map singleton leftovers)
 
-fromList :: (Contiguous arr, Element arr a, Ord a) => [a] -> Set arr a
+fromList :: (ContiguousU arr, Element arr a, Ord a) => [a] -> Set arr a
 fromList = fromListN 1
 
 -- This is intended to be used with things like Word8,Int8,Word16,Int16,etc.
@@ -116,7 +116,7 @@ enumFromTo !lo !hi = if hi >= lo
   else Set A.empty
 
 
-difference :: forall a arr. (Contiguous arr, Element arr a, Ord a)
+difference :: forall a arr. (ContiguousU arr, Element arr a, Ord a)
   => Set arr a
   -> Set arr a
   -> Set arr a
@@ -139,7 +139,7 @@ difference s1@(Set arr1) s2@(Set arr2)
               else return dstIx
             else do
               let !remaining = sz1 - ix1
-              A.copy dst dstIx arr1 ix1 remaining
+              A.copy dst dstIx (A.slice arr1 ix1 remaining)
               return (dstIx + remaining)
       dstSz <- go 0 0 0
       dstFrozen <- A.resize dst dstSz >>= A.unsafeFreeze
@@ -174,7 +174,7 @@ intersects s1 s2
     !sz2 = size s2
 {-# INLINEABLE intersects #-}
 
-intersection :: forall a arr. (Contiguous arr, Element arr a, Ord a)
+intersection :: forall a arr. (ContiguousU arr, Element arr a, Ord a)
   => Set arr a
   -> Set arr a
   -> Set arr a
@@ -201,7 +201,7 @@ intersection s1@(Set arr1) s2@(Set arr2)
     !sz1 = size s1
     !sz2 = size s2
 
-fromAscList :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+fromAscList :: forall arr a. (ContiguousU arr, Element arr a, Ord a)
   => Int -- initial size of buffer, must be 1 or higher
   -> a -- first element
   -> [a] -- elements
@@ -272,13 +272,14 @@ lookupIndex a (Set arr) = go 0 (A.size arr - 1) where
             GT -> go (mid + 1) end
 {-# INLINEABLE lookupIndex #-}
 
-concat :: forall arr a. (Contiguous arr, Element arr a, Ord a) => [Set arr a] -> Set arr a
+concat :: forall arr a. (ContiguousU arr, Element arr a, Ord a) => [Set arr a] -> Set arr a
 concat = C.concatSized size empty append
 
 compareArr :: (Contiguous arr, Element arr a, Ord a)
   => arr a
   -> arr a
   -> Ordering
+{-# INLINEABLE compareArr #-}
 compareArr arrA arrB = go 0 where
   go :: Int -> Ordering
   go !ix = if ix < A.size arrA
@@ -290,15 +291,18 @@ compareArr arrA arrB = go 0 where
       else EQ
 
 singleton :: (Contiguous arr, Element arr a) => a -> Set arr a
+{-# INLINEABLE singleton #-}
 singleton a = Set (A.singleton a)
 
 doubleton :: (Contiguous arr, Element arr a, Ord a) => a -> a -> Set arr a
+{-# INLINEABLE doubleton #-}
 doubleton a b = case P.compare a b of
   LT -> Set (A.doubleton a b)
   GT -> Set (A.doubleton b a)
   EQ -> Set (A.singleton a)
 
 tripleton :: (Contiguous arr, Element arr a, Ord a) => a -> a -> a -> Set arr a
+{-# INLINEABLE tripleton #-}
 tripleton a b c = case P.compare a b of
   LT -> case P.compare b c of
     LT -> Set (A.tripleton a b c)
@@ -322,10 +326,11 @@ tripleton a b c = case P.compare a b of
 --   the other array instead of reconstructing it.
 -- * All elements in one array are smaller than all elements in the
 --   other. In this case, we can append the arrays, which uses memcpy.
-unionArr :: forall arr a. (Contiguous arr, Element arr a, Ord a)
+unionArr :: forall arr a. (ContiguousU arr, Element arr a, Ord a)
   => arr a -- array x
   -> arr a -- array y
   -> arr a
+{-# INLINEABLE unionArr #-}
 unionArr arrA arrB
   | szA < 1 = arrB
   | szB < 1 = arrA
@@ -348,11 +353,11 @@ unionArr arrA arrB
                     A.write arrDst ixDst b
                     go ixA (ixB + 1) (ixDst + 1)
               else do
-                A.copy arrDst ixDst arrA ixA (szA - ixA)
+                A.copy arrDst ixDst (A.slice arrA ixA (szA - ixA))
                 return (ixDst + (szA - ixA))
             else if ixB < szB
               then do
-                A.copy arrDst ixDst arrB ixB (szB - ixB)
+                A.copy arrDst ixDst (A.slice arrB ixB (szB - ixB))
                 return (ixDst + (szB - ixB))
               else return ixDst
       total <- go 0 0 0
@@ -441,6 +446,7 @@ subset :: (Contiguous arr, Element arr a, Ord a)
   => Set arr a
   -> Set arr a
   -> Bool
+{-# INLINEABLE subset #-}
 subset (Set arrA) (Set arrB) = go 0 0
   where
   !szA = A.size arrA
