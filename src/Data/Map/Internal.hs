@@ -73,9 +73,8 @@ import Control.DeepSeq (NFData)
 import Control.Monad.Primitive (PrimMonad,PrimState)
 import Control.Monad.ST (ST,runST)
 import Data.List.NonEmpty (NonEmpty)
-import Data.Primitive.Contiguous (Contiguous,Mutable,Element)
+import Data.Primitive.Contiguous (ContiguousU,Mutable,Element)
 import Data.Primitive.Sort (sortUniqueTaggedMutable)
-import Data.Semigroup (Semigroup)
 import Data.Set.Internal (Set(..))
 
 import qualified Data.Concatenation as C
@@ -86,13 +85,13 @@ import qualified Prelude as P
 -- TODO: Do some sneakiness with UnliftedRep
 data Map karr varr k v = Map !(karr k) !(varr v)
 
-empty :: (Contiguous karr, Contiguous varr) => Map karr varr k v
+empty :: (ContiguousU karr, ContiguousU varr) => Map karr varr k v
 empty = Map I.empty I.empty
 
-null :: Contiguous varr => Map karr varr k v -> Bool
+null :: ContiguousU varr => Map karr varr k v -> Bool
 null (Map _ vals) = I.null vals
 
-singleton :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v) => k -> v -> Map karr varr k v
+singleton :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v) => k -> v -> Map karr varr k v
 singleton k v = Map
   ( runST $ do
       arr <- I.new 1
@@ -105,13 +104,13 @@ singleton k v = Map
       I.unsafeFreeze arr
   )
 
-equals :: (Contiguous karr, Element karr k, Eq k, Contiguous varr, Element varr v, Eq v) => Map karr varr k v -> Map karr varr k v -> Bool
+equals :: (ContiguousU karr, Element karr k, Eq k, ContiguousU varr, Element varr v, Eq v) => Map karr varr k v -> Map karr varr k v -> Bool
 equals (Map k1 v1) (Map k2 v2) = I.equals k1 k2 && I.equals v1 v2
 
-compare :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Ord v) => Map karr varr k v -> Map karr varr k v -> Ordering
+compare :: (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v, Ord v) => Map karr varr k v -> Map karr varr k v -> Ordering
 compare m1 m2 = P.compare (toList m1) (toList m2)
 
-fromListWithN :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => (v -> v -> v) -> Int -> [(k,v)] -> Map karr varr k v
+fromListWithN :: (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v) => (v -> v -> v) -> Int -> [(k,v)] -> Map karr varr k v
 fromListWithN combine n xs =
   case xs of
     [] -> empty
@@ -119,7 +118,7 @@ fromListWithN combine n xs =
       let (leftovers, result) = fromAscListWith combine (max 1 n) k v ys
        in concatWith combine (result : P.map (uncurry singleton) leftovers)
 
-fromListN :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+fromListN :: (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v)
   => Int
   -> [(k,v)]
   -> Map karr varr k v
@@ -128,13 +127,14 @@ fromListN n xs = runST $ do
   (ks,vs) <- mutableArraysFromPairs (max n 1) xs
   unsafeFreezeZip ks vs
 
-mutableArraysFromPairs :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+mutableArraysFromPairs :: forall s karr varr k v. (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v)
   => Int -- must be at least one
   -> [(k,v)]
   -> ST s (Mutable karr s k, Mutable varr s v)
 {-# INLINABLE mutableArraysFromPairs #-}
 mutableArraysFromPairs n xs = do
-  let go !ix !_ !ks !vs [] = return (ix,ks,vs)
+  let go :: Int -> Int -> Mutable karr s k -> Mutable varr s v -> [(k,v)] -> ST s (Int, Mutable karr s k, Mutable varr s v)
+      go !ix !_ !ks !vs [] = return (ix,ks,vs)
       go !ix !len !ks !vs ((k,v) : ys) = if ix < len
         then do
           I.write ks ix k
@@ -144,8 +144,8 @@ mutableArraysFromPairs n xs = do
           let len' = len * 2
           ks' <- I.new len'
           vs' <- I.new len'
-          I.copyMutable ks' 0 ks 0 len
-          I.copyMutable vs' 0 vs 0 len
+          I.copyMut ks' 0 (I.sliceMut ks 0 len)
+          I.copyMut vs' 0 (I.sliceMut vs 0 len)
           I.write ks' ix k
           I.write vs' ix v
           go (ix + 1) len' ks' vs' ys
@@ -156,16 +156,16 @@ mutableArraysFromPairs n xs = do
   vsFinal <- I.resize vs' len
   return (ksFinal,vsFinal)
 
-fromList :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v) => [(k,v)] -> Map karr varr k v
+fromList :: (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v) => [(k,v)] -> Map karr varr k v
 fromList = fromListN 8
 
-fromListAppendN :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => Int -> [(k,v)] -> Map karr varr k v
+fromListAppendN :: (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v, Semigroup v) => Int -> [(k,v)] -> Map karr varr k v
 fromListAppendN = fromListWithN (SG.<>)
 
-fromListAppend :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => [(k,v)] -> Map karr varr k v
+fromListAppend :: (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v, Semigroup v) => [(k,v)] -> Map karr varr k v
 fromListAppend = fromListAppendN 1
 
-fromAscListWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+fromAscListWith :: forall karr varr k v. (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v)
   => (v -> v -> v)
   -> Int -- initial size of buffer, must be 1 or higher
   -> k -- first key
@@ -214,14 +214,14 @@ fromAscListWith combine !n !k0 !v0 xs0 = runST $ do
   go 1 k0 n keys0 vals0 xs0
 
 
-map :: (Contiguous varr, Contiguous warr, Element varr v, Element warr w)
+map :: (ContiguousU varr, ContiguousU warr, Element varr v, Element warr w)
   => (v -> w)
   -> Map karr varr k v
   -> Map karr warr k w
 map f (Map k v) = Map k (I.map f v)
 
 -- | /O(n)/ Map over the elements with access to their corresponding keys.
-mapWithKey :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+mapWithKey :: forall karr varr k v w. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
   => (k -> v -> w)
   -> Map karr varr k v
   -> Map karr varr k w
@@ -244,7 +244,7 @@ mapWithKey f (Map ks vs) = runST $ do
   return (Map ksFinal vsFinal)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
-mapMaybe :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+mapMaybe :: forall karr varr k v w. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
   => (v -> Maybe w)
   -> Map karr varr k v
   -> Map karr varr k w
@@ -269,7 +269,7 @@ mapMaybe f (Map ks vs) = runST $ do
   return (Map ksFinal vsFinal)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
-mapMaybeP :: forall karr varr m k v w. (PrimMonad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+mapMaybeP :: forall karr varr m k v w. (PrimMonad m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
   => (v -> m (Maybe w))
   -> Map karr varr k v
   -> m (Map karr varr k w)
@@ -294,7 +294,7 @@ mapMaybeP f (Map ks vs) = do
   return (Map ksFinal vsFinal)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
-mapMaybeWithKey :: forall karr varr k v w. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+mapMaybeWithKey :: forall karr varr k v w. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
   => (k -> v -> Maybe w)
   -> Map karr varr k v
   -> Map karr varr k w
@@ -319,19 +319,14 @@ mapMaybeWithKey f (Map ks vs) = runST $ do
   vsFinal <- I.resize varr dstLen >>= I.unsafeFreeze
   return (Map ksFinal vsFinal)
 
-newtype STA arr a = STA { _runSTA :: forall s. Mutable arr s a -> ST s (arr a) }
-
-runSTA :: (Contiguous arr, Element arr a) => Int -> STA arr a -> arr a
-runSTA !sz (STA m) = runST $ I.new sz >>= \arr -> m arr
-
-showsPrec :: (Contiguous karr, Element karr k, Show k, Contiguous varr, Element varr v, Show v) => Int -> Map karr varr k v -> ShowS
+showsPrec :: (ContiguousU karr, Element karr k, Show k, ContiguousU varr, Element varr v, Show v) => Int -> Map karr varr k v -> ShowS
 showsPrec p xs = showParen (p > 10) $
   showString "fromList " . shows (toList xs)
 
-toList :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v) => Map karr varr k v -> [(k,v)]
+toList :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v) => Map karr varr k v -> [(k,v)]
 toList = foldrWithKey (\k v xs -> (k,v) : xs) []
 
-foldrWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+foldrWithKey :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => (k -> v -> b -> b)
   -> b
   -> Map karr varr k v
@@ -346,7 +341,7 @@ foldrWithKey f z (Map theKeys vals) =
              in f k v (go (i + 1))
    in go 0
 
-foldMapWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid m)
+foldMapWithKey :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Monoid m)
   => (k -> v -> m)
   -> Map karr varr k v
   -> m
@@ -360,15 +355,15 @@ foldMapWithKey f (Map theKeys vals) =
              in mappend (f k v) (go (i + 1))
    in go 0
 
-adjustMany :: forall karr varr m k v a. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, PrimMonad m, Ord k)
+adjustMany :: forall karr varr m k v a. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, PrimMonad m, Ord k)
   => ((k -> (v -> m v) -> m ()) -> m a) -- Callback that takes a modify function
   -> Map karr varr k v
   -> m (Map karr varr k v, a)
 {-# INLINABLE adjustMany #-}
 adjustMany f (Map theKeys theVals) = do
-  mvals <- I.thaw theVals 0 (I.size theVals)
+  mvals <- I.thaw (I.slice theVals 0 (I.size theVals))
   let g :: k -> (v -> m v) -> m ()
-      g !k updateVal = 
+      g !k updateVal =
         let go !start !end = if end < start
               then pure ()
               else
@@ -386,15 +381,15 @@ adjustMany f (Map theKeys theVals) = do
   rvals <- I.unsafeFreeze mvals
   pure (Map theKeys rvals, r)
 
-adjustManyInline :: forall karr varr m k v a. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, PrimMonad m, Ord k)
+adjustManyInline :: forall karr varr m k v a. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, PrimMonad m, Ord k)
   => ((k -> (v -> m v) -> m ()) -> m a) -- Callback that takes a modify function
   -> Map karr varr k v
   -> m (Map karr varr k v, a)
 {-# INLINE adjustManyInline #-}
 adjustManyInline f (Map theKeys theVals) = do
-  mvals <- I.thaw theVals 0 (I.size theVals)
+  mvals <- I.thaw (I.slice theVals 0 (I.size theVals))
   let g :: k -> (v -> m v) -> m ()
-      g !k updateVal = 
+      g !k updateVal =
         let go !start !end = if end < start
               then pure ()
               else
@@ -412,44 +407,44 @@ adjustManyInline f (Map theKeys theVals) = do
   rvals <- I.unsafeFreeze mvals
   pure (Map theKeys rvals, r)
 
-concat :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v, Semigroup v) => [Map karr varr k v] -> Map karr varr k v
+concat :: (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v, Semigroup v) => [Map karr varr k v] -> Map karr varr k v
 concat = concatWith (SG.<>)
 
-concatWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+concatWith :: forall karr varr k v. (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v)
   => (v -> v -> v)
   -> [Map karr varr k v]
   -> Map karr varr k v
 concatWith combine = C.concatSized size empty (appendWith combine)
 
-intersectionsWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+intersectionsWith :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Ord k)
   => (v -> v -> v)
   -> NonEmpty (Map karr varr k v)
   -> Map karr varr k v
 intersectionsWith f = C.concatSized1 size (intersectionWith f)
 
-appendRightBiased :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
+appendRightBiased :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Ord k) => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendRightBiased = appendWith const
 
-appendWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+appendWithKey :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Ord k)
   => (k -> v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendWithKey combine (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith combine ksA vsA ksB vsB of
     (k,v) -> Map k v
   
-appendWith :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+appendWith :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Ord k)
   => (v -> v -> v) -> Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 appendWith combine (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith (\_ x y -> combine x y) ksA vsA ksB vsB of
     (k,v) -> Map k v
   
-append :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k, Semigroup v)
+append :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Ord k, Semigroup v)
   => Map karr varr k v -> Map karr varr k v -> Map karr varr k v
 append (Map ksA vsA) (Map ksB vsB) =
   case unionArrWith (\_ x y -> x SG.<> y) ksA vsA ksB vsB of
     (k,v) -> Map k v
   
 intersectionWith :: forall k v w x karr varr warr xarr.
-     (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Contiguous warr, Element warr w, Contiguous xarr, Element xarr x, Ord k)
+     (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, ContiguousU warr, Element warr w, ContiguousU xarr, Element xarr x, Ord k)
   => (v -> w -> x)
   -> Map karr varr k v
   -> Map karr warr k w
@@ -483,7 +478,7 @@ intersectionWith f s1@(Map karr1 varr1) s2@(Map karr2 varr2)
     !sz1 = size s1
     !sz2 = size s2
 
-unionArrWith :: forall karr varr k v. (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+unionArrWith :: forall karr varr k v. (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v)
   => (k -> v -> v -> v)
   -> karr k -- keys a
   -> varr v -- values a
@@ -520,13 +515,13 @@ unionArrWith combine keysA valsA keysB valsB
                     I.write valsDst ixDst valB
                     go ixA (ixB + 1) (ixDst + 1)
               else do
-                I.copy keysDst ixDst keysA ixA (szA - ixA)
-                I.copy valsDst ixDst valsA ixA (szA - ixA)
+                I.copy keysDst ixDst (I.slice keysA ixA (szA - ixA))
+                I.copy valsDst ixDst (I.slice valsA ixA (szA - ixA))
                 return (ixDst + (szA - ixA))
             else if ixB < szB
               then do
-                I.copy keysDst ixDst keysB ixB (szB - ixB)
-                I.copy valsDst ixDst valsB ixB (szB - ixB)
+                I.copy keysDst ixDst (I.slice keysB ixB (szB - ixB))
+                I.copy valsDst ixDst (I.slice valsB ixB (szB - ixB))
                 return (ixDst + (szB - ixB))
               else return ixDst
       !total <- go 0 0 0
@@ -535,7 +530,7 @@ unionArrWith combine keysA valsA keysB valsB
       liftA2 (,) (I.unsafeFreeze keysFinal) (I.unsafeFreeze valsFinal)
  
 lookup :: forall karr varr k v.
-     (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+     (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v)
   => k
   -> Map karr varr k v
   -> Maybe v
@@ -553,11 +548,11 @@ lookup a (Map arr vals) = go 0 (I.size vals - 1) where
               (# r #) -> Just r
             GT -> go (mid + 1) end
 
-size :: (Contiguous varr, Element varr v) => Map karr varr k v -> Int
+size :: (ContiguousU varr, Element varr v) => Map karr varr k v -> Int
 size (Map _ arr) = I.size arr
 
 -- This may have less constraints than size
-sizeKeys :: (Contiguous karr, Element karr k) => Map karr varr k v -> Int
+sizeKeys :: (ContiguousU karr, Element karr k) => Map karr varr k v -> Int
 sizeKeys (Map arr _) = I.size arr
 
 -- | Sort and deduplicate the key array, preserving the last value associated
@@ -565,7 +560,7 @@ sizeKeys (Map arr _) = I.size arr
 -- to this function. This function is only unsafe because of the requirement
 -- that the arguments not be reused. If the arrays do not match in size, the
 -- larger one will be truncated to the length of the shorter one.
-unsafeFreezeZip :: (Contiguous karr, Element karr k, Ord k, Contiguous varr, Element varr v)
+unsafeFreezeZip :: (ContiguousU karr, Element karr k, Ord k, ContiguousU varr, Element varr v)
   => Mutable karr s k
   -> Mutable varr s v
   -> ST s (Map karr varr k v)
@@ -583,13 +578,13 @@ unsafeFreezeZip keys0 vals0 = do
 --
 -- If either of these conditions is not met, this function will introduce
 -- undefined behavior or segfaults.
-unsafeZipPresorted :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+unsafeZipPresorted :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => karr k -- array of keys, must already be sorted
   -> varr v -- array of values
   -> Map karr varr k v
 unsafeZipPresorted = Map
 
-foldlWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+foldlWithKeyM' :: forall karr varr k v m b. (Monad m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => (b -> k -> v -> m b)
   -> b
   -> Map karr varr k v
@@ -606,7 +601,7 @@ foldlWithKeyM' f b0 (Map ks vs) = go 0 b0
     else return acc
 {-# INLINEABLE foldlWithKeyM' #-}
 
-foldrWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+foldrWithKeyM' :: forall karr varr k v m b. (Monad m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => (k -> v -> b -> m b)
   -> b
   -> Map karr varr k v
@@ -622,7 +617,7 @@ foldrWithKeyM' f b0 (Map ks vs) = go (I.size vs - 1) b0
     else return acc
 {-# INLINEABLE foldrWithKeyM' #-}
 
-foldlMapWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid b)
+foldlMapWithKeyM' :: forall karr varr k v m b. (Monad m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Monoid b)
   => (k -> v -> m b)
   -> Map karr varr k v
   -> m b
@@ -640,7 +635,7 @@ foldlMapWithKeyM' f (Map ks vs) = go 0 mempty
     else return accl
 {-# INLINEABLE foldlMapWithKeyM' #-}
 
-traverse :: (Applicative m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr w)
+traverse :: (Applicative m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
   => (v -> m w)
   -> Map karr varr k v
   -> m (Map karr varr k w)
@@ -648,7 +643,7 @@ traverse :: (Applicative m, Contiguous karr, Element karr k, Contiguous varr, El
 traverse f (Map theKeys theVals) =
   fmap (Map theKeys) (I.traverse f theVals)
 
-traverseWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Element varr v', Applicative f)
+traverseWithKey :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr v', Applicative f)
   => (k -> v -> f v')
   -> Map karr varr k v
   -> f (Map karr varr k v')
@@ -656,7 +651,7 @@ traverseWithKey :: (Contiguous karr, Element karr k, Contiguous varr, Element va
 traverseWithKey f (Map theKeys theVals) = fmap (Map theKeys)
   $ I.itraverse (\i v -> f (I.index theKeys i) v) theVals
 
-traverseWithKey_ :: forall karr varr k v m b. (Applicative m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+traverseWithKey_ :: forall karr varr k v m b. (Applicative m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => (k -> v -> m b)
   -> Map karr varr k v
   -> m ()
@@ -672,7 +667,7 @@ traverseWithKey_ f (Map ks vs) = go 0
     else pure ()
 {-# INLINEABLE traverseWithKey_ #-}
 
-foldrMapWithKeyM' :: forall karr varr k v m b. (Monad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid b)
+foldrMapWithKeyM' :: forall karr varr k v m b. (Monad m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Monoid b)
   => (k -> v -> m b)
   -> Map karr varr k v
   -> m b
@@ -689,7 +684,7 @@ foldrMapWithKeyM' f (Map ks vs) = go (I.size vs - 1) mempty
     else return accr
 {-# INLINEABLE foldrMapWithKeyM' #-}
 
-foldMapWithKey' :: forall karr varr k v m. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Monoid m)
+foldMapWithKey' :: forall karr varr k v m. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Monoid m)
   => (k -> v -> m)
   -> Map karr varr k v
   -> m
@@ -705,7 +700,7 @@ foldMapWithKey' f (Map ks vs) = go 0 mempty
     else accl
 {-# INLINEABLE foldMapWithKey' #-}
 
-foldlWithKey' :: forall karr varr k v b. (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+foldlWithKey' :: forall karr varr k v b. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => (b -> k -> v -> b) 
   -> b
   -> Map karr varr k v
@@ -722,7 +717,7 @@ foldlWithKey' f b0 (Map ks vs) = go 0 b0
     else acc
 {-# INLINEABLE foldlWithKey' #-}
 
-foldrWithKey' :: forall karr varr k v b. (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+foldrWithKey' :: forall karr varr k v b. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => (k -> v -> b -> b)
   -> b
   -> Map karr varr k v
@@ -740,7 +735,7 @@ foldrWithKey' f b0 (Map ks vs) = go (I.size vs - 1) b0
 
 -- The algorithm used here is good when the subset is small, but
 -- when the subset is large, it is worse that just walking the map.
-restrict :: forall karr varr k v. (Contiguous karr, Element karr k, Contiguous varr, Element varr v, Ord k)
+restrict :: forall karr varr k v. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Ord k)
   => Map karr varr k v
   -> Set karr k
   -> Map karr varr k v
@@ -772,8 +767,8 @@ restrict m@(Map ks vs) (Set rs)
   stage2 !ix = runST $ do
     ksMut <- I.new szMin
     vsMut <- I.new szMin
-    I.copy ksMut 0 ks 0 ix
-    I.copy vsMut 0 vs 0 ix
+    I.copy ksMut 0 (I.slice ks 0 ix)
+    I.copy vsMut 0 (I.slice vs 0 ix)
     let -- TODO: Turn this into a galloping search. It would
         -- probably be worth trying this out on
         -- Data.Set.Internal.intersection first.
@@ -795,14 +790,14 @@ restrict m@(Map ks vs) (Set rs)
     return (Map ks' vs')
 {-# INLINEABLE restrict #-}
 
-fromSet :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+fromSet :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => (k -> v)
   -> Set karr k
   -> Map karr varr k v
 fromSet f (Set arr) = Map arr (I.map f arr)
 {-# INLINE fromSet #-}
 
-fromSetP :: (PrimMonad m, Contiguous karr, Element karr k, Contiguous varr, Element varr v)
+fromSetP :: (PrimMonad m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v)
   => (k -> m v)
   -> Set karr k
   -> m (Map karr varr k v)
@@ -815,7 +810,7 @@ keys (Map k _) = Set k
 elems :: Map karr varr k v -> varr v
 elems (Map _ v) = v
 
-rnf :: (Contiguous karr, Element karr k, Contiguous varr, Element varr v, NFData k, NFData v)
+rnf :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, NFData k, NFData v)
   => Map karr varr k v
   -> ()
 rnf (Map k v) = seq (I.rnf k) (seq (I.rnf v) ())

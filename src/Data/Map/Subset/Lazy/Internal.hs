@@ -23,7 +23,7 @@ import Prelude hiding (lookup,concat)
 import Data.Bifunctor (first)
 import Data.Bool (bool)
 import Data.Primitive (Array)
-import Data.Primitive.Contiguous (Contiguous,Element)
+import Data.Primitive.Contiguous (ContiguousU,Element)
 import Data.Semigroup (Semigroup,(<>),First(..))
 import Data.Set.Internal (Set(..))
 
@@ -61,12 +61,12 @@ instance (Show k, Show v) => Show (Map k v) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (P.map (first SL.Set) (toList xs))
 
-toList :: (Contiguous arr, Element arr k)
+toList :: (ContiguousU arr, Element arr k)
   => Map k v
   -> [(Set arr k,v)]
 toList = foldrWithKey (\k v xs -> (k,v) : xs) []
 
-fromList :: (Contiguous arr, Element arr k, Ord k)
+fromList :: (ContiguousU arr, Element arr k, Ord k)
   => [(Set arr k,v)]
   -> Map k v
 fromList = fmap getFirst . concat . P.map (\(s,v) -> singleton s (First v))
@@ -76,7 +76,7 @@ concat :: (Ord k,Semigroup v)
   -> Map k v
 concat = F.foldl' (\r x -> append r x) empty
 
-foldrWithKey :: (Contiguous arr, Element arr k)
+foldrWithKey :: (ContiguousU arr, Element arr k)
   => (Set arr k -> v -> b -> b)
   -> b
   -> Map k v
@@ -90,27 +90,27 @@ foldrWithKey f b0 = go 0 [] b0 where
 empty :: Map k v
 empty = MapEmpty
 
-singleton :: (Contiguous arr, Element arr k)
+singleton :: (ContiguousU arr, Element arr k)
   => Set arr k
   -> v
   -> Map k v
 singleton s v = S.foldr (\k m -> MapElement k m empty) (MapValue v) s
 
-antisingleton :: (Contiguous arr, Element arr k)
+antisingleton :: (ContiguousU arr, Element arr k)
   => Set arr k
   -> v
   -> Map k v
 antisingleton s v = S.foldr (\k m -> MapElement k empty m) (MapValue v) s
 
-fromPolarities :: (Contiguous karr, Element karr k)
+fromPolarities :: (ContiguousU karr, Element karr k)
   => M.Map karr Array k Bool
   -> v
   -> Map k v
 fromPolarities s v = M.foldrWithKey
   (\k p m -> MapElement k (bool empty m p) (bool m empty p))
   (MapValue v) s
-  
-lookup :: forall arr k v. (Ord k, Contiguous arr, Element arr k)
+
+lookup :: forall arr k v. (Ord k, ContiguousU arr, Element arr k)
   => Set arr k
   -> Map k v
   -> Maybe v
