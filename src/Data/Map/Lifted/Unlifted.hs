@@ -42,15 +42,15 @@ import Prelude hiding (lookup,map,traverse)
 
 import Data.Semigroup (Semigroup)
 import Data.Primitive (Array)
-import Data.Primitive.Unlifted.Array (UnliftedArray)
-import Data.Primitive.Unlifted.Class (PrimUnlifted)
+import Data.Primitive.Unlifted.Array (UnliftedArray_,UnliftedArray)
+import Data.Primitive.Unlifted.Class (PrimUnlifted,Unlifted)
 import Data.Set.Lifted.Internal (Set(..))
 import qualified GHC.Exts as E
 import qualified Data.Semigroup as SG
 import qualified Data.Map.Internal as I
 
 -- | A map from keys @k@ to values @v@.
-newtype Map k v = Map (I.Map Array UnliftedArray k v)
+newtype Map k v = Map (I.Map Array (UnliftedArray_ (Unlifted v)) k v)
 
 instance (Ord k, Semigroup v, PrimUnlifted v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.append x y)

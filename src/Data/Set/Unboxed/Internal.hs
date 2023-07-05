@@ -50,15 +50,8 @@ instance PrimUnlifted (Set a) where
   type Unlifted (Set a) = E.ByteArray#
   {-# inline toUnlifted# #-}
   {-# inline fromUnlifted# #-}
-  {-# inline writeUnliftedArray# #-}
-  {-# inline readUnliftedArray# #-}
-  {-# inline indexUnliftedArray# #-}
   toUnlifted# (Set (I.Set p)) = toUnlifted# p
   fromUnlifted# b# = Set (I.Set (PrimArray b#))
-  writeUnliftedArray# a i s = E.writeByteArrayArray# a i (toUnlifted# s)
-  readUnliftedArray# a i s0 = case E.readByteArrayArray# a i s0 of
-    (# s1, x #) -> (# s1, fromUnlifted# x #)
-  indexUnliftedArray# a i = fromUnlifted# (E.indexByteArrayArray# a i)
 
 -- | The functions that convert a list to a 'Set' are asymptotically
 -- better that using @'foldMap' 'singleton'@, with a cost of /O(n*log n)/

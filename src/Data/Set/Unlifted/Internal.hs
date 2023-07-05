@@ -13,10 +13,9 @@ module Data.Set.Unlifted.Internal
 import Prelude hiding (foldr)
 
 import Data.Hashable (Hashable)
-import Data.Primitive.Unlifted.Array (UnliftedArray)
-import Data.Primitive.Unlifted.Class (PrimUnlifted)
+import Data.Primitive.Unlifted.Array (UnliftedArray,UnliftedArray_)
+import Data.Primitive.Unlifted.Class (PrimUnlifted,Unlifted)
 import Data.Primitive (Array)
-import Data.Semigroup (Semigroup)
 
 import qualified Data.Foldable as F
 import qualified Data.Hashable as H
@@ -24,7 +23,7 @@ import qualified Data.Semigroup as SG
 import qualified Data.Set.Internal as I
 import qualified GHC.Exts as E
 
-newtype Set a = Set { getSet :: I.Set UnliftedArray a }
+newtype Set a = Set { getSet :: I.Set (UnliftedArray_ (Unlifted a)) a }
 
 instance (Ord a, PrimUnlifted a) => Semigroup (Set a) where
   Set x <> Set y = Set (I.append x y)

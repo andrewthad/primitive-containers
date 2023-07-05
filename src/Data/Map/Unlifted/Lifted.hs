@@ -39,8 +39,8 @@ import Prelude hiding (lookup,map,traverse)
 
 import Control.Monad.ST (ST)
 import Data.Semigroup (Semigroup)
-import Data.Primitive.Unlifted.Array (UnliftedArray,MutableUnliftedArray)
-import Data.Primitive.Unlifted.Class (PrimUnlifted)
+import Data.Primitive.Unlifted.Array (UnliftedArray_,UnliftedArray,MutableUnliftedArray)
+import Data.Primitive.Unlifted.Class (PrimUnlifted,Unlifted)
 import Data.Primitive (Array,MutableArray)
 import Data.Set.Unlifted.Internal (Set(..))
 import qualified GHC.Exts as E
@@ -53,7 +53,7 @@ import qualified Data.Map.Internal as I
 --
 --   The data constructor for this type should not be exported.
 --   I am working on this.
-newtype Map k v = Map (I.Map UnliftedArray Array k v)
+newtype Map k v = Map (I.Map (UnliftedArray_ (Unlifted k)) Array k v)
 
 instance (PrimUnlifted k, Ord k, Semigroup v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.append x y)

@@ -48,8 +48,8 @@ import Control.Monad.Primitive (PrimMonad)
 import Control.Monad.ST (ST)
 import Data.Primitive (PrimArray,MutablePrimArray)
 import Data.Primitive.Types (Prim)
-import Data.Primitive.Unlifted.Array (UnliftedArray,MutableUnliftedArray)
-import Data.Primitive.Unlifted.Class (PrimUnlifted)
+import Data.Primitive.Unlifted.Array (UnliftedArray_,UnliftedArray,MutableUnliftedArray)
+import Data.Primitive.Unlifted.Class (Unlifted,PrimUnlifted)
 import Data.Semigroup (Semigroup)
 import Data.Set.Unboxed.Internal (Set(..))
 
@@ -58,9 +58,9 @@ import qualified Data.Map.Internal as I
 import qualified Data.Semigroup as SG
 import qualified GHC.Exts as E
 
--- | A map from keys @k@ to values @v@. The key type and the value
---   type must both have 'Prim' instances.
-newtype Map k v = Map (I.Map PrimArray UnliftedArray k v)
+-- | A map from keys @k@ to values @v@. The key type must have a
+-- 'Prim' instance.
+newtype Map k v = Map (I.Map PrimArray (UnliftedArray_ (Unlifted v)) k v)
 
 instance (Prim k, Ord k, PrimUnlifted v, Semigroup v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.append x y)

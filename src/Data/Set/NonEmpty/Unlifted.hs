@@ -30,9 +30,8 @@ module Data.Set.NonEmpty.Unlifted
 import Prelude hiding (foldr,foldMap,null)
 
 import Data.Hashable (Hashable)
-import Data.Primitive.Unlifted.Array (UnliftedArray)
-import Data.Primitive.Unlifted.Class (PrimUnlifted)
-import Data.Semigroup (Semigroup)
+import Data.Primitive.Unlifted.Array (UnliftedArray,UnliftedArray_)
+import Data.Primitive.Unlifted.Class (Unlifted,PrimUnlifted)
 import Data.List.NonEmpty (NonEmpty)
 
 import qualified Data.Foldable as F
@@ -44,7 +43,7 @@ import qualified GHC.Exts as E
 import qualified Data.Set.Unlifted as S
 import qualified Data.Set.Unlifted.Internal as SI
 
-newtype Set a = Set (I.Set UnliftedArray a)
+newtype Set a = Set (I.Set (UnliftedArray_ (Unlifted a)) a)
 
 instance (Ord a, PrimUnlifted a) => Semigroup (Set a) where
   Set x <> Set y = Set (I.append x y)

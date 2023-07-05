@@ -244,15 +244,15 @@ mapWithKey f (Map ks vs) = runST $ do
   return (Map ksFinal vsFinal)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
-mapMaybe :: forall karr varr k v w. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
+mapMaybe :: forall karr varr varr' k v w. (ContiguousU karr, Element karr k, ContiguousU varr, ContiguousU varr', Element varr v, Element varr' w)
   => (v -> Maybe w)
   -> Map karr varr k v
-  -> Map karr varr k w
+  -> Map karr varr' k w
 {-# INLINE mapMaybe #-}
 mapMaybe f (Map ks vs) = runST $ do
   let !sz = I.size vs
   !(karr :: Mutable karr s k) <- I.new sz
-  !(varr :: Mutable varr s w) <- I.new sz
+  !(varr :: Mutable varr' s w) <- I.new sz
   let go !ixSrc !ixDst = if ixSrc < sz
         then do
           a <- I.indexM vs ixSrc
@@ -269,15 +269,15 @@ mapMaybe f (Map ks vs) = runST $ do
   return (Map ksFinal vsFinal)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
-mapMaybeP :: forall karr varr m k v w. (PrimMonad m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
+mapMaybeP :: forall karr varr varr' m k v w. (PrimMonad m, ContiguousU karr, Element karr k, ContiguousU varr, ContiguousU varr', Element varr v, Element varr' w)
   => (v -> m (Maybe w))
   -> Map karr varr k v
-  -> m (Map karr varr k w)
+  -> m (Map karr varr' k w)
 {-# INLINE mapMaybeP #-}
 mapMaybeP f (Map ks vs) = do
   let !sz = I.size vs
   !(karr :: Mutable karr (PrimState m) k) <- I.new sz
-  !(varr :: Mutable varr (PrimState m) w) <- I.new sz
+  !(varr :: Mutable varr' (PrimState m) w) <- I.new sz
   let go !ixSrc !ixDst = if ixSrc < sz
         then do
           a <- I.indexM vs ixSrc
@@ -294,15 +294,15 @@ mapMaybeP f (Map ks vs) = do
   return (Map ksFinal vsFinal)
 
 -- | /O(n)/ Drop elements for which the predicate returns 'Nothing'.
-mapMaybeWithKey :: forall karr varr k v w. (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
+mapMaybeWithKey :: forall karr varr varr' k v w. (ContiguousU karr, Element karr k, ContiguousU varr, ContiguousU varr', Element varr v, Element varr' w)
   => (k -> v -> Maybe w)
   -> Map karr varr k v
-  -> Map karr varr k w
+  -> Map karr varr' k w
 {-# INLINEABLE mapMaybeWithKey #-}
 mapMaybeWithKey f (Map ks vs) = runST $ do
   let !sz = I.size vs
   !(karr :: Mutable karr s k) <- I.new sz
-  !(varr :: Mutable varr s w) <- I.new sz
+  !(varr :: Mutable varr' s w) <- I.new sz
   let go !ixSrc !ixDst = if ixSrc < sz
         then do
           k <- I.indexM ks ixSrc
@@ -635,18 +635,18 @@ foldlMapWithKeyM' f (Map ks vs) = go 0 mempty
     else return accl
 {-# INLINEABLE foldlMapWithKeyM' #-}
 
-traverse :: (Applicative m, ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr w)
+traverse :: (Applicative m, ContiguousU karr, Element karr k, ContiguousU varr, ContiguousU varr', Element varr v, Element varr' w)
   => (v -> m w)
   -> Map karr varr k v
-  -> m (Map karr varr k w)
+  -> m (Map karr varr' k w)
 {-# INLINEABLE traverse #-}
 traverse f (Map theKeys theVals) =
   fmap (Map theKeys) (I.traverse f theVals)
 
-traverseWithKey :: (ContiguousU karr, Element karr k, ContiguousU varr, Element varr v, Element varr v', Applicative f)
+traverseWithKey :: (ContiguousU karr, Element karr k, ContiguousU varr, ContiguousU varr', Element varr v, Element varr' v', Applicative f)
   => (k -> v -> f v')
   -> Map karr varr k v
-  -> f (Map karr varr k v')
+  -> f (Map karr varr' k v')
 {-# INLINEABLE traverseWithKey #-}
 traverseWithKey f (Map theKeys theVals) = fmap (Map theKeys)
   $ I.itraverse (\i v -> f (I.index theKeys i) v) theVals

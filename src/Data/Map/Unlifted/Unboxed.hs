@@ -39,8 +39,8 @@ import Prelude hiding (lookup,map,traverse)
 import Control.Monad.ST (ST)
 import Data.Semigroup (Semigroup)
 import Data.Primitive.Types (Prim)
-import Data.Primitive.Unlifted.Array (UnliftedArray,MutableUnliftedArray)
-import Data.Primitive.Unlifted.Class (PrimUnlifted)
+import Data.Primitive.Unlifted.Array (UnliftedArray_,UnliftedArray,MutableUnliftedArray)
+import Data.Primitive.Unlifted.Class (PrimUnlifted,Unlifted)
 import Data.Primitive.PrimArray (PrimArray,MutablePrimArray)
 import Data.Set.Unlifted.Internal (Set(..))
 import qualified GHC.Exts as E
@@ -50,7 +50,7 @@ import qualified Data.Map.Internal as I
 -- | A map from keys @k@ to values @v@. The key type must have a
 --   'PrimUnlifted' instance and the value type must have a 'Prim'
 --   instance.
-newtype Map k v = Map (I.Map UnliftedArray PrimArray k v)
+newtype Map k v = Map (I.Map (UnliftedArray_ (Unlifted k)) PrimArray k v)
 
 instance (PrimUnlifted k, Ord k, Prim v, Semigroup v) => Semigroup (Map k v) where
   Map x <> Map y = Map (I.append x y)

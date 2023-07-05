@@ -1,6 +1,6 @@
 cabal-version: 2.0
 name: primitive-containers
-version: 0.5.0
+version: 0.5.1
 synopsis: containers backed by arrays
 description:
   Containers backed by flat arrays. Updates require rebuilding the
@@ -39,7 +39,7 @@ library
     , primitive-sort >= 0.1.1 && < 0.2
     , hashable >= 1.2.5
     , deepseq >= 1.4
-    , primitive-unlifted >= 0.1 && <0.2
+    , primitive-unlifted >= 2.1 && <2.2
   if flag(checked)
     build-depends:
         contiguous-checked >= 0.4 && < 0.6
@@ -91,7 +91,7 @@ test-suite test
     , containers >= 0.5.10
     , primitive
     , primitive-containers
-    , primitive-unlifted >= 0.1.1
+    , primitive-unlifted >= 2.1
     , quickcheck-classes >= 0.6.2
     , tasty
     , tasty-hunit
@@ -110,7 +110,7 @@ benchmark gauge
   build-depends:
       base >= 4.8 && < 4.12
     , primitive
-    , primitive-unlifted >= 0.1.1
+    , primitive-unlifted >= 2.1
     , primitive-containers
     , ghc-prim
     , gauge
