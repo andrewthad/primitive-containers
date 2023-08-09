@@ -47,7 +47,7 @@ library
   else
     build-depends:
         contiguous >= 0.4 && < 0.7
-      , primitive >= 0.6.4 && < 0.8
+      , primitive >= 0.6.4 && < 0.10
   exposed-modules:
     Data.Continuous.Set.Lifted
     Data.Diet.Map.Strict.Unboxed.Lifted
